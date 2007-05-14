@@ -1,0 +1,5 @@
+if(true)
+if(false)
+ void(0)
+else
+ print(5)
