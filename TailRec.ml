@@ -1,0 +1,94 @@
+(**
+   Replaces tail reccursions with loops...
+*)
+let contlbl="$body"
+type fid= string*string list
+type tail=
+ | TailCall
+ | Return
+ | Instr
+
+type pos=
+ | Tail of fid
+ | InFunc of fid
+ | Main
+
+let mergeTailInfo b1 b2=
+ match b1,b2 with
+  | TailCall ,_ | _,TailCall -> TailCall
+  | Return,_ | _,Return -> Return
+  | _ -> Instr
+
+module TailMon=
+struct
+ type 'a m = pos -> 'a * tail
+ let return a=fun _ -> (a,Instr)
+ let bind (x:'a m) (f:'a -> 'b m): 'b m =
+  fun b ->
+   let b = match b with
+    | Tail i -> InFunc i
+    | b -> b
+   in
+   let v,b1 = x b in
+   let r,b2  = f v b in
+   let tail = mergeTailInfo b1 b2
+   in
+   r,tail
+ let run x = fst (x Main)
+end
+
+module T=AstJs.Trav.Map(TailMon);;
+
+module D=T.Make(
+ functor(S:T.T) ->
+ struct
+  module Super=T.Base(S)
+  include Super
+  let instr i pos =
+   let tailCall al el=
+    let aff1=List.map2  (fun a e -> `Assign (`Ident ("$"^a),e)) al el
+    and aff2=List.map (fun a -> `Assign (`Ident a,`Lval (`Ident ("$"^a)))) al in
+    `Bloc (aff1@aff2@[`Continue contlbl]),TailCall
+   in
+   match i,pos with
+    | `If(e,b1,b2),pos ->
+       let b1,ret1 = S.instr b1 pos
+       and b2,ret2 = S.instr b2 pos
+       in `If(e,b1,b2),(mergeTailInfo ret1 ret2)
+    | `Ret (`Call (`Lval (`Ident i),el)),(Tail (fname,args) | InFunc
+     (fname,args)) when i=fname ->
+      tailCall args el
+    | (`Ret _ | `Return),_ -> i,Return
+    | `Call (`Lval (`Ident i),el),Tail (fname,args) when i=fname ->
+       tailCall args el
+    | `Fundecl (fname,args,body),_ ->
+       let body,tail = S.instr body (Tail (fname,args)) in
+       let body=
+        if tail=TailCall then
+         `Loop (contlbl,body)
+        else
+         body
+       in
+       `Fundecl (fname,args,body),Instr
+    | _ -> Super.instr i pos
+
+  let bloc b pos=
+   let rec aux= function
+    | [] -> (match pos with Tail _ -> [`Return] | _ -> []),Return
+    | [x] ->
+       let i,tcall=S.instr x pos in(
+        match i,pos,tcall with
+         | _,Tail _,Instr -> [i;`Return],Return
+         | _ -> [i],tcall)
+    | x::l ->
+       let i,_=(S.instr x Main)
+       and l,tcall=aux l in
+       i::l,tcall
+   in
+   let l,ret=aux b in
+   l,ret
+ end
+)
+
+let run p =
+ TailMon.run (D.program p)

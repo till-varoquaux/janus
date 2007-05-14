@@ -1,0 +1,127 @@
+open Printf
+open Pp
+open AstJs
+
+let join (conv:'a -> doc) (l:'a list) (sep:doc):doc=
+ let first=ref true in
+ let aux beg el =
+  match (conv el),!first with
+   | c,_ when c=empty -> empty
+   | c,true ->
+       first:=false;
+       c
+   | c,false ->
+      beg ^^ sep ^^ c
+ in
+ List.fold_left aux empty l
+
+let rec ident id=
+ text id
+and constant = function
+ | `Bool true -> text "true"
+ | `Bool false -> text "false"
+ | `Int i -> text (string_of_int i)
+ | `Float f -> text (string_of_float f)
+
+(*TODO: replace with jerom's function*)
+and expr ?(guard=false) =
+ let wrap b=
+  if guard then
+   (text "(") ^^ b ^^ (text ")")
+  else
+   b
+ and ep e=
+  expr ~guard:true e
+ in
+ function
+  | `Cst c -> constant c
+  | `Lval v -> lvalue v
+  | `Call (f,args) ->
+     let args=join expr args (text ",")
+     in
+     (expr f) ^^ (text "(")^^args^^ (text ")")
+  | `Unop (op,e) ->
+     wrap ((unop op) ^^ (ep e))
+  | `Binop (op,e1,e2) ->
+     wrap (ep e1) ^^ (binop op) ^^ (ep e2)
+  (*| `Fun (args,b) -> (text "function(") ^^ (join ident args (text ","))
+     ^^ (text ")") ^^ (bloc b)*)
+
+and cond e=
+ (text "(") ^^ (expr e) ^^ (text ")")
+
+and unop u = text (match u with
+                    | `Not -> "!"
+                    | `Minus -> "-"
+                  )
+
+and binop b = text (match b with
+                     | `Eq -> "=="
+                     | `Neq -> "!="
+                     | `Lt -> "<"
+                     | `Le -> "=<"
+                     | `Gt -> ">"
+                     | `Ge -> ">="
+                     | `Add -> "+"
+                     | `Sub -> "-"
+                     | `Mul -> "*"
+                     | `Div -> "/"
+                     | `Mod -> "%"
+                     | `And -> "&&"
+                     | `Or  -> "||")
+
+and lvalue = function
+ | `Ident i -> ident i
+ | `Array (l,e) -> (lvalue l) ^^ (text "[") ^^ (expr e) ^^ (text "]")
+
+and macroelem al= function
+ | `Literal l -> text l
+ | `Ident i -> List.nth al i
+and instr (i:instr)=
+ let r=match i with
+  | `Bloc il -> bloc il
+  | `Vdecl [] -> empty
+  | `Vdecl l -> (text "var ") ^^ (join ident l (text ","))
+  | `Fundecl(i,args,b) ->
+     (text "function ")^^(ident i)^^(text "(")^^
+      (join ident args (text ","))^^ (text ")") ^^ (instr b)
+  | `Vardecl (i,e) -> (text "var ") ^^ (ident i) ^^ (text "=") ^^ (expr e)
+  | `Assign (l,e) -> (lvalue l) ^^ (text "=") ^^ (expr e)
+  | `If (e,b,`Bloc []) -> (text "if") ^^ (cond e) ^^ (instr b)
+  | `If (e,b1,(`If _ as b2)) ->
+     (text "if") ^^ (cond e) ^^ (instr b1) ^^ (text "else")^^ break ^^
+      (instr b2)
+  | `If (e,b1,b2) ->(text "if") ^^ (cond e) ^^ (instr b1) ^^
+     (text "else") ^^ (instr b2)
+  | `While (e,b) -> (text "while") ^^ (cond e) ^^ (instr b)
+  | `Loop (lbl,b) -> (ident lbl) ^^ (text ":while(true)") ^^ (instr b)
+  | `Continue lbl -> (text "continue") ^^ break ^^ (ident lbl)
+  | `Call (f,args) ->
+     let args=join expr args (text ",")
+     in
+     (expr f) ^^ (text "(")^^args^^ (text ")")
+  | `Ret (e) ->
+     (text "return")^^break^^(expr e)
+  | `Return -> text "return"
+  | `TemplateCall (al,b) ->
+     let al=List.map expr al in
+     join (macroelem al) b empty
+ in
+ if r=empty then
+  empty
+ else
+  fgrp r
+
+and aff (i,e)=
+  (ident i) ^^ (text "=") ^^ (expr e)
+and join_instrs l=
+ join instr l ((text ";")^^break)
+
+and printBloc = function
+ | `Bloc l -> bloc l
+ | i -> bloc [i]
+
+and bloc l =
+ vgrp((text "{")^^(vgrp(nest 4 (break^^(join_instrs l)))^^break)^^(text "}"))
+and print (p:program):unit=
+ print_string (ppToString 80 (vgrp((join_instrs p)^^break)))
