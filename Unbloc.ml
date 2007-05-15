@@ -1,7 +1,7 @@
 (*Performs dead code elimination*)
 
-module Mon=Monad.Id
-module T=AstJs.Trav.Map(Mon);;
+module Id=Monad.Id
+module T=AstJs.Trav.Map(Id);;
 
 module D=T.Make(
  functor(S:T.T) ->
@@ -43,5 +43,5 @@ module D=T.Make(
  end
 )
 
-let run p =
- Mon.run (D.program p)
+let run=
+ D.program

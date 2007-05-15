@@ -1,10 +1,4 @@
-module Id=
-struct
- type 'a m='a
- let return a=a
- let bind a f= f a
- let run a=a
-end
+module Id=Monad.Id
 
 let rec unroll = function
  | [] -> []
@@ -46,6 +40,5 @@ module D=T.Make(
    | i -> Super.instr i
  end)
 
-let run p =
- Id.run (D.program p)
-
+let run=
+ D.program
