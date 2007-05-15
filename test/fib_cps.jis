@@ -1,4 +1,3 @@
-cps_macro sleep(n) ${setTimeout($cont,$n)}$;
 var do_callback=function(num) {
   print(num);
 };
@@ -8,7 +7,6 @@ var fib=cps(res){
   var j = 1;
   var n = 0;
   while (n < res) {
-    sleep(300);
     do_callback(i);
     var t = i;
     i := 0;

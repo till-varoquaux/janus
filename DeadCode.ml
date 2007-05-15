@@ -1,4 +1,6 @@
-(*Performs dead code elimination*)
+(**
+   Performs dead code elimination
+*)
 
 module RetMon=
 struct
@@ -15,16 +17,7 @@ module D=T.Make(
  struct
   module Super=T.Base(S)
   include Super
-  let instr = function
-   | `Ret e ->
-      let (e,_) = S.expr e in
-      (`Ret e,true)
-   | `If (e,b1,b2) ->
-      let (e,_) = S.expr e
-      and (b1,c1) = S.instr b1
-      and (b2,c2) = S.instr b2 in
-      (`If (e,b1,b2)),(c1 && c2)
-   | i -> Super.instr i
+
   let bloc b =
    let rec aux res= function
     | [] -> res,false
@@ -35,6 +28,20 @@ module D=T.Make(
         | x,false -> aux (x::res) l   in
    let l,ret=aux [] b in
    (List.rev l),ret
+
+  let instr = function
+   | `Bloc b ->
+      let b',ret=bloc b in
+      `Bloc b',ret
+   | `Ret e ->
+      let (e,_) = S.expr e in
+      (`Ret e,true)
+   | `If (e,b1,b2) ->
+      let (e,_) = S.expr e
+      and (b1,c1) = S.instr b1
+      and (b2,c2) = S.instr b2 in
+      (`If (e,b1,b2)),(c1 && c2)
+   | i -> Super.instr i
  end
 )
 

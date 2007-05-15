@@ -19,6 +19,9 @@ let mergeTailInfo b1 b2=
   | Return,_ | _,Return -> Return
   | _ -> Instr
 
+(**
+   We want our navigation functions to take a position and return tailinfo
+*)
 module TailMon=
 struct
  type 'a m = pos -> 'a * tail
@@ -44,6 +47,22 @@ module D=T.Make(
  struct
   module Super=T.Base(S)
   include Super
+  let bloc b pos=
+   let rec aux= function
+    | [] -> (match pos with Tail _ -> [`Return] | _ -> []),Return
+    | [x] ->
+       let i,tcall=S.instr x pos in(
+        match i,pos,tcall with
+         | _,Tail _,Instr -> [i;`Return],Return
+         | _ -> [i],tcall)
+    | x::l ->
+       let i,_=(S.instr x Main)
+       and l,tcall=aux l in
+       i::l,tcall
+   in
+   let l,ret=aux b in
+   l,ret
+
   let instr i pos =
    let tailCall al el=
     let aff1=List.map2  (fun a e -> `Assign (`Ident ("$"^a),e)) al el
@@ -51,6 +70,7 @@ module D=T.Make(
     `Bloc (aff1@aff2@[`Continue contlbl]),TailCall
    in
    match i,pos with
+    | `Bloc b,pos -> let b',pos=bloc b pos in `Bloc b',pos
     | `If(e,b1,b2),pos ->
        let b1,ret1 = S.instr b1 pos
        and b2,ret2 = S.instr b2 pos
@@ -71,22 +91,6 @@ module D=T.Make(
        in
        `Fundecl (fname,args,body),Instr
     | _ -> Super.instr i pos
-
-  let bloc b pos=
-   let rec aux= function
-    | [] -> (match pos with Tail _ -> [`Return] | _ -> []),Return
-    | [x] ->
-       let i,tcall=S.instr x pos in(
-        match i,pos,tcall with
-         | _,Tail _,Instr -> [i;`Return],Return
-         | _ -> [i],tcall)
-    | x::l ->
-       let i,_=(S.instr x Main)
-       and l,tcall=aux l in
-       i::l,tcall
-   in
-   let l,ret=aux b in
-   l,ret
  end
 )
 
