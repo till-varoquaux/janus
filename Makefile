@@ -2,7 +2,7 @@ SHELL = /bin/sh
 TARGET=Main
 OCAMLBUILD=ocamlbuild
 
-OCB=$(OCAMLBUILD) -cflags -warn-error,A
+OCB=$(OCAMLBUILD) -cflags -warn-error,A,-dtypes
 
 ifeq ($(TERM),dumb)
 	OCB += -classic-display
