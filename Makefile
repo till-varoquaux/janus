@@ -1,10 +1,14 @@
+SHELL = /bin/sh
 TARGET=Main
 OCAMLBUILD=ocamlbuild
 
-OCB=$(OCAMLBUILD) -cflags -warn-error,A -classic-display -no-log
+OCB=$(OCAMLBUILD) -cflags -warn-error,A
+
+ifeq ($(TERM),dumb)
+	OCB += -classic-display
+endif
 
 MLI=$(wildcard *.mli)
-DEPS=$(wildcard *.ml*)
 
 export PATH := $(shell dirname $$(which camlp4rf)):$(PATH)
 
@@ -12,21 +16,23 @@ all:byte doc
 
 .PHONY:all clean byte opt dist doc
 
-opt:$(DEPS)
-	$(OCB) $(TARGET).native
+opt:
+	${info * making native code}
+	@$(OCB) $(TARGET).native
 
-byte:$(DEPS)
-	$(OCB) $(TARGET).byte
+byte:
+	${info * making byte code}
+	@$(OCB) $(TARGET).byte
 
 doc:$(MLI)
-	@echo "$(MLI:.mli=)" > doc.odocl
-	$(OCB) doc.docdir/index.html
-	@rm -rf doc.odocl
+	${info * making docs...}
+	@echo "$(basename $(MLI))" > doc.odocl
+	@$(OCB) doc.docdir/index.html
 
 clean:
-	rm -f *~ \#*
-	$(OCB) -clean
-info:
+	${info * cleaning up}
+	@rm -f *~ \#* doc.odocl
+	@$(OCB) -clean
 
 dist:
 	darcs dist
