@@ -12,9 +12,9 @@ MLI=$(wildcard *.mli)
 
 export PATH := $(shell dirname $$(which camlp4rf)):$(PATH)
 
-all:byte doc
+all:byte doc test
 
-.PHONY:all clean byte opt dist doc
+.PHONY:all clean byte opt dist doc test
 
 opt:
 	${info * making native code}
@@ -28,6 +28,10 @@ doc:$(MLI)
 	${info * making docs...}
 	@echo "$(basename $(MLI))" > doc.odocl
 	@$(OCB) doc.docdir/index.html
+
+test:
+	${info * runnning tests}
+	@ocaml runTests.ml
 
 clean:
 	${info * cleaning up}
