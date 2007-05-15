@@ -93,10 +93,10 @@ and instr (i:instr)=
   | `Assign (l,e) -> (lvalue l) ^^ (text "=") ^^ (expr e)
   | `If (e,b,`Bloc []) -> (text "if") ^^ (cond e) ^^ (blocOrInstr b)
   | `If (e,b1,(`If _ as b2)) ->
-     (text "if") ^^ (cond e) ^^ (blocOrInstr b1) ^^ (text "else ")^^
-      (instr b2)
-  | `If (e,b1,b2) ->(text "if") ^^ (cond e) ^^ (blocOrInstr b1) ^^
-     (text "else") ^^ (blocOrInstr b2)
+     (text "if") ^^ (cond e) ^^ (blocOrInstr ~breakAfter:true b1) ^^
+      (text "else ")^^(instr b2)
+  | `If (e,b1,b2) ->(text "if") ^^ (cond e) ^^ (blocOrInstr ~breakAfter:true b1)
+     ^^ (text "else") ^^ (blocOrInstr b2)
   | `While (e,b) -> (text "while") ^^ (cond e) ^^ (blocOrInstr b)
   | `Loop (lbl,b) -> (ident lbl) ^^ (text ":while(true)") ^^ (blocOrInstr b)
   | `Continue lbl -> (text "continue") ^^ break ^^ (ident lbl)
@@ -126,9 +126,13 @@ and printBloc = function
  | `Bloc l -> bloc l
  | i -> bloc [i]
 
-and blocOrInstr = function
+and blocOrInstr ?(breakAfter=false) = function
  | `Bloc b -> bloc b
- | i -> (vgrp(nest 4 (break^^(instr i))))
+ | i ->
+    if breakAfter then
+     vgrp(nest 4 (break^^(instr i))^^ break)
+    else
+     vgrp(nest 4 (break^^(instr i)))
 
 and bloc l =
  vgrp((text "{")^^(vgrp(nest 4 (break^^(join_instrs l)))^^break)^^(text "}"))
