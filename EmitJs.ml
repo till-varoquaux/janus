@@ -77,24 +77,28 @@ and lvalue = function
 and macroelem al= function
  | `Literal l -> text l
  | `Ident i -> List.nth al i
+
 and instr (i:instr)=
  let r=match i with
   | `Bloc il -> bloc il
   | `Vdecl [] -> empty
   | `Vdecl l -> (text "var ") ^^ (join ident l (text ","))
   | `Fundecl(i,args,b) ->
+     let b=(match b with
+             | `Bloc _ -> b
+             | i -> `Bloc [i]) in
      (text "function ")^^(ident i)^^(text "(")^^
       (join ident args (text ","))^^ (text ")") ^^ (instr b)
   | `Vardecl (i,e) -> (text "var ") ^^ (ident i) ^^ (text "=") ^^ (expr e)
   | `Assign (l,e) -> (lvalue l) ^^ (text "=") ^^ (expr e)
-  | `If (e,b,`Bloc []) -> (text "if") ^^ (cond e) ^^ (instr b)
+  | `If (e,b,`Bloc []) -> (text "if") ^^ (cond e) ^^ (blocOrInstr b)
   | `If (e,b1,(`If _ as b2)) ->
-     (text "if") ^^ (cond e) ^^ (instr b1) ^^ (text "else")^^ break ^^
+     (text "if") ^^ (cond e) ^^ (blocOrInstr b1) ^^ (text "else ")^^
       (instr b2)
-  | `If (e,b1,b2) ->(text "if") ^^ (cond e) ^^ (instr b1) ^^
-     (text "else") ^^ (instr b2)
-  | `While (e,b) -> (text "while") ^^ (cond e) ^^ (instr b)
-  | `Loop (lbl,b) -> (ident lbl) ^^ (text ":while(true)") ^^ (instr b)
+  | `If (e,b1,b2) ->(text "if") ^^ (cond e) ^^ (blocOrInstr b1) ^^
+     (text "else") ^^ (blocOrInstr b2)
+  | `While (e,b) -> (text "while") ^^ (cond e) ^^ (blocOrInstr b)
+  | `Loop (lbl,b) -> (ident lbl) ^^ (text ":while(true)") ^^ (blocOrInstr b)
   | `Continue lbl -> (text "continue") ^^ break ^^ (ident lbl)
   | `Call (f,args) ->
      let args=join expr args (text ",")
@@ -114,6 +118,7 @@ and instr (i:instr)=
 
 and aff (i,e)=
   (ident i) ^^ (text "=") ^^ (expr e)
+
 and join_instrs l=
  join instr l ((text ";")^^break)
 
@@ -121,7 +126,12 @@ and printBloc = function
  | `Bloc l -> bloc l
  | i -> bloc [i]
 
+and blocOrInstr = function
+ | `Bloc b -> bloc b
+ | i -> (vgrp(nest 4 (break^^(instr i))))
+
 and bloc l =
  vgrp((text "{")^^(vgrp(nest 4 (break^^(join_instrs l)))^^break)^^(text "}"))
+
 and print (p:program):unit=
  print_string (ppToString 80 (vgrp((join_instrs p)^^break)))
