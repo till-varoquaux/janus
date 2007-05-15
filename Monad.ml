@@ -27,7 +27,7 @@ sig
  val run: 'a m -> 'a
 end
 
-module Id:Runnable=
+module Id=
 struct
  type 'a m='a
  let return a=a

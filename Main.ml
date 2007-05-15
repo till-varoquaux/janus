@@ -27,9 +27,10 @@ let (++) f g x= g (f x)
 let handle=
  CpsTrans.run
  ++Cps.run
- ++BranchMerger.run
  ++DeadCode.run
+ ++BranchMerger.run
  ++TailRec.run
+ ++Unbloc.run
  ++EmitJs.print
 
 let () =
