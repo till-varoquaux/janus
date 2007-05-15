@@ -292,8 +292,8 @@ EXTEND Gram
      $match e with
       | None -> <:str_item< >>
       | Some i ->
-         let sup= <:ident< $id:i$.Trav.Conv(From)(To)(Mon) >> in
-         <:str_item<module Super = $id:sup$ >>
+          let conv = <:ident< $id:i$.Trav.Conv >> in
+          <:str_item<module Super = $id:conv$(From)(To)(Mon) >>
           $;;
 
      (*The whole tree is translated from the first ast to the second*)
