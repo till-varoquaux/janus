@@ -31,7 +31,7 @@ doc:$(MLI)
 
 test:
 	${info * runnning tests}
-	@ocaml runTests.ml
+	@ocaml RunTests.ml
 
 clean:
 	${info * cleaning up}

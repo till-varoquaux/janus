@@ -3,6 +3,9 @@
 *)
 #use "topfind"
 #require "unix"
+#require "str"
+
+exception Fail
 
 let executable="_build/Main.byte"
 let testDir="test"
@@ -23,8 +26,8 @@ let with_open_in filename f=
 (**
    Todo: stop dumping stderr
 *)
-let with_open_process filename f=
- let inc,outc,errc=Unix.open_process_full filename [||] in
+let with_open_process process f=
+ let inc,outc,errc=Unix.open_process_full process [||] in
  let res=(try
            f inc
           with e ->
@@ -36,9 +39,10 @@ let with_open_process filename f=
 let success s=
  Printf.printf "%s: success\n" (Filename.chop_extension s)
 
-let faillure s=
- Printf.eprintf "%s: faillure\n" (Filename.chop_extension s);
- exit 1
+let faillure ?(failled=[]) s=
+ Printf.eprintf "%s: faillure [%s]\n"
+  (Filename.chop_extension s)
+  (String.concat "," failled)
 
 let base s=
  Filename.concat testDir (Filename.chop_extension s)
@@ -63,31 +67,57 @@ let readChannel ic=
 let readFile f=
  with_open_in f readChannel
 
-let run s =
+let passes=
+ let re=Str.regexp "\n"
+ and re2=Str.regexp ":"
+ and shopt,_=with_open_process (executable^" -shoptpasses") readChannel
+ in
+ let res=List.map
+  begin
+   fun s -> match (Str.split re2 s) with
+    | [x;y] -> y,x
+    | _ -> assert false
+  end (Str.split re shopt) in
+ res
+
+let run ?(opt="") s =
  let script = Filename.concat testDir s in
- let process = Printf.sprintf "%s %s | smjs" executable script in
+ let process = Printf.sprintf "%s %s %s | smjs" executable opt script in
  let content,stat=
   try
    with_open_process process readChannel
-  with _ -> faillure s
+  with _ -> raise Fail
  in
  (match stat with
    | Unix.WEXITED 0 -> ()
-   | Unix.WEXITED _ -> faillure s
+   | Unix.WEXITED _ -> raise Fail
    | _ -> assert false);
  content
 
-let check s =
- let expected = readFile ((base s)^ ".expected")
- and result = run s in
- if result=expected then
+let check ?(opt="") s =
+ try
+  let expected = readFile ((base s)^ ".expected")
+  and result = run ~opt:opt s in
+  if result=expected then
+   true
+  else
+   false
+ with Fail ->
+  false
+
+let test s =
+ if check s then
   success s
  else
-  faillure s
+  begin
+   let successfull=List.filter (fun (_,x) -> check ~opt:x s) passes
+   in
+   faillure ~failled:(List.map fst successfull) s
+  end
 
 let tests=
  let fileArray=Sys.readdir testDir in
  let files=Array.to_list fileArray in
  List.filter isTest files
 
-let () = List.iter check tests
+let () = List.iter test tests

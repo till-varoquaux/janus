@@ -40,5 +40,9 @@ module D=T.Make(
    | i -> Super.instr i
  end)
 
-let run=
- D.program
+let pass:#Optimise.pass=
+ object
+  method run=D.program
+  method name="branchmerge"
+  method description="merging common parts beetween branches"
+ end

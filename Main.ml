@@ -5,8 +5,21 @@ open Parser
 
 let usage = Printf.sprintf "usage: %s [options] file" (Filename.basename
                                                         Sys.executable_name)
-let spec =
+let specBase =
  []
+
+let (++) f g x= g (f x)
+
+let opt=new Optimise.opt
+ [DeadCode.pass;BranchMerger.pass;TailRec.pass;Unbloc.pass]
+
+let spec=opt#spec
+
+let handle=
+ CpsTrans.run
+ ++Cps.run
+ ++opt#run
+ ++EmitJs.print
 
 let file =
  let file = ref None in
@@ -21,17 +34,6 @@ let reportLoc (b,e) =
  let fc = b.pos_cnum - b.pos_bol + 1 in
  let lc = e.pos_cnum - b.pos_bol + 1 in
  eprintf "File \"%s\", line %d, characters %d-%d:\n" file l fc lc
-
-let (++) f g x= g (f x)
-
-let handle=
- CpsTrans.run
- ++Cps.run
- ++DeadCode.run
- ++BranchMerger.run
- ++TailRec.run
- ++Unbloc.run
- ++EmitJs.print
 
 let () =
   let c = open_in file in

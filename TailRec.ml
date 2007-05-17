@@ -94,5 +94,10 @@ module D=T.Make(
  end
 )
 
-let run p =
- TailMon.run (D.program p)
+let pass:#Optimise.pass=
+ object
+  method run p =
+   TailMon.run (D.program p)
+  method name="tro"
+  method description="tail recursion elemination"
+ end

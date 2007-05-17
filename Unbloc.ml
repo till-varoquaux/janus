@@ -43,5 +43,10 @@ module D=T.Make(
  end
 )
 
-let run=
- D.program
+let pass:#Optimise.pass=
+object
+ method run p =
+  D.program p
+ method name="unbloc"
+ method description="bloc simplification"
+end

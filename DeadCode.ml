@@ -45,5 +45,10 @@ module D=T.Make(
  end
 )
 
-let run p =
- RetMon.run (D.program p)
+let pass:#Optimise.pass=
+object
+ method run p =
+  RetMon.run (D.program p)
+ method name="deadcode"
+ method description="deadcode elimination"
+end
