@@ -2,7 +2,18 @@
    Replaces tail reccursions with loops...
 *)
 let contlbl="$body"
+
+(**
+   This is an object we'll push on the stack to have a local context
+*)
+let jsCtxId = "$ctx"
+let jsCtx=`Ident jsCtxId
+
+(**
+   Function id
+*)
 type fid= string*string list
+
 type tail=
  | TailCall
  | Return
@@ -64,10 +75,14 @@ module D=T.Make(
    l,ret
 
   let instr i pos =
+   let newCtx=(`Assign (jsCtx,`EmptyCtx))
+   and ctxAff a e =  `Assign (`Access  (jsCtx,a),e) in
    let tailCall al el=
-    let aff1=List.map2  (fun a e -> `Assign (`Ident ("$"^a),e)) al el
-    and aff2=List.map (fun a -> `Assign (`Ident a,`Lval (`Ident ("$"^a)))) al in
-    `Bloc (aff1@aff2@[`Continue contlbl]),TailCall
+    if al=[] then
+     `Continue contlbl,TailCall
+    else
+     let aff=List.map2  ctxAff al el in
+     `Bloc (newCtx::aff@[`Continue contlbl]),TailCall
    in
    match i,pos with
     | `Bloc b,pos -> let b',pos=bloc b pos in `Bloc b',pos
@@ -85,7 +100,11 @@ module D=T.Make(
        let body,tail = S.instr body (Tail (fname,args)) in
        let body=
         if tail=TailCall then
-         `Loop (contlbl,body)
+         if args=[] then
+          `Loop (contlbl,body)
+         else
+          let aff=List.map (fun i -> ctxAff i (`Lval (`Ident i))) args in
+          `Bloc ((`Vdecl [jsCtxId])::newCtx::aff@[`Loop (contlbl,(`WithCtx (`Lval jsCtx,body)))])
         else
          body
        in

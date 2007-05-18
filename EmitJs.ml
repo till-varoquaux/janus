@@ -34,6 +34,7 @@ and expr ?(guard=false) =
   expr ~guard:true e
  in
  function
+  | `EmptyCtx -> text "new Object()"
   | `Cst c -> constant c
   | `Lval v -> lvalue v
   | `Call (f,args) ->
@@ -73,6 +74,7 @@ and binop b = text (match b with
 and lvalue = function
  | `Ident i -> ident i
  | `Array (l,e) -> (lvalue l) ^^ (text "[") ^^ (expr e) ^^ (text "]")
+ | `Access (l,i) -> (lvalue l) ^^ (text ".") ^^ (ident i)
 
 and macroelem al= function
  | `Literal l -> text l
@@ -80,6 +82,7 @@ and macroelem al= function
 
 and instr (i:instr)=
  let r=match i with
+  | `WithCtx (e,b) -> (text "with(") ^^ (expr e ) ^^ (text ")") ^^ (blocOrInstr b)
   | `Bloc il -> bloc il
   | `Vdecl [] -> empty
   | `Vdecl l -> (text "var ") ^^ (join ident l (text ","))

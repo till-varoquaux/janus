@@ -78,7 +78,8 @@ and typeLvalue env=function
       | `Macro _ | `CpsMacro _ -> error "Cannot call a macro in an expression"
       | `Arrow _ | `CpsArrow _ | `T as t-> t
     )
- | `Array (lv,e) -> error "not handling arrays yet"
+ | `Array _ -> error "not handling arrays yet"
+ | `Access _ -> error "not handling objects yet"
 
 (**
    Checks that two types are compatible; raises an error if not.
@@ -103,6 +104,10 @@ let rec compatible t1 t2=
 let rec lvalue env=
  function
   | `Ident i -> `Ident (ident i env),[]
+  | `Access (lv,i) ->
+     let lv,ctx = lvalue env lv
+     and i = ident i env in
+     (`Access (lv,i)),ctx
   | `Array (lv,e) ->
      let lv,ctx1 = lvalue env lv
      and e,ctx2 = expr env e in
@@ -168,7 +173,6 @@ and expr ?(inVdecl=false) ?(eType=(`T:ty)) env:expr -> (expr'*ctx)=function
     (match c with
       | `CpsCall (Some a,_,_) as c ->
          (`Lval (`Ident a)),((c:>instr')::ctx)
-          (*Modify ast*)
       | `CpsCall _ -> assert false
       | `Call _ as c -> (c:>expr'),ctx)
  | `Lval lv ->
