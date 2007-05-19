@@ -2,7 +2,9 @@ SHELL = /bin/sh
 TARGET=Main
 OCAMLBUILD=ocamlbuild
 
-OCB=$(OCAMLBUILD) -cflags -warn-error,A,-dtypes
+BUILDDIR=_build
+MODE=byte
+OCB=$(OCAMLBUILD) -j 0 -cflags -warn-error,a,-dtypes
 
 ifeq ($(TERM),dumb)
 	OCB += -classic-display
@@ -10,17 +12,15 @@ endif
 
 MLI=$(wildcard *.mli)
 
-export PATH := $(shell dirname $$(which camlp4rf)):$(PATH)
+all:$(MODE) doc annot check
 
-all:byte doc test
+.PHONY:all clean byte opt dist doc check annot
 
-.PHONY:all clean byte opt dist doc test
-
-opt:
+opt:sane
 	${info * making native code}
 	@$(OCB) $(TARGET).native
 
-byte:
+byte:sane
 	${info * making byte code}
 	@$(OCB) $(TARGET).byte
 
@@ -29,11 +29,17 @@ doc:$(MLI)
 	@echo "$(basename $(MLI))" > doc.odocl
 	@$(OCB) doc.docdir/index.html
 
-test:
+check:$(MODE)
 	${info * runnning tests}
 	@ocaml RunTests.ml
 
-clean:
+sane:
+	@rm -f *.annot
+
+annot:$(MODE)
+	@cp _build/*.annot . 
+
+clean:sane
 	${info * cleaning up}
 	@rm -f *~ \#* doc.odocl
 	@$(OCB) -clean
