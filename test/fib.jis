@@ -6,7 +6,7 @@ var fib=function(res){
   var i = 0;
   var j = 1;
   var n = 0;
-  while (n < res) {
+  while (n <= res) {
     do_callback(i);
     var t = i;
     i := 0;

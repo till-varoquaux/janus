@@ -60,7 +60,7 @@ and binop b = text (match b with
                      | `Eq -> "=="
                      | `Neq -> "!="
                      | `Lt -> "<"
-                     | `Le -> "=<"
+                     | `Le -> "<="
                      | `Gt -> ">"
                      | `Ge -> ">="
                      | `Add -> "+"
