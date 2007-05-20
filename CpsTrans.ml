@@ -6,13 +6,20 @@ type expr'=AstCpsInt.expr
 type program'=AstCpsInt.program
 type ctx=instr' list
 
-type call'=[
-| `CpsCall of (ident' option) * expr' * (expr' list)
-| `Call of expr' * (expr' list)
-]
-
-type call=[`Call of expr * (expr list)]
 exception Fundecl of (bool*(ident' list)*instr')
+ (*Used to move function declarations out of expressions...
+   Should be done in another pass.
+ *)
+
+(**
+   This is the type of a compiled function call...
+*)
+type compiledCall={
+ cps:bool;
+ ctx:ctx;
+ args:expr' list;
+ body:expr'
+}
 
 let redef l i=
  error ~pos:l (Printf.sprintf "cannot redefine \"%s\"" i)
@@ -126,8 +133,12 @@ and args env al : ((expr' list)*ctx)=
  in
  List.fold_right arg al ([],[])
 
-and call inExpr env (`Call (e,al)) : (call'*ctx)=
- let funTy= typeExpr env e in
+(**
+   Takes a function call and returns all the necessary informations to compil it
+   .
+*)
+and callCompile env (`Call (e,al)) : compiledCall =
+  let funTy= typeExpr env e in
  (match funTy with
    | `T -> ()
    | `Arrow (tl,_) | `CpsArrow (tl,_) -> checkArg env al tl
@@ -136,15 +147,14 @@ and call inExpr env (`Call (e,al)) : (call'*ctx)=
  and e,ctx2 = expr env e in
  let ctx=ctx@ctx2
  in
- (match funTy with
-   | `CpsArrow _ ->
-      if inExpr then
-       `CpsCall(Some (Env.fresh ()),e,al),ctx
-      else
-       `CpsCall(None,e,al),ctx
-   | _ ->
-      `Call(e,al),ctx
- ) (*TODO: checks no cps call are made in an non cps environement*)
+ {cps=(match funTy with
+        | `CpsArrow _ -> true
+        | _ -> false);
+  ctx=ctx;
+  args=al;
+  body=e
+ }
+
 and isMacro env=
  function
   | `Pos _ as p -> protect (isMacro env) p
@@ -169,12 +179,12 @@ and expr ?(inVdecl=false) ?(eType=(`T:ty)) env:expr -> (expr'*ctx)=function
  | `Typed (e,t) -> expr env e  ~inVdecl:inVdecl ~eType:t
  | `Cst _ as c -> c,[]
  | `Call _ as c ->
-    let c,ctx =call true env c in
-    (match c with
-      | `CpsCall (Some a,_,_) as c ->
-         (`Lval (`Ident a)),((c:>instr')::ctx)
-      | `CpsCall _ -> assert false
-      | `Call _ as c -> (c:>expr'),ctx)
+    let c = callCompile env c in
+    if c.cps then
+     let ret = Env.fresh ~hint:"AssignedVar" () in
+     `Lval (`Ident ret) ,c.ctx@[(`CpsCall(Some ret,c.body,c.args))]
+    else
+     `Call(c.body,c.args),c.ctx
  | `Lval lv ->
     let lv,ctx = lvalue env lv in
     (`Lval lv),ctx
@@ -249,9 +259,12 @@ and instr env : instr -> (instr' list*Env.t)=
            (ctx@[`CpsTemplateCall (args,b)]),env
         | _ -> assert false)
   | `Call _ as c ->
-     let c,ctx = call false  env c in
-     let c=(c:>instr') in
-     (ctx@[c]),env
+     let c = callCompile env c in
+     let call=if c.cps then
+      `CpsCall(None,c.body,c.args)
+     else
+      `Call(c.body,c.args) in
+     (c.ctx@[call]),env
   | `If (e,b1,b2) ->
      let e,ctx=expr env e
      and b1,env=instr env b1 in
