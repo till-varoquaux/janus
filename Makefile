@@ -1,10 +1,9 @@
 SHELL = /bin/sh
 TARGET=Main
-OCAMLBUILD=ocamlbuild
+OCB=ocamlbuild
 
 BUILDDIR=_build
 MODE=byte
-OCB=$(OCAMLBUILD) -j 0 -cflags -warn-error,a,-dtypes
 
 ifeq ($(TERM),dumb)
 	OCB += -classic-display

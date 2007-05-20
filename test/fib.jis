@@ -1,19 +1,9 @@
-var do_callback=function(num) {
-  print(num);
+var fib=function(n){
+  if(n<=1){
+    return n
+  }else{
+    return fib(n-1)+fib(n-2);
+  }
 };
 
-var fib=function(res){
-  var i = 0;
-  var j = 1;
-  var n = 0;
-  while (n <= res) {
-    do_callback(i);
-    var t = i;
-    i := 0;
-    i := j;
-    j := j+t;
-    n := n+1;
-  };
-};
-
-fib(10);
+print(fib(10));

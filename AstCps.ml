@@ -6,5 +6,5 @@ gram extends AstBase {
  instr := `CpsMacro ident,[ident],macrobloc,[ty]
 | `Macro ident,[ident],macrobloc,[ty]
 | super;
- expr :=  `Fun [ident],instr| `Typed expr,ty | super
+ expr :=  `Fun [ident],instr | `Typed expr,ty | super
 }

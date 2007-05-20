@@ -7,8 +7,10 @@ gram extends AstBase {
 | super;
  instr :=
  `Cpsdecl ident,[ident],instr
- | `CpsCall ident?,expr,[expr]
-    (*a=b(x1...xn)*)
+| `CpsCall ident?,expr,[expr]
+   (**
+      the ident is the return value ("a" in "a=b(x1...xn)"
+   *)
  | `CpsRet expr
  | `CpsTemplateCall [expr],macrobloc
  | super
