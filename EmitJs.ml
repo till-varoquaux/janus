@@ -84,15 +84,15 @@ and instr (i:instr)=
  let r=match i with
   | `WithCtx (e,b) -> (text "with(") ^^ (expr e ) ^^ (text ")") ^^ (blocOrInstr b)
   | `Bloc il -> bloc il
-  | `Vdecl [] -> empty
-  | `Vdecl l -> (text "var ") ^^ (join ident l (text ","))
+  | `Var i -> (text "var ") ^^ (ident i)
+     (*TODO: collapse `Var lists*)
+     (*TODO: Collapse `Var and `Assign*)
   | `Fundecl(i,args,b) ->
      let b=(match b with
              | `Bloc _ -> b
              | i -> `Bloc [i]) in
      (text "function ")^^(ident i)^^(text "(")^^
       (join ident args (text ","))^^ (text ")") ^^ (instr b)
-  | `Vardecl (i,e) -> (text "var ") ^^ (ident i) ^^ (text "=") ^^ (expr e)
   | `Assign (l,e) -> (lvalue l) ^^ (text "=") ^^ (expr e)
   | `If (e,b,`Bloc []) -> (text "if") ^^ (cond e) ^^ (blocOrInstr b)
   | `If (e,b1,(`If _ as b2)) ->

@@ -10,9 +10,7 @@ gram{
  binop := `Eq | `Neq | `Lt | `Le | `Gt | `Ge
    | `Add | `Sub | `Mul | `Div | `Mod | `And | `Or;
  instr :=
-  `Vdecl [ident]
- | `Call expr,[expr]
- | `Vardecl ident,expr
+  `Call expr,[expr]
  | `Fundecl ident,[ident],instr
  | `Assign lvalue,expr
  | `If expr,instr,instr

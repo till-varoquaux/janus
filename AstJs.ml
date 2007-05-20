@@ -8,5 +8,6 @@ gram extends AstBase{
 | `Continue ident
 | `WithCtx expr,instr
 | `Return
+| `Var ident
 | super
 }

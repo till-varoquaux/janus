@@ -104,7 +104,7 @@ module D=T.Make(
           `Loop (contlbl,body)
          else
           let aff=List.map (fun i -> ctxAff i (`Lval (`Ident i))) args in
-          `Bloc ((`Vdecl [jsCtxId])::newCtx::aff@[`Loop (contlbl,(`WithCtx (`Lval jsCtx,body)))])
+          `Bloc ((`Var jsCtxId)::newCtx::aff@[`Loop (contlbl,(`WithCtx (`Lval jsCtx,body)))])
         else
          body
        in

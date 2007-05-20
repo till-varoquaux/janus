@@ -146,7 +146,7 @@ instr_aux:
 | CpsMacro ident Lpar args Rpar  macrobloc {
    let args,args_ty= List.split $4 in
    `CpsMacro ($2,args,$6,args_ty)}
-| Var ident Eq expr  {`Vardecl ($2,$4)}
+| Var ident Eq expr  {`Var ($2,$4)}
 | lvalue Aff expr {`Assign ($1,$3)}
 | If cond bloc_or_instr  {`If ($2,$3,`Bloc [])}
 | If cond bloc_or_instr Else bloc_or_instr

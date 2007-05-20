@@ -220,18 +220,18 @@ and expr ?(inVdecl=false) ?(eType=(`T:ty)) env:expr -> (expr'*ctx)=function
      (*TODO handle lazyness in and and or*)
 and instr env : instr -> (instr' list*Env.t)=
  function
-  | `Fundecl _ | `Vdecl _ | `TemplateCall _-> assert false
+  | `Fundecl _ | `TemplateCall _-> assert false
   | `Pos _ as p -> protect (instr env) p
   | `Macro (i,_,_,_) | `CpsMacro (i,_,_,_) as m ->
      let m=typeMacro m in
      let env=Env.add i m env in
      [],env
-  | `Vardecl (i,e) ->
+  | `Var (i,e) ->
      let env=Env.add i ((typeExpr env e):>ty') env in
      let i=ident i env in
      (try(
        let e,ctx=expr ~inVdecl:true env e in
-       (ctx@[`Vardecl (i,e)]),env
+       (ctx@[`Var (i,e)]),env
       ) with
        | Fundecl (true,il,b) -> [`Cpsdecl (i,il,b)],env
        | Fundecl (false,il,b) -> [`Fundecl (i,il,b)],env

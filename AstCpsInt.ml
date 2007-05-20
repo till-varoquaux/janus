@@ -13,5 +13,6 @@ gram extends AstBase {
    *)
  | `CpsRet expr
  | `CpsTemplateCall [expr],macrobloc
+ | `Var ident,expr
  | super
 }

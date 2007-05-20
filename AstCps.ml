@@ -5,6 +5,7 @@ gram extends AstBase {
  macroitem:= `Ident string | `Literal string;
  instr := `CpsMacro ident,[ident],macrobloc,[ty]
 | `Macro ident,[ident],macrobloc,[ty]
+| `Var ident,expr
 | super;
  expr :=  `Fun [ident],instr | `Typed expr,ty | super
 }
