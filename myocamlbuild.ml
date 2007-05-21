@@ -12,8 +12,8 @@ dispatch begin function
       begin fun env _ ->
         let parse = env "%.parse" and mly = env "%.mly" in
         Cmd(S[A"sed"; A"-e";
-              A("s/\\([a-z].*\\):$/\\1:\\n|a_\\1  \
-                 { ParseInfo.setCurrentRule \"\\1\"; $1 }\\na_\\1:/");
+              A("s/\\([a-z].*\\):$/\\1:|a_\\1  \
+                 { ParseInfo.setCurrentRule \"\\1\"; $1 }a_\\1:/");
               P parse; Sh">"; Px mly])
       end;
 | _ -> ()

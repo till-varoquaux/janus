@@ -1,14 +1,22 @@
 SHELL = /bin/sh
+#Configurable options
 TARGET=Main
 OCB=ocamlbuild
+#YACC=menhir
+MODE=byte
+#end configurable options
 
 BUILDDIR=_build
-MODE=byte
 
 ifeq ($(TERM),dumb)
 	OCB += -classic-display
 endif
 
+ifeq ($(YACC),menhir)
+	OCB += -use-menhir -yaccflags --explain
+else
+	OCB += -yaccflags -v
+endif
 MLI=$(wildcard *.mli)
 
 all:$(MODE) doc annot check
