@@ -1,0 +1,11 @@
+var a=function(){
+	print(1);
+};
+var b=function(){
+	a:=function(){
+		print(2);
+	};
+};
+a();
+b();
+a();

@@ -7,11 +7,12 @@ let cpsCall inf affect=
           | None -> []
           | Some i -> [i])
  and fname=Env.fresh ~hint:"CpsCont" () in
- [(`Var fname);(`Fundecl (fname,args,`Bloc inf))],(`Ident fname)
+ [(`Fundecl (fname,args,`Bloc inf))],(`Ident fname)
 
 let rec instr (i:AstCpsInt.instr) inf=
  match i with
   | `Var (i,e) -> let i:Env.id =i in [`Var i;`Assign (`Ident i,e)]@inf
+                                     (*This could be done in a micro pass*)
   | `Bloc b -> bloc b inf
   | `CpsTemplateCall (el,b) ->
      let call,cont=cpsCall inf None in
@@ -26,8 +27,7 @@ let rec instr (i:AstCpsInt.instr) inf=
       (*optimize me this...*)
   | `If (e,b1,b2) (*when (Env.cps inf.env)*)  ->
      let k=Env.fresh ~hint:"Ite" () in
-     let inf=[`Var k;
-              `Fundecl(k,[],`Bloc inf);
+     let inf=[`Fundecl(k,[],`Bloc inf);
               `Call(`Lval(`Ident k),[])]
      in
      let e1=instr b1 inf in
@@ -37,8 +37,7 @@ let rec instr (i:AstCpsInt.instr) inf=
      let k=Env.fresh ~hint:"While" () in
      let cont=[`Call ((`Lval(`Ident k)),[])] in
      let i=instr i cont in
-     [`Var k;
-      `Fundecl (k,[],`Bloc [`If(e,(`Bloc i),(`Bloc inf))]);
+     [`Fundecl (k,[],`Bloc [`If(e,(`Bloc i),(`Bloc inf))]);
       `Call (`Lval(`Ident k),[])]
   | `CpsRet e ->
      (`Call ((`Lval(`Ident return)),[e]))::inf

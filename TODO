@@ -1,5 +1,4 @@
 Optimisation passes:
-_Hoisting and inlinning should be added
+_Inlinning should be added
 _Cps transformation should be applied when needed
 _Moving fundecls from expressions to instructions should be done in another pass
-_Check the scoping reassigning etc.. of functions.
