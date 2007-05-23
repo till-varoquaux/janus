@@ -182,7 +182,7 @@ and expr ?(inVdecl=false) ?(eType=(`T:ty)) env:expr -> (expr'*ctx)=function
     let c = callCompile env c in
     if c.cps then
      let ret = Env.fresh ~hint:"AssignedVar" () in
-     `Lval (`Ident ret) ,c.ctx@[(`CpsCall(Some ret,c.body,c.args))]
+     `Lval (`Ident ret) ,c.ctx@[`CpsCall(Some ret,c.body,c.args)]
     else
      `Call(c.body,c.args),c.ctx
  | `Lval lv ->
@@ -207,7 +207,7 @@ and expr ?(inVdecl=false) ?(eType=(`T:ty)) env:expr -> (expr'*ctx)=function
      let a = Env.fresh ~hint:"f" ()
      in (`Lval (`Ident a)),[
       if cps then
-       `Cpsdecl(a,il,b)
+       `Cps(`Fundecl(a,il,b))
       else
        `Fundecl(a,il,b)
      ]
@@ -233,7 +233,7 @@ and instr env : instr -> (instr' list*Env.t)=
        let e,ctx=expr ~inVdecl:true env e in
        (ctx@[`Var (i,e)]),env
       ) with
-       | Fundecl (true,il,b) -> [`Cpsdecl (i,il,b)],env
+       | Fundecl (true,il,b) -> [`Cps(`Fundecl (i,il,b))],env
        | Fundecl (false,il,b) -> [`Fundecl (i,il,b)],env
      )
   | `Assign (lv,e) ->
@@ -256,7 +256,7 @@ and instr env : instr -> (instr' list*Env.t)=
         | `CpsMacro (b,tyl) ->
            checkArg env el tyl;
            let args,ctx=args env el in
-           (ctx@[`CpsTemplateCall (args,b)]),env
+           (ctx@[`Cps(`TemplateCall (args,b))]),env
         | _ -> assert false)
   | `Call _ as c ->
      let c = callCompile env c in
@@ -276,7 +276,7 @@ and instr env : instr -> (instr' list*Env.t)=
      let e,ctx=expr env e in
      let r = (
       if Env.cps env then
-       `CpsRet e
+       `Cps(`Ret e)
       else
        `Ret e
      )in

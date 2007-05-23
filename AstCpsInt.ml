@@ -6,13 +6,11 @@ gram extends AstBase {
  `EmptyCtx
 | super;
  instr :=
- `Cpsdecl ident,[ident],instr
+  `Cps instr
 | `CpsCall ident?,expr,[expr]
    (**
       the ident is the return value ("a" in "a=b(x1...xn)"
    *)
- | `CpsRet expr
- | `CpsTemplateCall [expr],macrobloc
- | `Var ident,expr
- | super
+| `Var ident,expr
+| super
 }

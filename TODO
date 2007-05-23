@@ -1,4 +1,3 @@
 Optimisation passes:
 _Inlinning should be added
-_Cps transformation should be applied when needed
 _Moving fundecls from expressions to instructions should be done in another pass

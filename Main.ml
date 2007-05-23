@@ -17,6 +17,7 @@ let spec=opt#spec
 
 let handle=
  CpsTrans.run
+ ++CpsPropagate.run
  ++Cps.run
  ++opt#run
  ++EmitJs.print
