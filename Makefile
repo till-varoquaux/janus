@@ -4,6 +4,8 @@ TARGET=Main
 OCB=ocamlbuild
 #YACC=menhir
 MODE=byte
+PROJECT_NAME=mini_js
+FTP_TARGET=till.varoquaux@login.free.fr:/projectsi/$(PROJECT_NAME)
 #end configurable options
 
 BUILDDIR=_build
@@ -21,7 +23,7 @@ MLI=$(wildcard *.mli)
 
 all:$(MODE) doc annot check
 
-.PHONY:all clean byte opt dist doc check annot
+.PHONY:all clean byte opt dist doc check annot web
 
 opt:sane
 	${info * making native code}
@@ -46,9 +48,16 @@ sane:
 annot:$(MODE)
 	@cp _build/*.annot . 
 
+web:
+	rm -rf web
+	darcs get . --repo-name=web
+	cd web;\
+	lp4all -p "$(PROJECT_NAME)" *.ml;\
+	lftp -c "open $(FTP_TARGET); mirror -Renv --parallel=5 "
+
 clean:sane
 	${info * cleaning up}
-	@rm -f *~ \#* doc.odocl
+	@rm -f *~ \#* doc.odocl parsetab.py sparsetab.py
 	@$(OCB) -clean
 
 dist:
