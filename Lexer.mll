@@ -9,9 +9,8 @@
     let h = Hashtbl.create 17 in
     List.iter (fun (s,k) -> Hashtbl.add h s k)
      [ "if", If; "else", Else; "while", While; "and", And;"not", Not; "var",
-        Var;"or", Or; "true", True;"false", False; "function",
-        Function;"cps",Cps;"return", Return; "macro" , Macro; "cps_macro" ,
-        CpsMacro];
+        Var;"or", Or; "function", Function;"cps",Cps;"return", Return; "macro" ,
+        Macro; "cps_macro" , CpsMacro];
       fun s -> let sl = String.lowercase s in
 	try Hashtbl.find h sl with Not_found -> Ident sl
 
@@ -47,9 +46,9 @@ rule token = parse
  | '_'
    {T}
  | digit+
-   { Integer (int_of_string (lexeme lexbuf)) }
+   { Constant (`Int (int_of_string (lexeme lexbuf))) }
  | float
-   { Real (float_of_string (lexeme lexbuf)) }
+   { Constant (`Float (float_of_string (lexeme lexbuf))) }
  | '('
    { Lpar }
  | ')'
@@ -94,12 +93,35 @@ rule token = parse
    { Comp `Le }
  | "<>"
    { Comp `Neq }
+ | "true"
+   { Constant (`Bool true)}
+ | "false"
+   { Constant (`Bool false)}
+ | "\""
+   { let b=Buffer.create 17 in
+     string (Buffer.add_string b) lexbuf;
+     let s=Buffer.contents b in
+     Constant (`String s) }
  | "${"
     {state:=Macro;macrobloc lexbuf}
  | _
    { raise (Lexical_error ("illegal character: " ^ lexeme lexbuf)) }
  | eof
    { EOF }
+
+and escape a = parse
+ | "\\" | "\"" {a (lexeme lexbuf)}
+ | "\t" {a "\t"}
+ | "\n" {a "\n"}
+ | _ { raise
+        (Lexical_error
+          ("illegal escape character in string: " ^ lexeme lexbuf)
+        )}
+
+and string a = parse
+ | "\"" { () }
+ | "\\" { escape a lexbuf; string a lexbuf }
+ | _ { a (lexeme lexbuf); string a lexbuf }
 
 and macrobloc= parse
  | "}$" {state:=Token;token lexbuf}

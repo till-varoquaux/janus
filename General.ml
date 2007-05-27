@@ -1,3 +1,6 @@
+(*w
+  This file contains many genral utility functions.
+*)
 module List=
  struct
   include List
@@ -10,6 +13,9 @@ module List=
    aux 0 l
  end
 
+(*
+  TODO: This should be moved elsewhere...
+*)
 type ty=[
 | `T (*Base type*)
 | `Arrow of ty list*ty (*Normal application*)

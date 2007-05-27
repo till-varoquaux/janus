@@ -20,7 +20,7 @@ else
 endif
 MLI=$(wildcard *.mli)
 
-all:$(MODE) doc annot check
+all:$(MODE) annot check
 
 Makefile.in:
 	${error You must run configure before make...}

@@ -1,6 +1,6 @@
 gram{
  ident := string;
- constant:= `Bool bool | `Int int | `Float float;
+ constant:= `Bool bool | `Int int | `Float float | `String string;
  expr := `Cst constant | `Lval lvalue | `Call expr,[expr]
    | `Unop unop,expr | `Binop binop,expr,expr;
  unop:= `Not | `Minus;

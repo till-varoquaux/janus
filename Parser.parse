@@ -4,13 +4,12 @@
 
 
 %token <string> Ident
-%token <int> Integer
-%token <float> Real
+%token <AstBase.constant> Constant
 
 /* Keywords */
 
 %token If Else While And Not Var Mod EOF
-%token Function Or True False Return Cps T Macro CpsMacro
+%token Function Or  Return Cps T Macro CpsMacro
 %token <string> MacroIdent
 %token <string> MacroLITERAL
 
@@ -63,15 +62,9 @@ args2:
 | {[]}
 | Comma arg args2 {$2::$3}
 
-constant:
-| True {`Bool(true)}
-| False {`Bool(false)}
-| Integer {`Int($1)}
-| Real {`Float($1)}
-
 expr1:
 | Lpar expr Rpar {$2}
-| constant {`Cst $1}
+| Constant {`Cst $1}
 | lvalue {`Lval $1}
 | fundecl Lpar args Rpar  tyd bloc {
    let args,args_ty= List.split $3 in

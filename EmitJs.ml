@@ -1,6 +1,22 @@
+(*w
+  This is where we will print a javascript document. We will emit a AstJs tree.
+*)
 open Printf
 open Pp
 open AstJs
+
+let escape s=
+ let b=Buffer.create (String.length s) in
+ let a= Buffer.add_string b in
+ let process=function
+  | '\t' -> a "\\t"
+  | '\n' -> a "\\n"
+  | '\"' -> a "\\\""
+  | '\\' -> a "\\\\"
+  | c -> Buffer.add_char b c
+ in
+ String.iter process s;
+ Buffer.contents b
 
 let join (conv:'a -> doc) (l:'a list) (sep:doc):doc=
  let first=ref true in
@@ -22,6 +38,7 @@ and constant = function
  | `Bool false -> text "false"
  | `Int i -> text (string_of_int i)
  | `Float f -> text (string_of_float f)
+ | `String s -> text (sprintf "\"%s\"" (escape s))
 
 (*TODO: replace with jerom's function*)
 and expr ?(guard=false) =

@@ -1,0 +1,5 @@
+/*
+This tests wether string escaping works in the compiler
+*/
+print ("simple string");
+print ("escaped:\\\"")
