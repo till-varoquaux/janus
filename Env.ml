@@ -1,4 +1,4 @@
-open General
+open Pos
 open AstCpsInt
 module C=Map.Make(String)
 type id=AstCpsInt.ident

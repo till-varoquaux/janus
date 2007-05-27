@@ -1,6 +1,7 @@
 (*w
   This pass does all the type checking and marking for cps translations.
 *)
+open Pos
 open General
 open AstStd
 type ty'= AstCpsInt.ty
@@ -13,7 +14,7 @@ type ctx=instr' list
 
 exception Fundecl of (bool*(ident' list)*instr')
  (*Used to move function declarations out of expressions...
-   Should be done in another pass.
+   TODO:Should be done in another pass.
  *)
 
 (**

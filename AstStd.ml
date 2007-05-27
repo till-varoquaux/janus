@@ -1,4 +1,4 @@
-open General
+open Pos
 type p=string pos
 gram extends AstCps {
  import ty,ident,expr,instr,constant,lvalue,unop,binop,program,macrobloc,macroitem;
