@@ -114,6 +114,7 @@ and ruleRHS=
  | Variant of branch list
  | Alias of rule_item
 and branch =
+ | Other of string
  | Labeled of string * rule_item list
  | Super
 and rule_item =
@@ -209,6 +210,7 @@ module OpenType:
        <:ctyp< $tup:t$ >>;;
 
   let ruleBranch gram super = function
+   | Other s -> <:ctyp< $lid:s$ >>
    | Labeled (s,rl) -> <:ctyp< `$s$ of $ruleItems gram rl$ >>
    | Super ->  Option.get super
 
@@ -337,6 +339,7 @@ struct
    | [] -> expr
 
  and genRule gram name= function
+  | Other s -> <:match_case< #$lid:s$ as v -> return v >>
   | Labeled (s,[]) -> <:match_case< `$s$ -> return `$s$ >>
   | Labeled (s,rl) ->
      let pat,process=genCom gram
@@ -528,6 +531,7 @@ EXTEND Gram
  rule_branch:[
   [ "`";id = a_UIDENT; l = LIST0 rule_item SEP "," -> Labeled (id,l)
   | "super" -> Super
+  | id = a_LIDENT -> Other id
   ]
  ];
  uid:[

@@ -13,19 +13,6 @@ module List=
    aux 0 l
  end
 
-(*
-  TODO: This should be moved elsewhere...
-*)
-type ty=[
-| `T (*Base type*)
-| `Arrow of ty list*ty (*Normal application*)
-| `CpsArrow of ty list*ty] (*Cps function*)
-
-type ty'=[
-| ty
-| `Macro of AstBase.macrobloc*(ty list)
-| `CpsMacro of AstBase.macrobloc*(ty list)]
-
 open Lexing
 type location = Lexing.position * Lexing.position
 

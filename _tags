@@ -1,3 +1,4 @@
 "OpenTrees.ml": use_camlp4, camlp4of
 <**/Ast*.ml>: camlp4o, syntax:OpenTrees
-true:warn_error_A,warn_a,debug,dtypes
+<pp.ml>:warn_a
+true:warn_error_A,warn_A,warn_e,debug,dtypes

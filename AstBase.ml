@@ -18,6 +18,7 @@ gram{
  | `TemplateCall [expr],macrobloc
  | `Bloc [instr]
  | `Ret expr;
+ ty;
  macroitem:=`Ident int (*De bruijn index*) | `Literal string;
  macrobloc:=[macroitem];
  program := [instr]

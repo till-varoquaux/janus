@@ -7,6 +7,7 @@ open AstStd
 open General
 type id=AstCpsInt.ident
 type t
+type ty'=AstCpsInt.ty
 val add:ident->ty'->t->t
 val ty:ident->t->ty'
 val ident:ident->t->id

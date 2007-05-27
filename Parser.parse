@@ -10,7 +10,6 @@
 
 %token If Else While And Not Var Mod EOF
 %token Function Or  Return Cps T Macro CpsMacro
-%token <string> MacroIdent
 %token <string> MacroLITERAL
 
 /* Symbols */
@@ -108,14 +107,14 @@ exprs2:
 | Comma expr exprs2 {$2::$3}
 
 lvalue:
-| ident {`Ident($1)}
+| ident {`Ident $1}
 | lvalue Lsquare expr Rsquare {`Array($1,$3)}
 
 cond:
 | Lpar expr Rpar {$2}
 
 macroelem:
-| MacroIdent {`Ident $1}
+| ident {`Ident $1}
 | MacroLITERAL {`Literal $1}
 
 macrobloc:

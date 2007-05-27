@@ -69,7 +69,7 @@ module Hoist=T.Make(
        (Env.func (`Fundecl (name,args,`Bloc ((makeHeader hEnv)@[hInstr]))) env)
     | `WithCtx (e,i) ->
        let hInstr,hEnv=instr i Env.empty in
-       `WithCtx (e,`Bloc(Env.getFuncs hEnv@[i])),
+       `WithCtx (e,`Bloc(Env.getFuncs hEnv@[hInstr])),
        Env.merge env (Env.resetFuncs hEnv)
     | `Var i -> null,(Env.var i env)
     | _ -> Super.instr i env

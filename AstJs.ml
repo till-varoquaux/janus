@@ -1,5 +1,5 @@
 gram extends AstBase{
- import constant,ident,lvalue,unop,binop,program,macrobloc,expr,instr,macroitem;
+ import ty,constant,ident,lvalue,unop,binop,program,macrobloc,expr,instr,macroitem;
  expr:=
   `EmptyCtx
 | super;

@@ -130,7 +130,7 @@ and macrobloc= parse
  | eof  { raise (Lexical_error "unterminated macro") }
 
 and macroident = parse
- | ident {MacroIdent (lexeme lexbuf)}
+ | ident {Ident (lexeme lexbuf)}
 
 and comment = parse
   | "*/" { () }

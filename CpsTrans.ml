@@ -1,9 +1,14 @@
+(*w
+  This pass does all the type checking and marking for cps translations.
+*)
 open General
 open AstStd
+type ty'= AstCpsInt.ty
 type ident'= AstCpsInt.ident
 type instr'=AstCpsInt.instr
 type expr'=AstCpsInt.expr
 type program'=AstCpsInt.program
+type lvalue'=AstCpsInt.lvalue
 type ctx=instr' list
 
 exception Fundecl of (bool*(ident' list)*instr')
@@ -28,18 +33,18 @@ let redef l i=
    Translate a macro element
 *)
 let macroElem al = function
-| `Ident i ->
+| `Ident {node=i;loc=p} ->
    (try
      `Ident (List.scan i al)
     with Not_found ->
-     error (Printf.sprintf "Undefined ident \"%s\"" i)
+     error ~pos:p (Printf.sprintf "Undefined ident \"%s\"" i)
    )
 | `Literal _ as l -> l
 
 let cont=dummyId "cont"
 
-let typeMacro m=
- let cps,{node=i;loc=l},args,b,ty=
+let typeMacro m =
+ let cps,{node=_;loc=_},args,b,ty=
   match m with
    | (`Macro(n,args,b,ty)) -> false,n,args,b,ty
    | (`CpsMacro(n,args,b,ty)) -> true,n,args,b,ty
@@ -79,6 +84,7 @@ let rec typeExpr env=function
       | `T -> `T)
  | `Lval lv -> typeLvalue env lv
  | _ -> `T
+
 and typeLvalue env=function
  | `Ident i ->
     (match Env.ty i env with
@@ -108,7 +114,7 @@ let rec compatible t1 t2=
      error ("Cps functions can be used as arguments only when the type " ^
              "explicitly permits it")
 
-let rec lvalue env=
+let rec lvalue env:lvalue ->lvalue'*ctx=
  function
   | `Ident i -> `Ident (ident i env),[]
   | `Access (lv,i) ->
@@ -190,7 +196,7 @@ and expr ?(inVdecl=false) ?(eType=(`T:ty)) env:expr -> (expr'*ctx)=function
     (`Lval lv),ctx
  | `Fun (il,b) ->
     let env = ref (Env.oldify env) in
-    let it,ret,cps = (match eType with
+    let it,_,cps = (match eType with
                    | `T -> assert false
                    | `CpsArrow (it,ret) -> (it,ret,true)
                    | `Arrow (it,ret) -> (it,ret,false)
