@@ -1,5 +1,5 @@
-(**
-   Performs dead code elimination
+(*w
+  This pass performs dead code elimination in JS code.
 *)
 
 module RetMon=

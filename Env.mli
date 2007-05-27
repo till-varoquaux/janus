@@ -1,4 +1,4 @@
-(**
+(*w
    This module codes cps typing environements. Typing environement bind some
    variables to a given type, it can also hold macros and tell us wether we are
    in an cps block or not.

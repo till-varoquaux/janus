@@ -4,8 +4,7 @@ TARGET=Main
 OCB=ocamlbuild
 #YACC=menhir
 MODE=byte
-PROJECT_NAME=mini_js
-FTP_TARGET=till.varoquaux@login.free.fr:/projectsi/$(PROJECT_NAME)
+FTP_TARGET=till.varoquaux@login.free.fr:/projects/$(PROJECT_NAME)
 #end configurable options
 
 BUILDDIR=_build
@@ -35,8 +34,9 @@ byte:sane
 
 doc:$(MLI)
 	${info * making docs...}
-	@echo "$(basename $(MLI))" > doc.odocl
-	@$(OCB) doc.docdir/index.html
+	lp4all -p "$(PROJECT_NAME)" -d doc $$(darcs query manifest)
+#	@echo "$(basename $(MLI))" > doc.odocl
+#	@$(OCB) doc.docdir/index.html
 
 check:$(MODE)
 	${info * runnning tests}
@@ -49,14 +49,17 @@ annot:$(MODE)
 	@cp _build/*.annot . 
 
 web:
-	rm -rf web
-	darcs get . --repo-name=web
-	cd web;\
-	lp4all -p "$(PROJECT_NAME)" *.ml;\
+	${info "updating web site"}
+	@rm -rf web
+	@darcs get . --repo-name=web
+	@cd web;\
+	lp4all -p "$(PROJECT_NAME)" $$(darcs query manifest);\
+	rm -f sparsetable.py parsetable.py\
 	lftp -c "open $(FTP_TARGET); mirror -Renv --parallel=5 "
 
 clean:sane
 	${info * cleaning up}
+	@rm -rf web doc
 	@rm -f *~ \#* doc.odocl parsetab.py sparsetab.py
 	@$(OCB) -clean
 
