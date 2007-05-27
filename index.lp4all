@@ -1,0 +1,11 @@
+====Mini js====
+Mini js is a language that compiles towards javascript, it has a sanner
+variable scoping behaviour and implements a selective Cps conversion.
+
+This is currently under heavy developpement, be warned!!!
+
+==Downloading==
+
+You can get a snapshot via:%%
+darcs get till.varoquaux.free.fr/projects/mini_js
+%%

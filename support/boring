@@ -1,5 +1,7 @@
 _build
 _log
+Makefile.in
+Version.ml
 doc.odocl
 .*\.annot
 #.*

@@ -5,15 +5,19 @@ open Parser
 
 let usage = Printf.sprintf "usage: %s [options] file" (Filename.basename
                                                         Sys.executable_name)
+let version ()=
+ Printf.printf "%s, version: \"%s\"\n" Version.name Version.version;
+ exit 0
 let specBase =
- []
+ ["-v",Arg.Unit version,"prints the version and exits"
+ ]
 
 let (++) f g x= g (f x)
 
 let opt=new Optimise.opt
  [DeadCode.pass;BranchMerger.pass;TailRec.pass;Hoisting.pass;Unbloc.pass]
 
-let spec=opt#spec
+let spec=opt#spec@specBase
 
 let handle=
  CpsTrans.run

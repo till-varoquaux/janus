@@ -1,0 +1,146 @@
+#!/bin/sh
+#use "topfind";;(*
+
+################################################################################
+# This is a hackish file: it is both an ocaml file and shell script. When
+# called check ocaml and ocamlfind are present and will then call
+# itself back with ocaml.
+#
+
+check_required (){
+	if ! which "$1" > /dev/null; then
+		echo "Couldn't required binary \"$1\", failling.." > /dev/stderr
+		exit 1
+	fi
+}
+check_required "ocaml"
+check_required "ocamlfind"
+exec ocaml $0 $@
+#We use a here doc to comment out the whole Ocaml section
+<<"OCAMLCODE_END"
+*)
+#require "str";;
+type caml_version=
+  {major:int;
+   minor:int
+  }
+
+let project_name="mini_js"
+let version="0"
+let caml_expected={major=3;minor=10}
+
+let version=ref version
+
+let exe_name=Filename.basename Sys.argv.(0)
+let root=
+ if !Sys.interactive then
+  "."
+ else
+  Filename.dirname Sys.argv.(0)
+
+(**
+   Wether this directory is under version control
+*)
+let isVcs=
+ try Sys.is_directory (Filename.concat root "_darcs")
+ with _ -> false
+
+let vcsVersion () =
+ let inv=(Filename.concat (Filename.concat root "_darcs") "inventory") in
+ let f=open_in inv in
+ let lastLine=ref "" in
+ (try
+   while true; do
+    lastLine:=input_line f
+   done
+  with End_of_file ->
+   close_in f);
+ let s = !lastLine in
+ (*The last line contains the date of the last commit...*)
+ ignore (Str.string_match (Str.regexp ".*\\*\\*\\([0-9]*\\) *] *$") s 0);
+ let rawDate=Str.matched_group 1 s in
+ let yearStr=String.sub rawDate 0 4
+ and monthStr=String.sub rawDate 4 2
+ and dayStr=String.sub rawDate 6 2 in
+ let is=int_of_string in
+ (is yearStr),(is monthStr),((is dayStr)+1)
+
+let _ = vcsVersion ();;
+(**
+   Checks wether a given filename is in the path
+*)
+let isInPath s=
+ let path=
+  Str.split (Str.regexp_string ":") (Sys.getenv "PATH")
+ in
+ List.exists (fun p -> Sys.file_exists (Filename.concat p s)) path
+
+(*let ()=isInPath "darcs";;*)
+
+let specs=[]
+let usage=
+ Printf.sprintf "'%s' configures this package to adapt to many kinds of systems.
+
+Usage:%s [OPTION]
+
+Where OPTION are in:" exe_name Sys.argv.(0)
+
+let checking=
+ Printf.printf "Checking %s... "
+
+let res s=
+ Printf.printf "%s\n" s
+
+let okfailed b=
+ if b then
+  res "ok"
+ else
+  (res "failed"; exit 1)
+
+let yesno b=
+ if b then
+  res "yes"
+ else
+  res "no"
+
+let ocaml_check expected=
+ let got =
+  Scanf.sscanf Sys.ocaml_version "%i.%i" (fun major minor ->
+                                           {major=major;minor=minor})
+ in
+ checking "whether Ocaml version is recent enough";
+ okfailed  ((expected.major > got.major) or
+             (expected.major=got.major && expected.minor>=got.minor))
+
+let _ =
+ Arg.parse specs (fun s ->raise(Arg.Bad (Printf.sprintf "Unknown arg \"%s\"..." s)))
+  usage;
+ ocaml_check {major=3;minor=10};
+ checking "whether this is a snapshot";
+ yesno isVcs;
+ if isVcs then begin
+  checking "repository version";
+  let y,m,d=vcsVersion () in
+  res (Printf.sprintf "%.2u/%.2u/%.4u" m d y);
+  version:=Printf.sprintf "%.4u%.2u%.2u" y m d
+ end;
+ begin
+  let m = open_out (Filename.concat root "Makefile.in") in
+  let printf=Printf.fprintf m in
+  printf "VERSION=%s\n" !version;
+  printf "PROJECT_NAME=%s\n" project_name;
+  flush m;
+  close_out m
+ end;
+ begin
+  let m = open_out (Filename.concat root "Version.ml") in
+  let printf=Printf.fprintf m in
+  printf "let version=\"%s\"\n" !version;
+  printf "let name=\"%s\"\n" project_name;
+  flush m;
+  close_out m
+ end;
+ (*print_string (usage^"\n")*)
+(*
+OCAMLCODE_END
+#*)

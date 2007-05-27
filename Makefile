@@ -22,6 +22,11 @@ MLI=$(wildcard *.mli)
 
 all:$(MODE) doc annot check
 
+Makefile.in:
+	${error You must run configure before make...}
+
+Makefile:Makefile.in
+
 .PHONY:all clean byte opt dist doc check annot web
 
 opt:sane
@@ -54,7 +59,7 @@ web:
 	@darcs get . --repo-name=web
 	@cd web;\
 	lp4all -p "$(PROJECT_NAME)" $$(darcs query manifest);\
-	rm -f sparsetable.py parsetable.py\
+	rm -f sparsetable.py parsetable.py;\
 	lftp -c "open $(FTP_TARGET); mirror -Renv --parallel=5 "
 
 clean:sane
@@ -63,5 +68,10 @@ clean:sane
 	@rm -f *~ \#* doc.odocl parsetab.py sparsetab.py
 	@$(OCB) -clean
 
+distclean:clean
+	@rm -f Makefile.in version.ml
+
 dist:
-	darcs dist
+	darcs dist -d "$(PROJECT_NAME)-$(VERSION)"
+
+include Makefile.in
