@@ -5,6 +5,7 @@ open Lexing
 type location = Lexing.position * Lexing.position
 
 let locToString (p1,p2) =
+ let file=p1.pos_fname in
  let col p =
   p.pos_lnum,(p.pos_cnum-p.pos_bol)
  in
@@ -12,9 +13,9 @@ let locToString (p1,p2) =
  and line2,col2=col p2
  in
  if line1<>line2 then
-  Printf.sprintf "line %i,%i-line %i,%i" line1 col1 line2 col2
+  Printf.sprintf "File \"%s\",line %i,%i-line %i,%i" file line1 col1 line2 col2
  else
-  Printf.sprintf "line %i,%i-%i" line1 col1 col2
+  Printf.sprintf "File \"%s\",line %i,%i-%i" file line1 col1 col2
 
 type 'a pos = { node:'a; loc:location}
 

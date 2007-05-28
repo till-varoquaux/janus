@@ -13,6 +13,10 @@
         Macro; "cps_macro" , CpsMacro];
     fun s -> try Hashtbl.find h s with Not_found -> Ident s
 
+  let setFile lexbuf file =
+    let pos = lexbuf.lex_curr_p in
+    lexbuf.lex_curr_p <- { pos with pos_fname=file }
+
   let newline lexbuf =
     let pos = lexbuf.lex_curr_p in
     lexbuf.lex_curr_p <-
