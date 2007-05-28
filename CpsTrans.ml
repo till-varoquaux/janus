@@ -83,15 +83,16 @@ let rec typeExpr env=function
       | `CpsArrow(_,b) -> b
       | `Arrow (_,b) -> b
       | `T -> `T)
- | `Lval lv -> typeLvalue env lv
+ | `Ident i -> typeIdent env i
  | _ -> `T
 
+and typeIdent env i =
+ match Env.ty i env with
+  | `Macro _ | `CpsMacro _ -> error "Cannot call a macro in an expression"
+  | `Arrow _ | `CpsArrow _ | `T as t-> t
+
 and typeLvalue env=function
- | `Ident i ->
-    (match Env.ty i env with
-      | `Macro _ | `CpsMacro _ -> error "Cannot call a macro in an expression"
-      | `Arrow _ | `CpsArrow _ | `T as t-> t
-    )
+ | `Ident i -> typeIdent env i
  | `Array _ -> error "not handling arrays yet"
  | `Access _ -> error "not handling objects yet"
 
@@ -118,14 +119,14 @@ let rec compatible t1 t2=
 let rec lvalue env:lvalue ->lvalue'*ctx=
  function
   | `Ident i -> `Ident (ident i env),[]
-  | `Access (lv,i) ->
+  | `ObjAccess (lv,i) ->
      let lv,ctx = lvalue env lv
      and i = ident i env in
-     (`Access (lv,i)),ctx
-  | `Array (lv,e) ->
+     (`ObjAccess (lv,i)),ctx
+  | `ArrayAccess (lv,e) ->
      let lv,ctx1 = lvalue env lv
      and e,ctx2 = expr env e in
-     (`Array (lv,e)),(ctx1@ctx2)
+     (`ArrayAccess (lv,e)),(ctx1@ctx2)
 
 and checkArg env al tyl=
  try
@@ -165,7 +166,7 @@ and callCompile env (`Call (e,al)) : compiledCall =
 and isMacro env=
  function
   | `Pos _ as p -> protect (isMacro env) p
-  | `Lval (`Ident i) ->
+  | `Ident i ->
      begin
       match Env.ty i env with
        | `Macro _ | `CpsMacro _ -> true
@@ -184,17 +185,31 @@ and isMacro env=
 and expr ?(inVdecl=false) ?(eType=(`T:ty)) env:expr -> (expr'*ctx)=function
  | `Pos _ as p -> protect (expr ~inVdecl:inVdecl ~eType:eType env) p
  | `Typed (e,t) -> expr env e  ~inVdecl:inVdecl ~eType:t
+ | `Array (el) ->
+    let elems,ctx=List.fold_right begin
+     fun e (el,ctx) ->
+      let e2,ctx2 = expr env e in
+      (e2::el),(ctx2@ctx)
+    end el ([],[]) in
+    `Array (elems),ctx
+    (*TODO: Array typing*)
+ | `ArrayAccess (e,idx) ->
+    let e,ctx=expr env e
+    and idx,ctx2=expr env idx in
+    `ArrayAccess (e,idx),(ctx@ctx2)
+ | `ObjAccess (e,id) ->
+    let e,ctx=expr env e in
+    `ObjAccess (e,ident id env),ctx
  | `Cst _ as c -> c,[]
  | `Call _ as c ->
     let c = callCompile env c in
     if c.cps then
      let ret = Env.fresh ~hint:"AssignedVar" () in
-     `Lval (`Ident ret) ,c.ctx@[`CpsCall(Some ret,c.body,c.args)]
+     `Ident ret,c.ctx@[`CpsCall(Some ret,c.body,c.args)]
     else
      `Call(c.body,c.args),c.ctx
- | `Lval lv ->
-    let lv,ctx = lvalue env lv in
-    (`Lval lv),ctx
+ | `Ident i ->
+    (`Ident (ident i env)),[]
  | `Fun (il,b) ->
     let env = ref (Env.oldify env) in
     let it,_,cps = (match eType with
@@ -212,7 +227,7 @@ and expr ?(inVdecl=false) ?(eType=(`T:ty)) env:expr -> (expr'*ctx)=function
      raise (Fundecl (cps,il,b))
     )else(
      let a = Env.fresh ~hint:"f" ()
-     in (`Lval (`Ident a)),[
+     in (`Ident a),[
       if cps then
        `Cps(`Fundecl(a,il,b))
       else
@@ -251,7 +266,7 @@ and instr env : instr -> (instr' list*Env.t)=
      let rec getId=
       (function
         | `Pos (_,p) -> getId p
-        | `Lval (`Ident i) -> i
+        | `Ident i -> i
         | _ -> assert false
       )
      in

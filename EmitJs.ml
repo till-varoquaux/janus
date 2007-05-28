@@ -53,15 +53,22 @@ and expr ?(guard=false) =
  function
   | `EmptyCtx -> text "new Object()"
   | `Cst c -> constant c
-  | `Lval v -> lvalue v
+  | `Ident i -> ident i
   | `Call (f,args) ->
      let args=join expr args (text ",")
      in
      (expr f) ^^ (text "(")^^args^^ (text ")")
+  | `Array (elems) ->
+     let elems=join expr elems (text ",")
+     in
+     (text "[")^^elems^^(text "]")
   | `Unop (op,e) ->
      wrap ((unop op) ^^ (ep e))
   | `Binop (op,e1,e2) ->
      wrap (ep e1) ^^ (binop op) ^^ (ep e2)
+  | `ArrayAccess (e,idx) ->
+     (expr e)^^(text "[")^^(expr idx) ^^ (text "]")
+  | `ObjAccess (e,i) -> (expr e) ^^ (text ".") ^^ (ident i)
   (*| `Fun (args,b) -> (text "function(") ^^ (join ident args (text ","))
      ^^ (text ")") ^^ (bloc b)*)
 
@@ -90,8 +97,8 @@ and binop b = text (match b with
 
 and lvalue = function
  | `Ident i -> ident i
- | `Array (l,e) -> (lvalue l) ^^ (text "[") ^^ (expr e) ^^ (text "]")
- | `Access (l,i) -> (lvalue l) ^^ (text ".") ^^ (ident i)
+ | `ArrayAccess (l,e) -> (lvalue l) ^^ (text "[") ^^ (expr e) ^^ (text "]")
+ | `ObjAccess (l,i) -> (lvalue l) ^^ (text ".") ^^ (ident i)
 
 and macroelem al= function
  | `Literal l -> text l

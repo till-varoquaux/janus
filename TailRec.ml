@@ -76,7 +76,7 @@ module D=T.Make(
 
   let instr i pos =
    let newCtx=(`Assign (jsCtx,`EmptyCtx))
-   and ctxAff a e =  `Assign (`Access  (jsCtx,a),e) in
+   and ctxAff a e =  `Assign (`ObjAccess  (jsCtx,a),e) in
    let tailCall al el=
     if al=[] then
      `Continue contlbl,TailCall
@@ -90,11 +90,11 @@ module D=T.Make(
        let b1,ret1 = S.instr b1 pos
        and b2,ret2 = S.instr b2 pos
        in `If(e,b1,b2),(mergeTailInfo ret1 ret2)
-    | `Ret (`Call (`Lval (`Ident i),el)),(Tail (fname,args) | InFunc
+    | `Ret (`Call (`Ident i,el)),(Tail (fname,args) | InFunc
      (fname,args)) when i=fname ->
       tailCall args el
     | (`Ret _ | `Return),_ -> i,Return
-    | `Call (`Lval (`Ident i),el),Tail (fname,args) when i=fname ->
+    | `Call (`Ident i,el),Tail (fname,args) when i=fname ->
        tailCall args el
     | `Fundecl (fname,args,body),_ ->
        let body,tail = S.instr body (Tail (fname,args)) in
@@ -103,8 +103,8 @@ module D=T.Make(
          if args=[] then
           `Loop (contlbl,body)
          else
-          let aff=List.map (fun i -> ctxAff i (`Lval (`Ident i))) args in
-          `Bloc ((`Var jsCtxId)::newCtx::aff@[`Loop (contlbl,(`WithCtx (`Lval jsCtx,body)))])
+          let aff=List.map (fun i -> ctxAff i (`Ident i)) args in
+          `Bloc ((`Var jsCtxId)::newCtx::aff@[`Loop (contlbl,(`WithCtx (jsCtx,body)))])
         else
          body
        in

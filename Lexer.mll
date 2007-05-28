@@ -11,8 +11,7 @@
      [ "if", If; "else", Else; "while", While; "and", And;"not", Not; "var",
         Var;"or", Or; "function", Function;"cps",Cps;"return", Return; "macro" ,
         Macro; "cps_macro" , CpsMacro];
-      fun s -> let sl = String.lowercase s in
-	try Hashtbl.find h sl with Not_found -> Ident sl
+    fun s -> try Hashtbl.find h s with Not_found -> Ident s
 
   let newline lexbuf =
     let pos = lexbuf.lex_curr_p in
@@ -49,6 +48,8 @@ rule token = parse
    { Constant (`Int (int_of_string (lexeme lexbuf))) }
  | float
    { Constant (`Float (float_of_string (lexeme lexbuf))) }
+ | '.'
+   { Dot }
  | '('
    { Lpar }
  | ')'
@@ -64,7 +65,7 @@ rule token = parse
  | "->"
    {Arrow}
  | "=>"
-   {DOUBLEArrow}
+   {DoubleArrow}
  | ','
    { Comma }
  | ';'
@@ -126,22 +127,22 @@ and string a = parse
 and macrobloc= parse
  | "}$" {state:=Token;token lexbuf}
  | "$" { macroident lexbuf}
- | _  { MacroLITERAL (lexeme lexbuf) }
+ | _  { MacroLiteral (lexeme lexbuf) }
  | eof  { raise (Lexical_error "unterminated macro") }
 
 and macroident = parse
  | ident {Ident (lexeme lexbuf)}
 
 and comment = parse
-  | "*/" { () }
-  | '\n' { newline lexbuf; comment lexbuf }
-  | _    { comment lexbuf }
-  | eof  { raise (Lexical_error "unterminated comment") }
+ | "*/" { () }
+ | '\n' { newline lexbuf; comment lexbuf }
+ | _    { comment lexbuf }
+ | eof  { raise (Lexical_error "unterminated comment") }
 
 and comment2 = parse
-  | "\n"  { () }
-  | _    { comment2 lexbuf }
-  | eof  { raise (Lexical_error "unterminated comment") }
+ | "\n"  { () }
+ | _    { comment2 lexbuf }
+ | eof  { raise (Lexical_error "unterminated comment") }
 
 {
  let lex l=

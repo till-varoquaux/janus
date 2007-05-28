@@ -10,7 +10,7 @@
 
 %token If Else While And Not Var Mod EOF
 %token Function Or  Return Cps T Macro CpsMacro
-%token <string> MacroLITERAL
+%token <string> MacroLiteral
 
 /* Symbols */
 
@@ -19,7 +19,7 @@
 %token Lbracket Rbracket
 %token Semicolon Comma
 %token Colon
-%token Arrow DOUBLEArrow
+%token Arrow DoubleArrow Dot
 
 /* Operators  */
 
@@ -38,7 +38,6 @@
 %left Star Slash Mod And
 %nonassoc uminus
 %nonassoc unot
-%left app
 
 /* Entry point  */
 %start program
@@ -61,11 +60,8 @@ args2:
 | {[]}
 | Comma arg args2 {$2::$3}
 
-expr1:
-| Lpar expr Rpar {$2}
-| Constant {`Cst $1}
-| lvalue {`Lval $1}
-| fundecl Lpar args Rpar  tyd bloc {
+expr1:/*can be the LHS of a function call*/
+| fundecl Lpar args Rpar tyd bloc {
    let args,args_ty= List.split $3 in
    let f=`Fun (args,$6) in
    let ty=(if $1 then
@@ -75,7 +71,15 @@ expr1:
           )
    in
    `Typed(f,ty)}
-| expr1 Lpar exprs Rpar %prec app {`Call ($1,$3)}
+| lvalue {AstStd.lval2expr $1}
+| expr2 {$1}
+
+expr2:/*can be the LHS of an array access*/
+| Lpar expr Rpar {$2}
+| Lsquare exprs Rsquare {`Array $2}
+| expr2 Dot ident {`ObjAccess($1,$3)}
+| expr2 Lsquare expr Rsquare {`ArrayAccess ($1,$3)}
+| expr1 Lpar exprs Rpar {`Call ($1,$3)}
 
 expr_aux:
 | Not expr %prec unot {`Unop (`Not,$2)}
@@ -89,6 +93,7 @@ expr_aux:
 | expr Mod expr {`Binop (`Mod, $1, $3)}
 | expr And expr {`Binop (`And, $1, $3)}
 | expr Or expr {`Binop (`Or, $1, $3)}
+| Constant {`Cst $1}
 | expr1 {$1}
 
 fundecl:
@@ -96,7 +101,7 @@ fundecl:
 | Cps {true}
 
 expr:
-| expr_aux {`Pos ((symbol_start_pos (),symbol_end_pos()),$1)}
+| expr_aux {`Pos ((symbol_start_pos(),symbol_end_pos()),$1)}
 
 exprs:
 | {[]}
@@ -108,14 +113,15 @@ exprs2:
 
 lvalue:
 | ident {`Ident $1}
-| lvalue Lsquare expr Rsquare {`Array($1,$3)}
+| lvalue Lsquare expr Rsquare {`ArrayAccess($1,$3)}
+| lvalue Dot ident {`ObjAccess($1,$3)}
 
 cond:
 | Lpar expr Rpar {$2}
 
 macroelem:
 | ident {`Ident $1}
-| MacroLITERAL {`Literal $1}
+| MacroLiteral {`Literal $1}
 
 macrobloc:
 | {[]}
@@ -144,7 +150,7 @@ instr_aux:
 ty:
 | T {`T}
 | Lpar tys Rpar Arrow ty {`Arrow ($2,$5)}
-| Lpar tys Rpar DOUBLEArrow ty {`CpsArrow ($2,$5)}
+| Lpar tys Rpar DoubleArrow ty {`CpsArrow ($2,$5)}
 
 
 tys:
