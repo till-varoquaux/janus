@@ -41,7 +41,10 @@ rule token = parse
    { newline lexbuf; token lexbuf }
  | [' ' '\t' '\r']+
    { token lexbuf }
- | "/*"   { comment lexbuf; token lexbuf }
+ | '#'
+   { meta lexbuf; token lexbuf }
+ | "/*"
+   { comment lexbuf; token lexbuf }
  | "//"
    { comment2 lexbuf; token lexbuf }
  | ident
@@ -114,6 +117,29 @@ rule token = parse
  | eof
    { EOF }
 
+and meta = parse
+ | [' ' '\t' '\r']+
+   { meta lexbuf }
+ | digit+
+   { metaFile (int_of_string (lexeme lexbuf)) lexbuf}
+
+and metaFile ln = parse
+  | [' ' '\t' '\r']+
+    { metaFile ln lexbuf }
+  | "\""
+    { let b=Buffer.create 17 in
+      string (Buffer.add_string b) lexbuf;
+      let s=Buffer.contents b in
+      metaEndLine ln s lexbuf }
+
+and metaEndLine line file= parse
+ | '\n'
+   { let pos = lexbuf.lex_curr_p in
+     lexbuf.lex_curr_p <-
+      { pos with pos_lnum = line; pos_fname = file; pos_bol = pos.pos_cnum } }
+ | [' ' '\t' '\r']+
+   { metaEndLine line file lexbuf }
+
 and escape a = parse
  | "\\" | "\"" {a (lexeme lexbuf)}
  | "\t" {a "\t"}
@@ -126,6 +152,8 @@ and escape a = parse
 and string a = parse
  | "\"" { () }
  | "\\" { escape a lexbuf; string a lexbuf }
+ | "\n" { newline lexbuf; a "\\n"; string a lexbuf }
+ | "\t" { a "\\t"; string a lexbuf }
  | _ { a (lexeme lexbuf); string a lexbuf }
 
 and macrobloc= parse

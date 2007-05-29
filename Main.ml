@@ -1,3 +1,8 @@
+(*w
+  ====Main====
+  This is the entry point of the programm it reads command line options and
+  contains the chain of all of the compiler passes.
+*)
 open Format
 open Lexing
 open Lexer
@@ -20,8 +25,9 @@ let opt=new Optimise.opt
 
 let spec=opt#spec@specBase
 
-let reportLoc l =
- eprintf "%s\n" (Pos.locToString l)
+let parseError lexbuf s=
+ eprintf "%s\n%s\n@." (Pos.locToString (lexeme_start_p lexbuf,lexeme_end_p lexbuf)) s;
+ exit 1
 
 let parse file=
  with_open_in file begin
@@ -32,13 +38,9 @@ let parse file=
     Parser.program Lexer.lex lb
    with
     | Lexical_error s ->
-	   reportLoc (lexeme_start_p lb, lexeme_end_p lb);
-	   eprintf "lexical error: %s\n@." s;
-       exit 1
+       parseError lb (sprintf "lexical error: %s" s)
     | Parsing.Parse_error ->
-	   reportLoc (lexeme_start_p lb, lexeme_end_p lb);
-	   eprintf "syntax error in parse rule: \"%s\"\n@." !ParseInfo.currentRule;
-       exit 1
+       parseError lb (sprintf "syntax error in parse rule: \"%s\"" !ParseInfo.currentRule);
  end
 
 let process=
@@ -49,18 +51,15 @@ let process=
  ++opt#run
  ++EmitJs.print
 
-let file =
- let file = ref None in
- let setFile s =
-  file := Some s
- in
- Arg.parse spec setFile usage;
- match !file with Some f -> f | None -> Arg.usage spec usage; exit 1
-
 let () =
- try
-  process file
- with
-  | e ->
-	 eprintf "Anomaly: %s\n@." (Printexc.to_string e);
-	 exit 2
+ let file = ref None in
+ Arg.parse spec (fun s -> file := Some s) usage;
+ match !file with
+  |Some f ->begin
+     try
+      process f
+     with e ->
+	  eprintf "Anomaly: %s\n@." (Printexc.to_string e);
+	  exit 2
+    end
+  | None -> Arg.usage spec usage; exit 1
