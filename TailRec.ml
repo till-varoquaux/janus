@@ -1,5 +1,6 @@
-(**
-   Replaces tail reccursions with loops...
+(*w
+  In this pass we shall replace all tail reccursions with loops...
+  In order to preserve closure we will use javascript's ^^with^^ statement.
 *)
 let contlbl="$body"
 
@@ -9,29 +10,48 @@ let contlbl="$body"
 let jsCtxId = "$ctx"
 let jsCtx=`Ident jsCtxId
 
-(**
-   Function id
+(*w
+  Function id's: the name of the function and of its arguments
 *)
 type fid= string*string list
 
+(*w
+  This is information regarding what was done in a block:
+
+  - ^^TailCall^^ the block ends with a tail reccursion.
+  - ^^Return^^ the block ends with a return instruction.
+  - ^^Instr^^ the block ends with a normal instruction...
+*)
 type tail=
- | TailCall
+ | TailRec
  | Return
  | Instr
 
+(*w
+  This corresponds to the position in the code regarding tail reccursion:
+
+  - ^^Tail fid^^:means we are in a tail reccursive position in the function "^^fid^^".
+  - ^^InFunc fid^^ means we are currently in the function "^^fid^^".
+  - ^^Main^^: we are in the main body of the programm.
+*)
 type pos=
  | Tail of fid
  | InFunc of fid
  | Main
 
+(*w
+  Returns the ^^tailinfo^^ for an instruction having two branches, ^^b1^^ and
+  ^^b2^^ being their respectives ^^tailinfo^^s.
+*)
 let mergeTailInfo b1 b2=
  match b1,b2 with
-  | TailCall ,_ | _,TailCall -> TailCall
+  | TailRec ,_ | _,TailRec -> TailRec
   | Return,_ | _,Return -> Return
   | _ -> Instr
 
-(**
-   We want our navigation functions to take a position and return tailinfo
+(*w
+  This the monad we will use in our map module.
+  We want our traversal functions to take a position and return tailinfo
 *)
 module TailMon=
 struct
@@ -75,14 +95,11 @@ module D=T.Make(
    l,ret
 
   let instr i pos =
-   let newCtx=(`Assign (jsCtx,`EmptyCtx))
-   and ctxAff a e =  `Assign (`ObjAccess  (jsCtx,a),e) in
-   let tailCall al el=
+   let tailRec (al:string list) (el:AstJs.expr list)=
     if al=[] then
-     `Continue contlbl,TailCall
+     `Continue contlbl,TailRec
     else
-     let aff=List.map2  ctxAff al el in
-     `Bloc (newCtx::aff@[`Continue contlbl]),TailCall
+     `Bloc[`Assign (jsCtx,`Obj (List.combine al el));`Continue contlbl],TailRec
    in
    match i,pos with
     | `Bloc b,pos -> let b',pos=bloc b pos in `Bloc b',pos
@@ -92,19 +109,20 @@ module D=T.Make(
        in `If(e,b1,b2),(mergeTailInfo ret1 ret2)
     | `Ret (`Call (`Ident i,el)),(Tail (fname,args) | InFunc
      (fname,args)) when i=fname ->
-      tailCall args el
+      tailRec args el
     | (`Ret _ | `Return),_ -> i,Return
     | `Call (`Ident i,el),Tail (fname,args) when i=fname ->
-       tailCall args el
+       tailRec args el
     | `Fundecl (fname,args,body),_ ->
        let body,tail = S.instr body (Tail (fname,args)) in
        let body=
-        if tail=TailCall then
+        if tail=TailRec then
          if args=[] then
           `Loop (contlbl,body)
          else
-          let aff=List.map (fun i -> ctxAff i (`Ident i)) args in
-          `Bloc ((`Var jsCtxId)::newCtx::aff@[`Loop (contlbl,(`WithCtx (jsCtx,body)))])
+          `Bloc [`Var jsCtxId;
+                 `Assign (jsCtx,`Obj[]);
+                 `Loop (contlbl,(`WithCtx (jsCtx,body)))]
         else
          body
        in

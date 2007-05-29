@@ -61,6 +61,18 @@ args2:
 | {[]}
 | Comma arg args2 {$2::$3}
 
+/*Fields in an object declaration*/
+field:
+ | ident Colon expr {($1,$3)}
+
+fields:
+| {[]}
+| field fields2 {$1::$2}
+
+fields2:
+| {[]}
+| Comma field fields2 {$2::$3}
+
 expr1:/*can be the LHS of a function call*/
 | fundecl Lpar args Rpar tyd bloc {
    let args,args_ty= List.split $3 in
@@ -75,7 +87,7 @@ expr1:/*can be the LHS of a function call*/
 | lvalue {AstStd.lval2expr $1}
 | expr2 {$1}
 
-expr2:/*can be the LHS of an array access*/
+expr2:/*can be the LHS of an array access or an object access*/
 | Lpar expr Rpar {$2}
 | Lsquare exprs Rsquare {`Array $2}
 | expr2 Dot ident {`ObjAccess($1,$3)}
@@ -95,6 +107,7 @@ expr_aux:
 | expr And expr {`Binop (`And, $1, $3)}
 | expr Or expr {`Binop (`Or, $1, $3)}
 | Constant {`Cst $1}
+| Lbracket fields Rbracket {`Obj $2}
 | expr1 {$1}
 
 fundecl:

@@ -8,6 +8,7 @@ gram{
 | `Unop unop,expr
 | `Binop binop,expr,expr
 | `Array [expr]
+| `Obj [(ident,expr)]
 | `ArrayAccess expr,expr
 | `ObjAccess expr,ident;
  unop:= `Not | `Minus;

@@ -185,6 +185,13 @@ and isMacro env=
 and expr ?(inVdecl=false) ?(eType=(`T:ty)) env:expr -> (expr'*ctx)=function
  | `Pos _ as p -> protect (expr ~inVdecl:inVdecl ~eType:eType env) p
  | `Typed (e,t) -> expr env e  ~inVdecl:inVdecl ~eType:t
+ | `Obj (pl) ->
+    let pl',ctx=List.fold_left begin
+     fun (pl,ctx) ({node=i;loc=_},e) ->
+      let e',ctx'=expr env e in
+      ((i,e')::pl),(ctx'@ctx)
+    end  ([],[]) pl in
+    `Obj pl',ctx
  | `Array (el) ->
     let elems,ctx=List.fold_right begin
      fun e (el,ctx) ->

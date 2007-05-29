@@ -5,6 +5,7 @@ open Printf
 open Pp
 open AstJs
 
+let breakNull=breakWith ""
 let escape s=
  let b=Buffer.create (String.length s) in
  let a= Buffer.add_string b in
@@ -51,7 +52,6 @@ and expr ?(guard=false) =
   expr ~guard:true e
  in
  function
-  | `EmptyCtx -> text "new Object()"
   | `Cst c -> constant c
   | `Ident i -> ident i
   | `Call (f,args) ->
@@ -68,9 +68,15 @@ and expr ?(guard=false) =
      wrap (ep e1) ^^ (binop op) ^^ (ep e2)
   | `ArrayAccess (e,idx) ->
      (expr e)^^(text "[")^^(expr idx) ^^ (text "]")
+  | `Obj(pl) ->
+     agrp(nest 4 ((text "{")^^ breakNull
+                  ^^(join
+                      (fun (i,e) -> (ident i) ^^ (text ":") ^^ (expr e))
+                      pl
+                      ((text ",") ^^ breakNull)
+                    )
+                  ^^breakNull^^(text "}")))
   | `ObjAccess (e,i) -> (expr e) ^^ (text ".") ^^ (ident i)
-  (*| `Fun (args,b) -> (text "function(") ^^ (join ident args (text ","))
-     ^^ (text ")") ^^ (bloc b)*)
 
 and cond e=
  (text "(") ^^ (expr e) ^^ (text ")")

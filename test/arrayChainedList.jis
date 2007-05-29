@@ -1,0 +1,17 @@
+/*The empty list*/
+var empty=[];
+/*The cons function on list*/
+var cons=function(h,t){
+  return [h,t]
+};
+/*Iters a function f on a list l*/
+var iter=function(f,l){
+  if (l<>empty){
+    f(l[0]);
+    iter(f,l[1])
+  }
+};
+/*Unsugared syntax for list is pretty hardcore...*/
+var testList=cons(1,cons(2,cons(3,cons(4,cons(5,cons(6,empty))))));
+/*Test the whole mess*/
+iter(print,testList)
