@@ -1,5 +1,6 @@
 #!/bin/sh
-#use "topfind";;(*
+#use "topfind";;(* -*- tuareg -*-
+
 
 ################################################################################
 # This is a hackish file: it is both an ocaml file and shell script. When
@@ -19,7 +20,10 @@ exec ocaml $0 $@
 #We use a here doc to comment out the whole Ocaml section
 <<"OCAMLCODE_END"
 *)
-#require "str";;
+#require "unix"
+#require "str"
+#use "General.ml"
+
 type caml_version=
   {major:int;
    minor:int
@@ -124,23 +128,20 @@ let _ =
   res (Printf.sprintf "%.2u/%.2u/%.4u" m d y);
   version:=Printf.sprintf "%.4u%.2u%.2u" y m d
  end;
- begin
-  let m = open_out (Filename.concat root "Makefile.in") in
-  let printf=Printf.fprintf m in
-  printf "VERSION=%s\n" !version;
-  printf "PROJECT_NAME=%s\n" project_name;
-  flush m;
-  close_out m
- end;
- begin
-  let m = open_out (Filename.concat root "Version.ml") in
-  let printf=Printf.fprintf m in
-  printf "let version=\"%s\"\n" !version;
-  printf "let name=\"%s\"\n" project_name;
-  flush m;
-  close_out m
- end;
- (*print_string (usage^"\n")*)
+ with_open_out (Filename.concat root "Makefile.in")
+  begin
+   fun ch ->
+    let printf=Printf.fprintf ch in
+    printf "VERSION=%s\n" !version;
+    printf "PROJECT_NAME=%s\n" project_name;
+  end;
+  with_open_out (Filename.concat root "Version.ml")
+  begin
+   fun ch ->
+    let printf=Printf.fprintf ch in
+    printf "let version=\"%s\"\n" !version;
+    printf "let name=\"%s\"\n" project_name;
+  end
 (*
 OCAMLCODE_END
 #*)

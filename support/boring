@@ -6,3 +6,6 @@ doc.odocl
 .*\.annot
 #.*
 ~.*
+parsetab.py
+sparsetab.py
+doc

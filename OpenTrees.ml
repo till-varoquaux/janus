@@ -17,33 +17,7 @@
   a hassle for the benefit.
 *)
 
-(*w
-===Header===
-  We are mostly doing some bookeeping here, mainly administrative stuff: imports
-  and simple helper functions.
-==General==
-*)
-module StringMap=Map.Make(String)
-
-(*w
-  Ocaml's stdlib seems to be strangely lacking of some basic features. This
-  module stub is inspired by
-  [[http://ocaml-lib.sourceforge.net/doc/Option.html|ExtLib's option
-  module]].
-*)
-module Option=
- struct
-  exception No_value
-
-  let get = function
-   | Some v -> v
-   | None -> raise No_value
-
-  let map f= function
-   | Some x -> Some (f x)
-   | None -> None
- end
-
+open General
 (*w
   ==Camlp4==
   A bunch of generic functions usefull to create nodes in camlp4

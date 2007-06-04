@@ -1,7 +1,7 @@
 SHELL = /bin/sh
 #Configurable options
 TARGET=Main
-OCB=ocamlbuild
+OCB=ocamlbuild -ocamlc "ocamlfind c" -ocamlopt "ocamlfind opt" -lflags "-package unix","-linkpkg"
 #YACC=menhir
 MODE=byte
 FTP_TARGET=till.varoquaux@login.free.fr:/projects/$(PROJECT_NAME)
