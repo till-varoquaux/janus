@@ -18,13 +18,21 @@
 *)
 
 open General
+open Camlp4.PreCast
+open Syntax
+open Ast
+module Options=Camlp4.Options
+
+(*w
+  Syntax extension options...
+*)
+let noMap=ref false
+let _= Options.add "-no_map" (Arg.Set noMap) "Do not generate mapper module"
+
 (*w
   ==Camlp4==
   A bunch of generic functions usefull to create nodes in camlp4
 *)
-open Camlp4.PreCast
-open Syntax
-open Ast
 
 let _loc=Loc.ghost
 (*w
@@ -85,10 +93,11 @@ type grammar=
 and ruleRHS=
  | Abstract
  | Import
- | Variant of branch list
+ | Variant of (string*ruleItem list) list
+ | PolVar of branch list
  | Alias of ruleItem
 and branch =
- | Other of string
+ | Other of string (*w This \\has\\ to be another polymorphic variant type *)
  | Labeled of string * ruleItem list
  | Super
 and ruleItem =
@@ -206,7 +215,14 @@ module OpenType:
    | Abstract -> <:ctyp< >>,C.empty
    | Import -> ruleBranch gram super Super
    | Alias i -> ruleItem gram i
-   | Variant rb ->
+   | Variant ([]) | PolVar [] -> assert false
+   | Variant l ->
+      List.fold_left begin fun (acc,cst) (lbl,rl) ->
+       let body,cst'=ruleItems gram rl in
+       let t = <:ctyp< $uid:lbl$ of $body$ >> in
+       <:ctyp< $acc$ | $t$ >>,C.union cst cst'
+      end (<:ctyp< >>,C.empty) l
+   | PolVar rb ->
       let body,cst=
        List.fold_left begin fun (acc,cst) s ->
         let b,cst'=ruleBranch gram super s in
@@ -219,7 +235,7 @@ module OpenType:
     constr is the constraint on the tye parameter.
   *)
   let rule gram name (l:ruleRHS)=
-   let super = Option.map (fun i -> <:ctyp< 'cst $id:i$.$lid:name$ >>) gram.super in
+   let super = Option.map (fun i -> <:ctyp< 'cst $id:i$.Gram.$lid:name$ >>) gram.super in
    let body,cset = ruleRHS gram super l in
    (*This is the actual constraint 'cst=<$constr$; ..>*)
    let constr =
@@ -342,11 +358,25 @@ struct
    Mon.bind ($lid:name$ i) ( fun i -> return (i :> (o Gram.$lid:name$)))
    >>
 
+ and genVariant gram = function
+  | s,[] -> <:match_case< $uid:s$ -> return $uid:s$ >>
+  | s,rl ->
+     let pat,process=genCom gram
+      (fun i -> <:expr< $uid:s$ $i$>>)
+      rl
+     in
+     let pat = Ast.PaApp (_loc,<:patt< $uid:s$ >>,pat) in
+     <:match_case< $pat$ -> $process$ >>
+
  let genFunc gram name=function
   | Abstract -> <:str_item< let $lid:name$ _ = assert false >>
   | Import -> <:str_item< >>
   | Alias it -> <:str_item< let $lid:name$ = $genIt gram it$ >>
   | Variant l ->
+     let cases = List.map (genVariant gram) l in
+     <:str_item< let $lid:name$ = function $matchcaseList2matchcase cases$
+       >>
+  | PolVar l ->
      let cases = List.map (genRule gram name) l in
      <:str_item< let $lid:name$ = function $matchcaseList2matchcase cases$
        >>
@@ -426,7 +456,7 @@ let genTrav gram=
             begin
              fun i _ acc ->
               <:str_item<
-            type $lid:i$ = i $id:super$.$lid:i$;;
+            type $lid:i$ = i $id:super$.Gram.$lid:i$;;
             $acc$
             >>
             end gram <:str_item< >>$
@@ -464,14 +494,17 @@ EXTEND Gram
  str_item: LEVEL "top" [
   [ "gram"; e = extends ; "{" ; it=gram_items ; "}" ->
    let gram=
-    let super = Option.map (fun i -> <:ident< $i$.Gram >>) e in
-    G.init super it
+    G.init e it
    in
    <:str_item<
     (*The open grammar*)
     module Gram = struct
      $OpenType.gen gram$
-    end
+    end;;
+     $if !noMap then
+      OpenType.close gram <:ident<Gram>>
+    else
+     <:str_item<
     module ClosedDef=struct
      $OpenType.close gram <:ident<Gram>>$
     end
@@ -481,6 +514,7 @@ EXTEND Gram
     struct
      $genTrav gram$
     end
+     >>$
  >>
 ]
  ];
@@ -490,11 +524,13 @@ EXTEND Gram
  gram_item:[
   [ "import" ; l = LIST1 a_LIDENT SEP "," ->
      List.map  (fun s -> s,Import) l
+  | id=a_LIDENT ; ":=" ; OPT "|" ; l = LIST1 variant SEP "|" ->
+     [id,Variant l]
   | id=a_LIDENT ; ":=" ; OPT "|" ; l = LIST1 rule_branch SEP "|" ->
      if List.for_all (fun x -> x==Super) l then
       [id,Import]
      else
-      [id,Variant l]
+      [id,PolVar l]
   | id=a_LIDENT ; ":=" ; r =  rule_item ->
      [id,Alias r]
   | id=a_LIDENT ->
@@ -513,6 +549,9 @@ EXTEND Gram
   |  i = rule_item ; "?" ->
      Option i
   ]
+ ];
+ variant: [
+  [id = a_UIDENT; l = LIST0 rule_item SEP "," -> (id,l)]
  ];
  rule_branch:[
   [ "`";id = a_UIDENT; l = LIST0 rule_item SEP "," -> Labeled (id,l)
