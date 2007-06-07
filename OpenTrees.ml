@@ -86,16 +86,16 @@ and ruleRHS=
  | Abstract
  | Import
  | Variant of branch list
- | Alias of rule_item
+ | Alias of ruleItem
 and branch =
  | Other of string
- | Labeled of string * rule_item list
+ | Labeled of string * ruleItem list
  | Super
-and rule_item =
- | Option of rule_item
+and ruleItem =
+ | Option of ruleItem
  | Atom of string
- | Tup of rule_item list
- | List of rule_item
+ | Tup of ruleItem list
+ | List of ruleItem
 
 (*w
   This module is just a set of rules to ease the handling of grammars, and make
@@ -162,52 +162,77 @@ module OpenType:
  end
  =
  struct
+  module C=Set.Make(String)
+   (*w
+     Constrained types are type with a set of constraints. The set contains only
+     strings since all contraints bind a string ^^s^^ to the type parameter ^^'s^^.
+   *)
+  type constrainedType=Ast.ctyp*C.t
+
   (*w
-     Generates the type for a ruleItem
+    Generates the type for a ruleItem.
   *)
-  let rec ruleItem gram = function
-   | Option r -> <:ctyp< $ruleItem gram r$ option >>
+  let rec ruleItem gram : ruleItem -> constrainedType = function
+   | Option r ->
+      let t,cst=ruleItem gram r in
+      <:ctyp< $t$ option >>,cst
    | Tup l -> ruleItems gram l
-   | Atom s when G.mem s gram -> <:ctyp< '$lid:s$ >>
-   | Atom s -> <:ctyp< $lid:s$ >>
-   | List l -> <:ctyp< $ruleItem gram l$ list >>
+   | Atom s when G.mem s gram -> <:ctyp< '$lid:s$ >>,(C.singleton s)
+   | Atom s -> <:ctyp< $lid:s$ >>,C.empty
+   | List l -> let t,cst=ruleItem gram l in <:ctyp< $t$ list >>,cst
 
-  and ruleItems gram=
-   let convert=ruleItem gram in
-   function
-    | [] -> <:ctyp< >>
-    | [r] -> convert r
-    | l ->
-       let t=List.fold_left begin fun tup t ->
-        Ast.TySta (_loc,tup,convert t)
-       end <:ctyp< >> l in
-       <:ctyp< $tup:t$ >>;;
+  and ruleItems gram : ruleItem list -> constrainedType = function
+   | [] -> <:ctyp< >>,C.empty
+   | [r] -> ruleItem gram r
+   | l ->
+      let t,cst=List.fold_left begin fun (tup,cst) t ->
+       let t',cst'=ruleItem gram t in
+       (Ast.TySta (_loc,tup,t')),(C.union cst cst')
+      end (<:ctyp< >>,C.empty) l in
+      <:ctyp< $tup:t$ >>,cst;;
 
-  let ruleBranch gram super = function
-   | Other s -> <:ctyp< $lid:s$ >>
-   | Labeled (s,rl) -> <:ctyp< `$s$ of $ruleItems gram rl$ >>
-   | Super ->  Option.get super
+  let ruleBranch gram super : branch -> constrainedType = function
+   | Other s -> <:ctyp< $lid:s$ >>,C.empty
+   | Labeled (s,rl) ->
+      let t,cst=ruleItems gram rl in
+      <:ctyp< `$s$ of $t$ >>,cst
+   | Super ->
+      let cst=G.fold begin fun typ _ cst ->
+       C.add typ cst
+      end gram C.empty in
+      Option.get super,cst
 
-  let ruleRHS gram super=function
-   | Abstract -> <:ctyp< >>
-   | Import -> Option.get super
+  let ruleRHS gram super : ruleRHS -> constrainedType=function
+   | Abstract -> <:ctyp< >>,C.empty
+   | Import -> ruleBranch gram super Super
    | Alias i -> ruleItem gram i
    | Variant rb ->
-      let body=
-       List.fold_left begin fun acc s ->
-        <:ctyp< $acc$ | $ruleBranch gram super s$ >>
-       end <:ctyp< >> rb in
-      <:ctyp< [ $body$ ] >>;;
+      let body,cst=
+       List.fold_left begin fun (acc,cst) s ->
+        let b,cst'=ruleBranch gram super s in
+         <:ctyp< $acc$ | $b$ >>,C.union cst cst'
+       end (<:ctyp< >>,C.empty) rb in
+      <:ctyp< [ $body$ ] >>,cst;;
 
   (*
     Generates the open type def corresponding to one rule in the grammar.
     constr is the constraint on the tye parameter.
   *)
-  let rule constr gram name (l:ruleRHS)=
+  let rule gram name (l:ruleRHS)=
    let super = Option.map (fun i -> <:ctyp< 'cst $id:i$.$lid:name$ >>) gram.super in
-   let body = ruleRHS gram super l in
+   let body,cset = ruleRHS gram super l in
    (*This is the actual constraint 'cst=<$constr$; ..>*)
-   let constr = [ <:ctyp< 'cst >>, <:ctyp< < $constr$ ;.. > >> ] in
+   let constr =
+    if C.is_empty cset then
+     []
+    else
+     let c=
+      C.fold begin fun typ objectType ->
+       <:ctyp< $lid:typ$ : '$lid:typ$ ; $objectType$>>
+      end cset <:ctyp< >>
+     in
+     [ <:ctyp< 'cst >>, <:ctyp< < $c$ ;.. > >> ]
+   in
    let ty=Ast.TyDcl (_loc, name , [ <:ctyp< 'cst >> ],body,constr) in
    <:str_item< type $ty$>>;;
 
@@ -216,18 +241,9 @@ module OpenType:
     detailled description of this transformation can be found [[#OpenType|here]]
   *)
   let gen (gram:grammar)=
-  (*
-   The constraint for the type parameter which will be used
-   to close the reccursion
-  *)
-  let constr =
-   G.fold begin fun typ _ objectType ->
-    <:ctyp< $lid:typ$ : '$lid:typ$ ; $objectType$>>
-   end gram <:ctyp< >>
-  in
-  G.fold begin fun s l acc ->
-   <:str_item< $acc$ $rule constr gram s l$ >>
-  end gram <:str_item< >>;;
+   G.fold begin fun s l acc ->
+    <:str_item< $acc$ $rule gram s l$ >>
+   end gram <:str_item< >>;;
 
   (*w
     Generate the object type used to close a open type. That is, assuming we
@@ -296,7 +312,6 @@ struct
   in
   pattList2Pattern idPats,process
 
-
  (**
     Generates all the intermediare definitions for a variable
  *)
@@ -346,22 +361,9 @@ struct
 
 end
 
-EXTEND Gram
- GLOBAL: str_item;
-
- str_item: LEVEL "top" [
-  [ "gram"; e = extends ; "{" ; it=gram_items ; "}" ->
-   let super = Option.map (fun i -> <:ident< $i$.Gram >>) e in
-   let gram=G.init super it in
-   <:str_item<
-    (*The open grammar*)
-    module Gram = struct
-     $OpenType.gen gram$
-    end;;
-    $OpenType.close gram <:ident<Gram>>$
-    (*The mapper*)
-   module Trav =
-   struct
+let genTrav gram=
+ <:str_item<
+  (*The mapper*)
     module type AstDef=
     sig
      $G.fold
@@ -381,7 +383,7 @@ EXTEND Gram
      (**Monadic functions...**)
      module MonHelp=Monad.Helper(Mon);;
      open MonHelp;;
-     $match e with
+     $match gram.super with
       | None -> <:str_item< >>
       | Some i ->
           let conv = <:ident< $id:i$.Trav.Conv >> in
@@ -436,40 +438,50 @@ EXTEND Gram
       module Base:Ext=
        functor(T:Par) ->
       struct
-       $let st =match e with
+       $let st =match gram.super with
         | None -> <:str_item< >>
         | Some _ -> <:str_item<include Super.Base(T) >>
       in
       <:str_item< $st$;; $Mappers.gen gram$>>
        $
     end
- end
-
-    (*Closes the loop usefull to define easilly transformation within the same ast*)
-    module Map(Mon:Monad.T)=
+   end
+       (*Closes the loop. This usefull to define easilly transformation within the same ast*)
+   module Map(Mon:Monad.T)=
+   struct
+    include Conv(ClosedDef)(ClosedDef)(Mon)
+    module Make(E:Ext):T=
     struct
-     (*This grammar*)
-     module Self=
-     struct
-      $let s =
-       G.fold begin
-        fun s _ acc-> <:str_item< $acc$ ;; type $lid:s^"_loop"$ = $lid:s$ >>
-       end gram <:str_item< >>
-       in
-       G.fold begin
-        fun s _ acc -> <:str_item< $acc$ ;; type $lid:s$ = $lid:s^"_loop"$ >>
-       end gram s
-       $
-     end
-     include Conv(Self)(Self)(Mon)
-     module Make(E:Ext):T=
-     struct
-      module rec T:T=E(T)
-      include T
-     end
-    end;;
- end;;
->>
+     module rec T:T=E(T)
+     include T
+    end
+   end
+ >>
+
+EXTEND Gram
+ GLOBAL: str_item;
+
+ str_item: LEVEL "top" [
+  [ "gram"; e = extends ; "{" ; it=gram_items ; "}" ->
+   let gram=
+    let super = Option.map (fun i -> <:ident< $i$.Gram >>) e in
+    G.init super it
+   in
+   <:str_item<
+    (*The open grammar*)
+    module Gram = struct
+     $OpenType.gen gram$
+    end
+    module ClosedDef=struct
+     $OpenType.close gram <:ident<Gram>>$
+    end
+    include ClosedDef
+    (*The mapper*)
+    module Trav =
+    struct
+     $genTrav gram$
+    end
+ >>
 ]
  ];
  gram_items:[
