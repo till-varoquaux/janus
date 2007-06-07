@@ -1,44 +1,23 @@
-module Env=
+(*w
+  This javascript to javascript optimsation pass performs hoisting of function
+  definitions and varibale declarations. It relies on the facts that variables
+  have a unique name and that javascript uses late bindings.
+
+  All the function definitions are collected and moved to the top of there
+  containing scope (with statements or functions). since variable names are
+  unique (and javascript has no block scoping) vars can be safelly moved to the
+  top of there containing function.
+*)
+open General
+open ScopeInfo
+
+(*w The null instruction: doesn't do anything*)
+let null=`Bloc []
+module Mon=Monad.StateMonad(
  struct
-  module StringSet=Set.Make(String)
-  type t={
-   vars:StringSet.t;
-   funcs:AstJs.instr list
-  }
-  let var v e=
-   {e with
-    vars=StringSet.add v e.vars
-   }
-
-  let getVars s =
-   StringSet.elements s.vars
-
-  let func v e=
-   {e with
-    funcs=v::e.funcs
-   }
-
-  let getFuncs e =
-   e.funcs
-
-  let resetFuncs e=
-   {e with
-     funcs=[]
-   }
-
-  let merge e1 e2=
-   {
-    vars=StringSet.union e1.vars e2.vars;
-    funcs=e1.funcs@e2.funcs
-   }
-
-  let empty=
-   {
-    vars=StringSet.empty;
-    funcs=[]
-   }
+  type t=AstJs.instr list
  end
-module Mon=Monad.StateMonad(Env)
+)
 
 module T=AstJs.Trav.Map(Mon)
 
@@ -47,37 +26,45 @@ module Hoist=T.Make(
  struct
   module Super=T.Base(S)
   include Super
-  let null=`Bloc [](*The null instruction: doesn't do anything*)
-  (**
-      Outputs all the declarations from a given environement
-   *)
-  let makeHeader s=
-   (Env.getFuncs s)
-   @
-   (List.map (fun i -> `Var i) (Env.getVars s))
 
-  let program p env=
-   let prog,env = Super.program p env
+  let program p funs=
+   let prog,funs = Super.program p funs
    in
-   ((Env.getFuncs env)@prog),env
+   (funs@prog),funs
 
-  let instr i env=
+  let instr i funs=
    match i with
     | `Fundecl (name,args,i) ->
-       let hInstr,hEnv=instr i Env.empty in
+       let hInstr,hFuns=instr i [] in
+       let vars=ref [] in
+       StringSet.iter (fun i -> vars:=(`Var i)::!vars) (ScopeInfo.instr i).defined;
        null,
-       (Env.func (`Fundecl (name,args,`Bloc ((makeHeader hEnv)@[hInstr]))) env)
-    | `WithCtx (e,i) ->
-       let hInstr,hEnv=instr i Env.empty in
-       `WithCtx (e,`Bloc(Env.getFuncs hEnv@[hInstr])),
-       Env.merge env (Env.resetFuncs hEnv)
-    | `Var i -> null,(Env.var i env)
-    | _ -> Super.instr i env
+       (`Fundecl (name,args,`Bloc ((!vars)@hFuns@[hInstr])))::funs
+    | `WithCtx (e,i,si) ->
+       (*w
+         the only purpose of using "with" is to ensure closures are correctly
+         defined, therefor we don't want to hoist function declarations any higher...
+        *)
+       let capturesLocals f=
+        let captured = (ScopeInfo.instr f).captured in
+        List.exists (fun v -> StringSet.mem v captured) si
+       in
+       let hInstr,hFuns=instr i [] in
+       let capFuns,hoistFuns = List.partition capturesLocals hFuns in
+       `WithCtx (e,`Bloc(capFuns@[hInstr]),si),
+       hoistFuns@funs
+    | `Var _ ->
+       (*w
+         We can safely drop the var def here: they will be hoisted and
+         recalculated from scopeInfo.
+       *)
+       null,funs
+    |_ -> Super.instr i funs
  end)
 
 let pass:#Optimise.pass=
 object
- method run p=Mon.run (Hoist.program p) Env.empty
+ method run p=Mon.run (Hoist.program p) []
  method name="hoisting"
  method description="hoisting of function and var declarations"
 end

@@ -117,12 +117,14 @@ module D=T.Make(
        let body,tail = S.instr body (Tail (fname,args)) in
        let body=
         if tail=TailRec then
+         (*TODO: testing wether we are actually pushing anything should not be
+           done here...*)
          if args=[] then
           `Loop (contlbl,body)
          else
           `Bloc [`Var jsCtxId;
                  `Assign (jsCtx,`Obj[]);
-                 `Loop (contlbl,(`WithCtx (jsCtx,body)))]
+                 `Loop (contlbl,(`WithCtx (jsCtx,body,args)))]
         else
          body
        in

@@ -3,8 +3,6 @@
   to the standard library.
 *)
 
-module StringMap=Map.Make(String)
-
 (*w
   Ocaml's stdlib seems to be strangely lacking of some basic features. This
   module stub is inspired by
@@ -22,6 +20,10 @@ module Option=
   let map f= function
    | Some x -> Some (f x)
    | None -> None
+
+  let map_default f x = function
+   | Some v -> f v
+   | None -> x
  end
 
 module List=
@@ -35,6 +37,9 @@ module List=
    in
    aux 0 l
  end
+
+module StringMap=Map.Make(String)
+module StringSet=Set.Make(String);;
 
 (*w
   ^^atomSeq f g^^

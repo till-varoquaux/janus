@@ -1,3 +1,11 @@
+(*w
+  This module contains a very straightforward definition of monads. Monads are
+  used in our tree traversal functions to ensure flexibility. Allthough they are
+  a great tool they stil don't solve all our problems for instance memoization
+  can't be easilly added via monads...
+
+  [[http://www.haskell.org/arrows/|Arrows]] could prove a viable alternative.
+*)
 module type T=
 sig
  type 'a m

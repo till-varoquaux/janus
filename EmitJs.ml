@@ -112,7 +112,7 @@ and macroelem al= function
 
 and instr (i:instr)=
  let r=match i with
-  | `WithCtx (e,b) -> (text "with(") ^^ (expr e ) ^^ (text ")") ^^ (blocOrInstr b)
+  | `WithCtx (e,b,_) -> (text "with(") ^^ (expr e ) ^^ (text ")") ^^ (blocOrInstr b)
   | `Bloc il -> bloc il
   | `Var i -> (text "var ") ^^ (ident i)
      (*TODO: collapse `Var lists*)
