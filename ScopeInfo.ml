@@ -50,26 +50,30 @@ module D=T.Make(
   module Super=T.Base(S)
   include Super
 
-  let expr=function
-   | `Ident i as e ->
-      e,{empty with
-          read=StringSet.singleton i
-        }
-   | e -> Super.expr e
+  let expr=WeakHt.memoize
+   begin function
+    | `Ident i as e ->
+       e,{empty with
+           read=StringSet.singleton i
+         }
+    | e -> Super.expr e
+   end
 
-  let instr=function
-   | `Var v as i->
-      i,{empty with
-          defined=SS.singleton v
-        }
-   | `Fundecl (name,args,b) as i ->
-      let _,ctx = instr b in
-      let defined=List.fold_left (fun s elt -> SS.remove elt s) SS.empty args in
-      i,{empty with
-          defined=SS.singleton name;
-          captured=SS.diff ctx.read defined
-        }
-   | i -> Super.instr i
+  let instr=WeakHt.memoize
+   begin function
+    | `Var v as i->
+       i,{empty with
+           defined=SS.singleton v
+         }
+    | `Fundecl (name,args,b) as i ->
+       let _,ctx = instr b in
+       let defined=List.fold_left (fun s elt -> SS.remove elt s) SS.empty args in
+       i,{empty with
+           defined=SS.singleton name;
+           captured=SS.diff ctx.read defined
+         }
+    | i -> Super.instr i
+   end
 
  end
 )
