@@ -6,6 +6,13 @@ This is currently under heavy developpement, be warned!!!
 
 ==Downloading==
 
-You can get a snapshot via:%%
+You can get a snapshot via:
+
+%%
 darcs get till.varoquaux.free.fr/projects/mini_js
 %%
+
+==Other pages==
+ - [[TODO.html| Todo]]
+
+

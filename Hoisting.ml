@@ -1,17 +1,20 @@
 (*w
-  This javascript to javascript optimsation pass performs hoisting of function
-  definitions and varibale declarations. It relies on the facts that variables
-  have a unique name and that javascript uses late bindings.
+  This javascript to javascript optimisation pass performs hoisting of
+  function definitions and variable declarations. It relies on the facts that
+  variables have a unique name and that javascript uses late bindings (function
+  definitions can therefore be hoisted).
 
   All the function definitions are collected and moved to the top of there
   containing scope (with statements or functions). since variable names are
   unique (and javascript has no block scoping) vars can be safelly moved to the
-  top of there containing function.
+  top of their containing functions.
 *)
 open General
 open ScopeInfo
 
-(*w The null instruction: doesn't do anything*)
+(*w
+  The null instruction: doesn't do anything
+*)
 let null=`Bloc []
 module Mon=Monad.StateMonad(
  struct
@@ -27,10 +30,14 @@ module Hoist=T.Make(
   module Super=T.Base(S)
   include Super
 
-  let program p funs=
-   let prog,funs = Super.program p funs
+  (*w
+    we can safely drop all variable definitions in the program: In javascript
+    the ^^var^^ keyword is only used to restrict the scope of a variable.
+  *)
+  let program p _=
+   let prog,funs = Super.program p []
    in
-   (funs@prog),funs
+   (funs@prog),[]
 
   let instr i funs=
    match i with

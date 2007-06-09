@@ -4,7 +4,7 @@
 *)
 let contlbl="$body"
 
-(**
+(*w
    This is an object we'll push on the stack to have a local context
 *)
 let jsCtxId = "$ctx"

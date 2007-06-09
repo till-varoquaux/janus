@@ -27,6 +27,9 @@ struct
             ))))
 end
 
+(*w
+  Identity monad.
+*)
 module Id=
 struct
  type 'a m='a
@@ -35,8 +38,8 @@ struct
  let run a=a
 end;;
 
-(**
-   state monad
+(*w
+   State monad.
 *)
 module type State=
  sig

@@ -1,7 +1,0 @@
-Optimisation passes:
-_Inlinning should be added.
-_Moving fundecls from expressions to instructions should be done in another pass.
-_Lazyness in "and" and "or" should be dealt with during cps
-transformation.
-FIXME:
-_Variable scoping in loops.

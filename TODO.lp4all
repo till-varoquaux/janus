@@ -1,0 +1,18 @@
+====Todo====
+==Critical==
+
+ - **Variable scoping in loops.** If a variable delared in loop is
+   captured it can be changed by the next iterations in this loop.
+
+==Serious==
+
+ - **Lazyness in "and" and "or"**. This lazyness is not repected
+   during Cps convertion.
+
+==Other==
+
+ - **Inlinning.** we are still looking for a suitable heuristic
+ - **Fundecls** moving them from expressions to instructions should be
+   done in a separate pass.
+ - **Limit the use of ^^with^^** to push objects on the stack. This is
+   costly and not always necessary.

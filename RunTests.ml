@@ -38,7 +38,7 @@ let isTest s=
  (Filename.check_suffix s ".jis") &&
   (Sys.file_exists ((base s)^ ".expected"))
 
-(**
+(*w
    Reads the whole content from a channel
 *)
 let readChannel ic=

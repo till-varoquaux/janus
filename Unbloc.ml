@@ -1,4 +1,8 @@
-(*Performs dead code elimination*)
+(*w
+  ====Bloc expansions====
+  Blocs are list of instructions enclosed in brackets. This extension extends
+  all bloc when it can.
+*)
 
 module Id=Monad.Id
 module T=AstJs.Trav.Map(Id);;
@@ -9,8 +13,8 @@ module D=T.Make(
   module Super=T.Base(S)
   include Super
 
-  (**
-     This function expands all the blocs in a instruction list.
+  (*w
+     This function expands all the blocs in an instruction list.
   *)
   let unroll=
    let rec aux= function
@@ -20,7 +24,7 @@ module D=T.Make(
    in
    aux
 
-  (**
+  (*w
      Returns a single instruction, used to delete case where bloc contain only
      a single instruction.
   *)

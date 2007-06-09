@@ -17,7 +17,7 @@ exception Fundecl of (bool*(ident' list)*instr')
    TODO:Should be done in another pass.
  *)
 
-(**
+(*w
    This is the type of a compiled function call...
 *)
 type compiledCall={
@@ -30,7 +30,7 @@ type compiledCall={
 let redef l i=
  error ~pos:l (Printf.sprintf "cannot redefine \"%s\"" i)
 
-(**
+(*w
    Translate a macro element
 *)
 let macroElem al = function
@@ -71,9 +71,9 @@ let typeMacro m =
 
 let ident=Env.ident
 
-(**
+(*w
    Returns the type of an expression in a given environement
-**)
+*)
 let rec typeExpr env=function
  | `Pos _ as p -> protect (typeExpr env) p
  | `Typed (_,ty) -> ty
@@ -96,9 +96,9 @@ and typeLvalue env=function
  | `Array _ -> error "not handling arrays yet"
  | `Access _ -> error "not handling objects yet"
 
-(**
+(*w
    Checks that two types are compatible; raises an error if not.
-**)
+*)
 let rec compatible t1 t2=
  match (t1,t2) with
   | `T,`T -> ()
@@ -141,9 +141,8 @@ and args env al : ((expr' list)*ctx)=
  in
  List.fold_right arg al ([],[])
 
-(**
-   Takes a function call and returns all the necessary informations to compil it
-   .
+(*w
+  Takes a function call and returns all the necessary informations to compil it.
 *)
 and callCompile env (`Call (e,al)) : compiledCall =
   let funTy= typeExpr env e in
@@ -174,13 +173,13 @@ and isMacro env=
      end
   | _ -> false
 
-(**
-   Converts an expression
+(*w
+  Converts an expression
 
-   @param inVdecl Are we already already in a var declaration
-   (TODO: this is used to transform fundeclaration expressions to function
-   declaration instructions. It should probably be done in another pass.)
-   @param eType
+  ^^inVdecl^^ Is used to check if we are already in a var declaration
+
+  (TODO: this is used to transform fundeclaration expressions to function
+  declaration instructions. It should probably be done in another pass.)
 *)
 and expr ?(inVdecl=false) ?(eType=(`T:ty)) env:expr -> (expr'*ctx)=function
  | `Pos _ as p -> protect (expr ~inVdecl:inVdecl ~eType:eType env) p

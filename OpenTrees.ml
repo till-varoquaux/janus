@@ -328,7 +328,7 @@ struct
   in
   pattList2Pattern idPats,process
 
- (**
+ (*w
     Generates all the intermediare definitions for a variable
  *)
  and genBinders gram expr =
@@ -410,7 +410,7 @@ let genTrav gram=
     end;;
     module Conv(From:AstDef)(To:AstDef)(Mon:Monad.T)=
     struct
-     (**Monadic functions...**)
+     (*Monadic functions...**)
      module MonHelp=Monad.Helper(Mon);;
      open MonHelp;;
      $match gram.super with

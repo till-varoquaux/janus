@@ -14,17 +14,17 @@ val ident:ident->t->id
 val empty:t
 val oldify:t->t
 
-(**
+(*w
    Generates a fresh identifier.
  *)
 val fresh:?hint:string->unit->id
 
-(**
+(*w
    Are we in a cps block
 *)
 val cps:t->bool
 
- (**
+(*w
     Changes the cps value of an environement. This tells us wether we are in a
     cps block or not.
  *)
