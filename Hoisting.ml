@@ -31,6 +31,17 @@ module Hoist=T.Make(
   include Super
 
   (*w
+    Tests wether a given instruction captures some of the locals.
+  *)
+  let sepCaptured locals=
+   List.partition begin
+    fun i ->
+     let sc = ScopeInfo.instr i in
+     List.exists (fun v -> ScopeInfo.isCaptured sc v) locals
+   end
+
+
+  (*w
     we can safely drop all variable definitions in the program: In javascript
     the ^^var^^ keyword is only used to restrict the scope of a variable.
   *)
@@ -42,34 +53,41 @@ module Hoist=T.Make(
   let expr e funs =
    match e with
     | `Fun(args,i) ->
-       let hInstr,hFuns=instr i [] in
-       let vars=ref [] in
-       let id=Env.fresh() in
-       StringSet.iter (fun i -> vars:=(`Var i)::!vars) (ScopeInfo.instr i).defined;
+              let hInstr,hFuns=instr i [] in
+       let locals =
+        ScopeInfo.foldDefined (ScopeInfo.instr hInstr) begin
+         fun i loc -> i::loc
+        end args in
+       let capFuns,hoistFuns=sepCaptured locals hFuns
+       and vars = ScopeInfo.foldDefined (ScopeInfo.instr hInstr) begin
+         fun i loc -> `Var i::loc
+        end []
+       and id=Env.fresh ~hint:"hoisted" () in
        `Ident id,
-       `Fundecl (id,args,`Bloc ((!vars)@hFuns@[hInstr]))::funs
+       `Fundecl (id,args,`Bloc (vars@capFuns@[hInstr]))::hoistFuns@funs
     |_ -> Super.expr e funs
 
   let instr i funs=
    match i with
-    (*| `Assign((`Ident name),`Fun(args,i))*)
     | `Fundecl (name,args,i) ->
        let hInstr,hFuns=instr i [] in
-       let vars=ref [] in
-       StringSet.iter (fun i -> vars:=(`Var i)::!vars) (ScopeInfo.instr i).defined;
+       let locals =
+        ScopeInfo.foldDefined (ScopeInfo.instr hInstr) begin
+         fun i loc -> i::loc
+        end args in
+       let capFuns,hoistFuns=sepCaptured locals hFuns
+       and vars = ScopeInfo.foldDefined (ScopeInfo.instr hInstr) begin
+         fun i loc -> `Var i::loc
+        end [] in
        null,
-       (`Fundecl (name,args,`Bloc ((!vars)@hFuns@[hInstr])))::funs
+       (`Fundecl (name,args,`Bloc (vars@capFuns@[hInstr])))::hoistFuns@funs
     | `WithCtx (e,i,si) ->
        (*w
          the only purpose of using "with" is to ensure closures are correctly
          defined, therefor we don't want to hoist function declarations any higher...
         *)
-       let capturesLocals f=
-        let captured = (ScopeInfo.instr f).captured in
-        List.exists (fun v -> StringSet.mem v captured) si
-       in
        let hInstr,hFuns=instr i [] in
-       let capFuns,hoistFuns = List.partition capturesLocals hFuns in
+       let capFuns,hoistFuns = sepCaptured si hFuns in
        `WithCtx (e,`Bloc(capFuns@[hInstr]),si),
        hoistFuns@funs
     | `Var _ ->

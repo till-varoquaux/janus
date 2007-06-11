@@ -5,7 +5,6 @@ let return="$return"
 module Conv=AstJs.Trav.Conv(AstCpsInt)(AstJs)(Monad.Id)
 open Conv
 
-
 module D(S:Par):Par=
  struct
   module Super=Base(S)
@@ -50,7 +49,7 @@ module D(S:Par):Par=
    match i with
     | `Cps i -> cpsInstr i cont
     | `Ret e ->
-       (`Ret (`Call ((`Ident return),[expr e])))::cont
+       `Call ((`Ident return),[expr e])::cont
     | `TemplateCall (el,b) ->
        let call,cont=cpsCall cont None
        and el=List.map expr el in

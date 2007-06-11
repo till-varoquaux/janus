@@ -14,7 +14,7 @@ sig
  val bind: 'a m -> ('a -> 'b m) -> 'b m
 end
 
-type scope=
+type scopes=
   {
    defined:SS.t;
    read:SS.t;
@@ -35,7 +35,7 @@ let merge m1 m2={
 
 module ScInfo=
  struct
-  type 'a m='a*scope
+  type 'a m='a*scopes
   let return x= x,empty
   let bind (a,scope) f =
    let b,scope'= f a in
@@ -80,3 +80,12 @@ module D=T.Make(
 
 let expr e= snd(D.expr e)
 let instr i= snd(D.instr i)
+
+let foldDefined sc f=
+ SS.fold f sc.defined
+
+let foldCaptured sc f =
+ SS.fold f sc.captured
+
+let isCaptured sc f =
+ SS.mem f sc.captured
