@@ -39,8 +39,20 @@ module Hoist=T.Make(
    in
    (funs@prog),[]
 
+  let expr e funs =
+   match e with
+    | `Fun(args,i) ->
+       let hInstr,hFuns=instr i [] in
+       let vars=ref [] in
+       let id=Env.fresh() in
+       StringSet.iter (fun i -> vars:=(`Var i)::!vars) (ScopeInfo.instr i).defined;
+       `Ident id,
+       `Fundecl (id,args,`Bloc ((!vars)@hFuns@[hInstr]))::funs
+    |_ -> Super.expr e funs
+
   let instr i funs=
    match i with
+    (*| `Assign((`Ident name),`Fun(args,i))*)
     | `Fundecl (name,args,i) ->
        let hInstr,hFuns=instr i [] in
        let vars=ref [] in

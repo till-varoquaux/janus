@@ -41,7 +41,7 @@ and constant = function
  | `Float f -> text (string_of_float f)
  | `String s -> text (sprintf "\"%s\"" (escape s))
 
-(*TODO: replace with jerom's function*)
+(*TODO: replace with jerom's function to place a minimal amount of parenthesis*)
 and expr ?(guard=false) =
  let wrap b=
   if guard then
@@ -52,12 +52,18 @@ and expr ?(guard=false) =
   expr ~guard:true e
  in
  function
+  | `Fun(args,b) ->
+     let b=(match b with
+             | `Bloc _ -> b
+             | i -> `Bloc [i]) in
+     wrap ((text "function(")^^
+            (join ident args (text ","))^^ (text ")") ^^ (instr b))
   | `Cst c -> constant c
   | `Ident i -> ident i
   | `Call (f,args) ->
      let args=join expr args (text ",")
      in
-     (expr f) ^^ (text "(")^^args^^ (text ")")
+     (ep f) ^^ (text "(")^^args^^ (text ")")
   | `Array (elems) ->
      let elems=join expr elems (text ",")
      in

@@ -12,11 +12,6 @@ type program'=AstCpsInt.program
 type lvalue'=AstCpsInt.lvalue
 type ctx=instr' list
 
-exception Fundecl of (bool*(ident' list)*instr')
- (*Used to move function declarations out of expressions...
-   TODO:Should be done in another pass.
- *)
-
 (*w
    This is the type of a compiled function call...
 *)
@@ -176,14 +171,11 @@ and isMacro env=
 (*w
   Converts an expression
 
-  ^^inVdecl^^ Is used to check if we are already in a var declaration
-
-  (TODO: this is used to transform fundeclaration expressions to function
-  declaration instructions. It should probably be done in another pass.)
+  ^^eType^^ Is used to keep the type information.
 *)
-and expr ?(inVdecl=false) ?(eType=(`T:ty)) env:expr -> (expr'*ctx)=function
- | `Pos _ as p -> protect (expr ~inVdecl:inVdecl ~eType:eType env) p
- | `Typed (e,t) -> expr env e  ~inVdecl:inVdecl ~eType:t
+and expr ?(eType=(`T:ty)) env:expr -> (expr'*ctx)=function
+ | `Pos _ as p -> protect (expr ~eType:eType env) p
+ | `Typed (e,t) -> expr env e ~eType:t
  | `Obj (pl) ->
     let pl',ctx=List.fold_left begin
      fun (pl,ctx) ({node=i;loc=_},e) ->
@@ -229,17 +221,10 @@ and expr ?(inVdecl=false) ?(eType=(`T:ty)) env:expr -> (expr'*ctx)=function
     let b=fbloc env b
     and il =List.map (fun i -> ident i env) il
     in
-    if (inVdecl) then(
-     raise (Fundecl (cps,il,b))
-    )else(
-     let a = Env.fresh ~hint:"f" ()
-     in (`Ident a),[
-      if cps then
-       `Cps(`Fundecl(a,il,b))
-      else
-       `Fundecl(a,il,b)
-     ]
-    )
+    if cps then
+     `CpsFun(il,b),[]
+    else
+     `Fun(il,b),[]
  | `Unop (u,e) ->
     let e,ctx=expr env e in
     `Unop (u,e),ctx
@@ -250,7 +235,7 @@ and expr ?(inVdecl=false) ?(eType=(`T:ty)) env:expr -> (expr'*ctx)=function
      (*TODO handle lazyness in and and or*)
 and instr env : instr -> (instr' list*Env.t)=
  function
-  | `Fundecl _ | `TemplateCall _-> assert false
+  | `TemplateCall _-> assert false
   | `Pos _ as p -> protect (instr env) p
   | `Macro (i,_,_,_) | `CpsMacro (i,_,_,_) as m ->
      let m=typeMacro m in
@@ -259,13 +244,8 @@ and instr env : instr -> (instr' list*Env.t)=
   | `Var (i,e) ->
      let env=Env.add i ((typeExpr env e):>ty') env in
      let i=ident i env in
-     (try(
-       let e,ctx=expr ~inVdecl:true env e in
-       (ctx@[`Var (i,e)]),env
-      ) with
-       | Fundecl (true,il,b) -> [`Cps(`Fundecl (i,il,b))],env
-       | Fundecl (false,il,b) -> [`Fundecl (i,il,b)],env
-     )
+     let e,ctx=expr env e in
+     (ctx@[`Var (i,e)]),env
   | `Assign (lv,e) ->
      let lv,ctx1=lvalue env lv
      and e,ctx2=expr env e in

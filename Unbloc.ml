@@ -41,6 +41,8 @@ module D=T.Make(
       let b1=blocOrInstr b1
       and b2=blocOrInstr b2 in
       `If (S.expr e,b1,b2)
+   | `While(e,b) ->
+      `While(e,blocOrInstr b)
    | i -> Super.instr i
   let program =
    unroll

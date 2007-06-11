@@ -5,7 +5,8 @@
 gram extends AstBase{
  import ty,constant,ident,lvalue,unop,binop,program,macrobloc,expr,instr,macroitem;
  instr:=
-  `Loop ident,instr
+| `Fundecl ident,[ident],instr
+| `Loop ident,instr
 | `Continue ident
     (*w
       Thi is used to push an object on the stack, the ^^ident list^^ is a

@@ -2,7 +2,8 @@ gram{
  ident := string;
  constant:= `Bool bool | `Int int | `Float float | `String string;
  expr :=
-|`Cst constant
+| `Fun [ident],instr
+| `Cst constant
 | `Ident ident
 | `Call expr,[expr]
 | `Unop unop,expr
@@ -17,7 +18,6 @@ gram{
 | `Add | `Sub | `Mul | `Div | `Mod | `And | `Or;
  instr :=
 | `Call expr,[expr]
-| `Fundecl ident,[ident],instr
 | `Assign lvalue,expr
 | `If expr,instr,instr
 | `While expr,instr

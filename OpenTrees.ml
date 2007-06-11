@@ -15,6 +15,8 @@
   Error reporting is currently extremelly bad since no efforts have been
   made. This extension is used only internally (AFAIK) so it seems to much of
   a hassle for the benefit.
+
+  TODO: the Conv module probaly doesn't need a a To argument
 *)
 
 open General
@@ -439,7 +441,6 @@ let genTrav gram=
       (*The whole tree is translated From -> To excepted the toplevel node*)
       module type T =
       sig
-       open Mon
        open Gram
         $G.fold
         begin

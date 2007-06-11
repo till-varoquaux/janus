@@ -12,7 +12,5 @@
 ==Other==
 
  - **Inlinning.** we are still looking for a suitable heuristic
- - **Fundecls** moving them from expressions to instructions should be
-   done in a separate pass.
  - **Limit the use of ^^with^^** to push objects on the stack. This is
    costly and not always necessary.

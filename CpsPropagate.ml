@@ -18,14 +18,20 @@ module D=T.Make(
  struct
   module Super=T.Base(S)
   include Super
+  let expr=function
+   | `Fun (args,i) ->
+      `Fun(args,fst (Super.instr i)),false
+   | `CpsFun (args,i) ->
+      `CpsFun(args,fst (Super.instr i)),false
+   | e -> Super.expr e
   let instr=function
    | `Cps i -> `Cps i,true
-   | `Fundecl _ as f -> f,false
-   | i -> let i,cps=Super.instr i in
-     if cps then
-      `Cps i,true
-     else
-      i,false
+   | i ->
+      let i,cps=Super.instr i in
+      if cps then
+       `Cps i,true
+      else
+       i,false
  end)
 
 let run p:AstCpsInt.program=Mon.run (D.program p)
