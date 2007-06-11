@@ -240,7 +240,9 @@ and expr ?(inVdecl=false) ?(eType=(`T:ty)) env:expr -> (expr'*ctx)=function
        `Fundecl(a,il,b)
      ]
     )
- | `Unop _ -> assert false
+ | `Unop (u,e) ->
+    let e,ctx=expr env e in
+    `Unop (u,e),ctx
  | `Binop (b,e1,e2) ->
     let e1,ctx1=expr env e1
     and e2,ctx2=expr env e2 in
