@@ -5,10 +5,24 @@ type id=AstCpsInt.ident
 type ty'=AstCpsInt.ty
 
 let fresh=
- let cnt=ref 0 in
+ let module M =Hashtbl.Make (
+  struct
+   type t=id
+   let equal=(=)
+   let hash=Hashtbl.hash
+  end)
+ in
+ let dec=M.create 89 in
  fun ?(hint="fresh")() ->
-  cnt:=!cnt+1;
-  Printf.sprintf "$%s_%i" hint !cnt
+  if M.mem dec hint then begin
+  let cnt=M.find dec hint in
+   M.remove dec hint;
+   M.add dec hint (cnt+1);
+   Printf.sprintf "$%s_%i" hint cnt
+  end else begin
+   M.add dec hint 0;
+   Printf.sprintf "$%s" hint
+  end;;
 
 type t={old:(string*ty) C.t;
         recent:(string*ty) C.t;
