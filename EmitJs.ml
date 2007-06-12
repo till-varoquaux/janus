@@ -88,9 +88,9 @@ struct
 
  let cPrint def ?(color=def.color) ?(weight=def.weight) txt=
   if tty then
-   let weight=Printf.sprintf "%.2u" (decodeWeight weight)
-   and color=Printf.sprintf "%.2u" (decodeColor color) in
-   let col=Printf.sprintf "\027[%s;%sm" weight color in
+   let weight=sprintf "%.2u" (decodeWeight weight)
+   and color=sprintf "%.2u" (decodeColor color) in
+   let col=sprintf "\027[%s;%sm" weight color in
    (nullText col)^^(text txt)^^(nullText "\027[0m")
   else
    text txt

@@ -24,6 +24,10 @@ module Option=
   let map_default f x = function
    | Some v -> f v
    | None -> x
+
+  let default null = function
+   | Some v -> v
+   | None -> null
  end
 
 module List=

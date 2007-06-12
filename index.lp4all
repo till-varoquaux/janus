@@ -9,7 +9,7 @@ This is currently under heavy developpement, be warned!!!
 You can get a snapshot via:
 
 %%
-darcs get till.varoquaux.free.fr/projects/mini_js
+darcs get http://till.varoquaux.free.fr/projects/mini_js
 %%
 
 ==Other pages==

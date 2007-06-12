@@ -10,11 +10,25 @@
 
 check_required (){
 	if ! which "$1" > /dev/null; then
-		echo "Couldn't required binary \"$1\", failling.." > /dev/stderr
+		echo "Couldn't find required binary \"$1\", failling.." > /dev/stderr
 		exit 1
 	fi
 }
+check_ocaml_version(){
+    OCV=`ocaml -version`
+    OCV="${OCV##* }"
+    MAJOR="${OCV%%.*}"
+    REST="${OCV#*.}"
+    MINOR="${REST%%.*}"
+    if (test "$MAJOR" -lt $1) || ((test "$MAJOR" -eq $1) && (test "$MINOR" -lt $2));then
+        echo "Your version of ocaml is too old to run this script." > /dev/stderr
+        echo "You need ocaml $1.$2 or better..."
+        exit 1
+    fi
+}
+
 check_required "ocaml"
+check_ocaml_version 3 10
 check_required "ocamlfind"
 exec ocaml $0 $@
 #We use a here doc to comment out the whole Ocaml section
