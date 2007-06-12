@@ -1,7 +1,7 @@
 SHELL = /bin/sh
 #Configurable options
-TARGET=Main
-OCB=ocamlbuild -ocamlc "ocamlfind c" -ocamlopt "ocamlfind opt" -lflags "-package unix","-linkpkg"
+SRC=Main
+OCB=ocamlbuild -no-links -ocamlc "ocamlfind c" -ocamlopt "ocamlfind opt" -ocamldep "ocamlfind dep" -lflags "-package unix","-linkpkg"
 #YACC=menhir
 MODE=byte
 FTP_TARGET=till.varoquaux@login.free.fr:/projects/$(PROJECT_NAME)
@@ -20,22 +20,17 @@ else
 endif
 MLI=$(wildcard *.mli)
 
-all:$(MODE) annot check
+all:annot check
 
-Makefile.in:
-	${error You must run configure before make...}
+Makefile:configure
+	${error Your Makefile is too old, you must rerun configure...}
 
-Makefile:Makefile.in
+.PHONY:all clean opt dist doc check annot web
 
-.PHONY:all clean byte opt dist doc check annot web
-
-opt:sane
-	${info * making native code}
-	@$(OCB) $(TARGET).native
-
-byte:sane
-	${info * making byte code}
-	@$(OCB) $(TARGET).byte
+$(TARGET):sane
+	${info * making $(MODE) code}
+	@$(OCB) $(SRC).$(MODE)
+	@cp $(BUILDDIR)/$(SRC).$(MODE) $(TARGET)
 
 doc:$(MLI)
 	${info * making docs...}
@@ -43,15 +38,15 @@ doc:$(MLI)
 #	@echo "$(basename $(MLI))" > doc.odocl
 #	@$(OCB) doc.docdir/index.html
 
-check:$(MODE)
+check:$(TARGET)
 	${info * runnning tests}
-	@ocaml RunTests.ml
+	@ocaml RunTests.ml ./$(TARGET)
 
 sane:
 	@rm -f *.annot
 
-annot:$(MODE)
-	@cp _build/*.annot . 
+annot:$(TARGET)
+	@cp _build/*.annot .
 
 web:
 	${info "updating web site"}
@@ -69,9 +64,8 @@ clean:sane
 	@$(OCB) -clean
 
 distclean:clean
-	@rm -f Makefile.in version.ml
+	@rm -f Makefile version.ml
 
 dist:
 	darcs dist -d "$(PROJECT_NAME)-$(VERSION)"
 
-include Makefile.in

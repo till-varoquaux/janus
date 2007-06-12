@@ -142,12 +142,13 @@ let _ =
   res (Printf.sprintf "%.2u/%.2u/%.4u" m d y);
   version:=Printf.sprintf "%.4u%.2u%.2u" y m d
  end;
- with_open_out (Filename.concat root "Makefile.in")
+ with_open_out (Filename.concat root "Makefile")
   begin
    fun ch ->
-    let printf=Printf.fprintf ch in
-    printf "VERSION=%s\n" !version;
-    printf "PROJECT_NAME=%s\n" project_name;
+    Printf.fprintf ch "VERSION=%s\n" !version;
+    Printf.fprintf ch "PROJECT_NAME=%s\n" project_name;
+    Printf.fprintf ch "TARGET=%s\n" project_name;
+    Printf.fprintf ch "include Makefile.in"
   end;
   with_open_out (Filename.concat root "Version.ml")
   begin

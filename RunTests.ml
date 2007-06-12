@@ -8,7 +8,15 @@
 
 exception Fail
 
-let executable="./Main.byte"
+let usage = "ocaml RunTests.ml compiler"
+let spec=[]
+let executable =
+ let file=ref None in
+ Arg.parse spec (fun s -> file := Some s) usage;
+ match !file with
+  | Some f -> f
+  | None -> Arg.usage spec usage; exit 1
+
 let testDir="test"
 
 let tty=((Unix.getenv "TERM")<>"dumb")
@@ -29,7 +37,8 @@ let success s=
 let faillure ?(failled=[]) s=
  Printf.eprintf "%s: faillure [%s]\n"
   (Filename.chop_extension s)
-  (String.concat "," failled)
+  (String.concat "," failled);
+ flush stderr
 
 let base s=
  Filename.concat testDir (Filename.chop_extension s)
@@ -109,6 +118,7 @@ let tests=
  let fileArray=Sys.readdir testDir in
  let files=Array.to_list fileArray in
  List.filter isTest files
+
 
 let () =
  List.iter test tests;

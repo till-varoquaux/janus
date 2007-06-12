@@ -130,7 +130,7 @@ open Style
 
 (*This is just used to unsure we do NOT use ^^text^^ in the functions below...*)
 type abstract
-let text : abstract= Obj.magic(text)
+let text : abstract = Obj.magic ()
 
 let rec ident i=
  Style.ident i
