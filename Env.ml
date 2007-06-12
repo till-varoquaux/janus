@@ -5,19 +5,58 @@ module C=Map.Make(String)
 type id=AstCpsInt.ident
 type ty'=AstCpsInt.ty
 
+(*w
+  This is a list of reserved keywords. Since they are used in javascript we do
+  not want to override them.
+*)
+let reservedKeywords=[
+ (*Ecma 263 reserved words*)
+ "break";"else";"new";"var";
+  "case";"finally";"return";"void";
+  "catch";"for" ;"switch";"while";
+  "continue";"function";"this";"with";
+  "default";"if";"throw";
+  "delete";"in";"try";
+  "do";"instanceof";"typeof";
+  "abstract";"enum";"int";"short";
+  "boolean";"export";"interface";"static";
+  "byte";"extends";"long";"super";
+  "char";"final";"native";"synchronized";
+  "class";"float";"package";"throws";
+  "const";"goto";"private";"transient";
+  "debugger";"implements";"protected";"volatile";
+  "double";"import";"public";
+  (*JS 1.5 keywords*)
+  (**Objects*)
+  "Array";"Boolean";"Date";
+  "Error";"Function";"java";
+  "JavaArray";"JavaClass";"JavaObject";
+  "JavaPackage";"Math";"netscape";
+  "Number";"Object";"Packages";
+  "RegExp";"String";"sun";
+   (**Properties*)
+  "Infinity";"NaN";"undefined";
+   (**Functions*)
+  "decodeURI";"decodeURIComponent";"encodeURI";
+  "encodeURIComponent";"eval";"isFinite";
+  "isNaN";"parseFloat";"parseInt"
+]
+
+
 let fresh=
  let module M=StringHt
  in
  let dec=M.create 89 in
+ List.iter (fun i -> M.add dec i 0) reservedKeywords;
  fun ?(hint="fresh")() ->
   if M.mem dec hint then begin
    let cnt=M.find dec hint in
    M.remove dec hint;
    M.add dec hint (cnt+1);
-   Printf.sprintf "$%s_%i" hint cnt
+   Printf.sprintf "%s$%i" hint cnt
   end else begin
    M.add dec hint 0;
-   Printf.sprintf "$%s" hint
+   Printf.sprintf "%s" hint
   end;;
 
 type t={old:(string*ty) C.t;

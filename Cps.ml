@@ -32,12 +32,14 @@ module D(S:Par):Par=
    let args= (match affect with
                | None -> []
                | Some i -> [i])
-   and fname=Env.fresh ~hint:"CpsCont" () in
+   in
    match (unbloc cont) with
     | [`Call(`Ident id,args2)] | [`Ret (`Call(`Ident id,args2))]
       when ((sameCall args args2) && (not (List.mem id args))) ->
        [],(`Ident id)
-    | b ->[(`Fundecl (fname,args,`Bloc b))],(`Ident fname)
+    | b ->
+       let fname=Env.fresh ~hint:"CpsCont" () in
+       [(`Fundecl (fname,args,`Bloc b))],(`Ident fname)
 
   let rec expr= function
    | `CpsFun (al,b) -> `Fun ((return::al),instr b)
