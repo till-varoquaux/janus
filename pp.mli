@@ -24,7 +24,9 @@ val (^^) : doc -> doc -> doc
 val text : string -> doc
 (* [text "hello"] creates a document containing the string ["hello"].
    This operators simply turns strings into documents. *)
-
+val nullText : string -> doc
+ (* [nullText s] is used to put formatting informations. The text will be
+    printed but will not be used to place linebreaks.*)
 val break : doc
 (* [break] represents a point where the pretty printer can decide
    whether to begin a new line or not. In the former case a newline is

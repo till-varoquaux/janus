@@ -32,20 +32,121 @@ let join (conv:'a -> doc) (l:'a list) (sep:doc):doc=
  in
  List.fold_left aux empty l
 
-let rec ident id=
- text id
+(*w
+  Pretty printing style
+*)
+module Style=
+struct
+ type weight=
+  | Normal
+  | Bold
+  | Underscore
+  | Blink
+  | Reverse
+  | Concealed
+
+ let decodeWeight=function
+  | Normal -> 0
+  | Bold -> 1
+  | Underscore -> 2
+  | Blink -> 3
+  | Reverse -> 4
+  | Concealed -> 5
+
+ type color=
+  | Black
+  | Red
+  | Green
+  | Yellow
+  | Blue
+  | Pink
+  | LightBlue
+  | White
+
+ let decodeColor=function
+  | Black -> 30
+  | Red -> 31
+  | Green -> 32
+  | Yellow -> 33
+  | Blue -> 34
+  | Pink -> 35
+  | LightBlue -> 36
+  | White -> 37
+
+ type style={
+  weight:weight;
+  color:color
+ }
+
+ let default=
+  {
+   weight=Normal;
+   color=Black
+  }
+
+ let tty=Unix.isatty Unix.stdout
+
+ let cPrint def ?(color=def.color) ?(weight=def.weight) txt=
+  if tty then
+   let weight=Printf.sprintf "%.2u" (decodeWeight weight)
+   and color=Printf.sprintf "%.2u" (decodeColor color) in
+   let col=Printf.sprintf "\027[%s;%sm" weight color in
+   (nullText col)^^(text txt)^^(nullText "\027[0m")
+  else
+   text txt
+
+ let print =
+  cPrint default
+
+ let par p=
+  print ~color:Red p
+
+ let punct p=
+  print ~color:Red p
+
+ let kwd k=
+  print ~color:Blue ~weight:Bold k
+
+ let bool c=
+  print ~color:Pink c
+
+ let ident i=
+  print i
+
+ let string s=
+  print ~color:Green s
+
+ let number n=
+  print ~color:Pink n
+
+ let op o=
+  print ~color:Red o
+
+ let lit l=
+  print ~color:Yellow l
+end
+
+open Style
+
+(*This is just used to unsure we do NOT use ^^text^^ in the functions below...*)
+type abstract
+let text : abstract= Obj.magic(text)
+
+let rec ident i=
+ Style.ident i
+
 and constant = function
- | `Bool true -> text "true"
- | `Bool false -> text "false"
- | `Int i -> text (string_of_int i)
- | `Float f -> text (string_of_float f)
- | `String s -> text (sprintf "\"%s\"" (escape s))
+ | `Bool true -> bool "true"
+ | `Bool false -> bool "false"
+ | `Int i -> number (string_of_int i)
+ | `Float f -> number (string_of_float f)
+ | `String s ->  Style.string (sprintf "\"%s\"" (escape s))
 
 (*TODO: replace with jerom's function to place a minimal amount of parenthesis*)
 and expr ?(guard=false) =
  let wrap b=
   if guard then
-   (text "(") ^^ b ^^ (text ")")
+   (par "(") ^^ b ^^ (par ")")
   else
    b
  and ep e=
@@ -56,43 +157,43 @@ and expr ?(guard=false) =
      let b=(match b with
              | `Bloc _ -> b
              | i -> `Bloc [i]) in
-     wrap ((text "function(")^^
-            (join ident args (text ","))^^ (text ")") ^^ (instr b))
+     wrap ((kwd "function"^^(par "("))^^
+            (join ident args (punct ","))^^ (par ")") ^^ (instr b))
   | `Cst c -> constant c
   | `Ident i -> ident i
   | `Call (f,args) ->
-     let args=join expr args (text ",")
+     let args=join expr args (punct ",")
      in
-     (ep f) ^^ (text "(")^^args^^ (text ")")
+     (ep f) ^^ (par "(")^^args^^ (par ")")
   | `Array (elems) ->
-     let elems=join expr elems (text ",")
+     let elems=join expr elems (punct ",")
      in
-     (text "[")^^elems^^(text "]")
+     (par "[")^^elems^^(par "]")
   | `Unop (op,e) ->
      wrap ((unop op) ^^ (ep e))
   | `Binop (op,e1,e2) ->
      wrap (ep e1) ^^ (binop op) ^^ (ep e2)
   | `ArrayAccess (e,idx) ->
-     (expr e)^^(text "[")^^(expr idx) ^^ (text "]")
+     (expr e)^^(par "[")^^(expr idx) ^^ (par "]")
   | `Obj(pl) ->
-     agrp(nest 4 ((text "{")^^ breakNull
+     agrp(nest 4 ((par "{")^^ breakNull
                   ^^(join
-                      (fun (i,e) -> (ident i) ^^ (text ":") ^^ (expr e))
+                      (fun (i,e) -> (ident i) ^^ (punct ":") ^^ (expr e))
                       pl
-                      ((text ",") ^^ breakNull)
+                      ((punct ",") ^^ breakNull)
                     )
-                  ^^breakNull^^(text "}")))
-  | `ObjAccess (e,i) -> (expr e) ^^ (text ".") ^^ (ident i)
+                  ^^breakNull^^(par "}")))
+  | `ObjAccess (e,i) -> (expr e) ^^ (punct ".") ^^ (ident i)
 
 and cond e=
- (text "(") ^^ (expr e) ^^ (text ")")
+ (par "(") ^^ (expr e) ^^ (par ")")
 
-and unop u = text (match u with
+and unop u = op (match u with
                     | `Not -> "!"
                     | `Minus -> "-"
                   )
 
-and binop b = text (match b with
+and binop b = op (match b with
                      | `Eq -> "=="
                      | `Neq -> "!="
                      | `Lt -> "<"
@@ -109,43 +210,44 @@ and binop b = text (match b with
 
 and lvalue = function
  | `Ident i -> ident i
- | `ArrayAccess (l,e) -> (lvalue l) ^^ (text "[") ^^ (expr e) ^^ (text "]")
- | `ObjAccess (l,i) -> (lvalue l) ^^ (text ".") ^^ (ident i)
+ | `ArrayAccess (l,e) -> (lvalue l) ^^ (par "[") ^^ (expr e) ^^ (par "]")
+ | `ObjAccess (l,i) -> (lvalue l) ^^ (punct ".") ^^ (ident i)
 
 and macroelem al= function
- | `Literal l -> text l
+ | `Literal l ->  lit l
  | `Ident i -> List.nth al i
 
 and instr (i:instr)=
  let r=match i with
-  | `WithCtx (e,b,_) -> (text "with(") ^^ (expr e ) ^^ (text ")") ^^ (blocOrInstr b)
+  | `WithCtx (e,b,_) -> (kwd "with")^^(par "(") ^^ (expr e ) ^^ (par ")") ^^ (blocOrInstr b)
   | `Bloc il -> bloc il
-  | `Var i -> (text "var ") ^^ (ident i)
+  | `Var i -> (kwd "var ") ^^ (ident i)
      (*TODO: collapse `Var lists*)
      (*TODO: Collapse `Var and `Assign*)
   | `Fundecl(i,args,b) ->
      let b=(match b with
              | `Bloc _ -> b
              | i -> `Bloc [i]) in
-     (text "function ")^^(ident i)^^(text "(")^^
-      (join ident args (text ","))^^ (text ")") ^^ (instr b)
-  | `Assign (l,e) -> (lvalue l) ^^ (text "=") ^^ (expr e)
-  | `If (e,b,`Bloc []) -> (text "if") ^^ (cond e) ^^ (blocOrInstr b)
+     (kwd "function ")^^(ident i)^^(par "(")^^
+      (join ident args (punct ","))^^ (par ")") ^^ (instr b)
+  | `Assign (l,e) -> (lvalue l) ^^ (punct "=") ^^ (expr e)
+  | `If (e,b,`Bloc []) -> (kwd "if") ^^ (cond e) ^^ (blocOrInstr b)
   | `If (e,b1,(`If _ as b2)) ->
-     (text "if") ^^ (cond e) ^^ (blocOrInstr ~breakAfter:true b1) ^^
-      (text "else ")^^(instr b2)
-  | `If (e,b1,b2) ->(text "if") ^^ (cond e) ^^ (blocOrInstr ~breakAfter:true b1)
-     ^^ (text "else") ^^ (blocOrInstr b2)
-  | `While (e,b) -> (text "while") ^^ (cond e) ^^ (blocOrInstr b)
-  | `Loop (lbl,b) -> (ident lbl) ^^ (text ":while(true)") ^^ (blocOrInstr b)
-  | `Continue lbl -> (text "continue") ^^ break ^^ (ident lbl)
+     (kwd "if") ^^ (cond e) ^^ (blocOrInstr ~breakAfter:true b1) ^^
+      (kwd "else ")^^(instr b2)
+  | `If (e,b1,b2) ->(kwd "if") ^^ (cond e) ^^ (blocOrInstr ~breakAfter:true b1)
+     ^^ (kwd "else") ^^ (blocOrInstr b2)
+  | `While (e,b) -> (kwd "while") ^^ (cond e) ^^ (blocOrInstr b)
+  | `Loop (lbl,b) -> (ident lbl) ^^(punct ":")^^(kwd "while")^^(par "(")
+     ^^(bool "true") ^^(par ")") ^^ (blocOrInstr b)
+  | `Continue lbl -> (kwd "continue") ^^ break ^^ (ident lbl)
   | `Call (f,args) ->
-     let args=join expr args (text ",")
+     let args=join expr args (punct ",")
      in
-     (expr f) ^^ (text "(")^^args^^ (text ")")
+     (expr f) ^^ (par "(")^^args^^ (par ")")
   | `Ret (e) ->
-     (text "return")^^break^^(expr e)
-  | `Return -> text "return"
+     (kwd "return")^^break^^(expr e)
+  | `Return -> kwd "return"
   | `TemplateCall (al,b) ->
      let al=List.map expr al in
      join (macroelem al) b empty
@@ -156,10 +258,10 @@ and instr (i:instr)=
   fgrp r
 
 and aff (i,e)=
-  (ident i) ^^ (text "=") ^^ (expr e)
+  (ident i) ^^ (punct "=") ^^ (expr e)
 
 and join_instrs l=
- join instr l ((text ";")^^break)
+ join instr l ((punct ";")^^break)
 
 and printBloc = function
  | `Bloc l -> bloc l
@@ -174,7 +276,7 @@ and blocOrInstr ?(breakAfter=false) = function
      vgrp(nest 4 (break^^(instr i)))
 
 and bloc l =
- vgrp((text "{")^^(vgrp(nest 4 (break^^(join_instrs l)))^^break)^^(text "}"))
+ vgrp((par "{")^^(vgrp(nest 4 (break^^(join_instrs l)))^^break)^^(par "}"))
 
 and print (p:program):unit=
  print_string (ppToString 80 (vgrp((join_instrs p)^^break)))

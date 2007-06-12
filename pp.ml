@@ -28,6 +28,7 @@ type doc =
     | DocNil
     | DocCons           of doc * doc
     | DocText           of string
+    | DocNullText       of string
     | DocNest           of int * doc
     | DocBreak          of string
     | DocGroup          of gmode * doc
@@ -37,6 +38,7 @@ type doc =
 let (^^) x y            = DocCons(x,y)
 let empty               = DocNil
 let text s              = DocText(s)
+let nullText s          = DocNullText(s)
 let nest i x            = DocNest(i,x)
 let break               = DocBreak(" ")
 let breakWith s         = DocBreak(s)
@@ -101,6 +103,7 @@ let rec fits w = function
     | (i,m,DocCons(x,y))        :: z -> fits w ((i,m,x)::(i,m,y)::z)
     | (i,m,DocNest(j,x))        :: z -> fits w ((i+j,m,x)::z)
     | (i,m,DocText(s))          :: z -> fits (w - strlen s) z
+    | (i,m,DocNullText(s))      :: z -> fits w z
     | (i,Flat, DocBreak(s))     :: z -> fits (w - strlen s) z
     | (i,Fill, DocBreak(_))     :: z -> true
     | (i,Break,DocBreak(_))     :: z -> true
@@ -115,6 +118,7 @@ let rec format w k = function
     | (i,m,DocCons(x,y))        :: z -> format w k ((i,m,x)::(i,m,y)::z)
     | (i,m,DocNest(j,x))        :: z -> format w k ((i+j,m,x)::z)
     | (i,m,DocText(s))          :: z -> SText(s ,format w (k + strlen s) z)
+    | (i,m,DocNullText(s))      :: z -> SText(s ,format w k z)
     | (i,Flat, DocBreak(s))     :: z -> SText(s ,format w (k + strlen s) z)
     | (i,Fill, DocBreak(s))     :: z -> let l = strlen s in
                                             if   fits (w - k - l) z
