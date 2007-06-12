@@ -1,3 +1,4 @@
+open General
 open Pos
 open AstCpsInt
 module C=Map.Make(String)
@@ -5,17 +6,12 @@ type id=AstCpsInt.ident
 type ty'=AstCpsInt.ty
 
 let fresh=
- let module M =Hashtbl.Make (
-  struct
-   type t=id
-   let equal=(=)
-   let hash=Hashtbl.hash
-  end)
+ let module M=StringHt
  in
  let dec=M.create 89 in
  fun ?(hint="fresh")() ->
   if M.mem dec hint then begin
-  let cnt=M.find dec hint in
+   let cnt=M.find dec hint in
    M.remove dec hint;
    M.add dec hint (cnt+1);
    Printf.sprintf "$%s_%i" hint cnt

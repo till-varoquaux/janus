@@ -6,8 +6,11 @@
 
 ==Serious==
 
+ - **CallCC** add callcc
  - **Lazyness in "and" and "or"**. This lazyness is not repected
    during Cps convertion.
+ - **Type Checking** in cpsPropagate is not complete
+ - **Exception Handling**...
 
 ==Other==
 

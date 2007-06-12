@@ -39,7 +39,14 @@ module List=
  end
 
 module StringMap=Map.Make(String)
-module StringSet=Set.Make(String);;
+module StringSet=Set.Make(String)
+module StringHt=Hashtbl.Make (
+ struct
+  type t=string
+  let equal=(=)
+  let hash=Hashtbl.hash
+ end)
+
 
 (*w
   ^^atomSeq f g^^

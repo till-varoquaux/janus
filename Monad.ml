@@ -55,5 +55,5 @@ struct
   (fun x ->( let (a,x)= f x in
             (g a) x
           ));;
- let return a=fun d -> (a,d)
+ let return (a:'a) : 'a m=fun d -> (a,d)
 end;;

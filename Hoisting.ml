@@ -8,6 +8,8 @@
   containing scope (with statements or functions). since variable names are
   unique (and javascript has no block scoping) vars can be safelly moved to the
   top of their containing functions.
+
+  TODO:Mutually reccursive functions are not hoisted
 *)
 open General
 open ScopeInfo
@@ -50,37 +52,34 @@ module Hoist=T.Make(
    in
    (funs@prog),[]
 
+(*w compils a function declaration... *)
+  let fundecl name args body=
+   let hInstr,hFuns=instr body [] in
+   let locals =
+    ScopeInfo.foldDefined (ScopeInfo.instr hInstr) begin
+     fun i loc -> i::loc
+    end args in
+   let capFuns,hoistFuns=sepCaptured locals hFuns
+   and vars = ScopeInfo.foldDefined (ScopeInfo.instr hInstr) begin
+    fun i loc -> `Var i::loc
+   end [] in
+   (`Fundecl (name,args,`Bloc (vars@capFuns@[hInstr]))),hoistFuns
+
   let expr e funs =
    match e with
     | `Fun(args,i) ->
-              let hInstr,hFuns=instr i [] in
-       let locals =
-        ScopeInfo.foldDefined (ScopeInfo.instr hInstr) begin
-         fun i loc -> i::loc
-        end args in
-       let capFuns,hoistFuns=sepCaptured locals hFuns
-       and vars = ScopeInfo.foldDefined (ScopeInfo.instr hInstr) begin
-         fun i loc -> `Var i::loc
-        end []
-       and id=Env.fresh ~hint:"hoisted" () in
+       let id=Env.fresh ~hint:"hoisted" () in
+       let fdecl,hFuns=fundecl id args i in
        `Ident id,
-       `Fundecl (id,args,`Bloc (vars@capFuns@[hInstr]))::hoistFuns@funs
+       fdecl::hFuns@funs
     |_ -> Super.expr e funs
 
   let instr i funs=
    match i with
     | `Fundecl (name,args,i) ->
-       let hInstr,hFuns=instr i [] in
-       let locals =
-        ScopeInfo.foldDefined (ScopeInfo.instr hInstr) begin
-         fun i loc -> i::loc
-        end args in
-       let capFuns,hoistFuns=sepCaptured locals hFuns
-       and vars = ScopeInfo.foldDefined (ScopeInfo.instr hInstr) begin
-         fun i loc -> `Var i::loc
-        end [] in
+       let fdecl,hFuns=fundecl name args i in
        null,
-       (`Fundecl (name,args,`Bloc (vars@capFuns@[hInstr])))::hoistFuns@funs
+       fdecl::hFuns@funs
     | `WithCtx (e,i,si) ->
        (*w
          the only purpose of using "with" is to ensure closures are correctly

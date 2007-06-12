@@ -21,7 +21,14 @@ let specBase =
 let (++) f g x= g (f x)
 
 let opt=new Optimise.opt
- [DeadCode.pass;BranchMerger.pass;TailRec.pass;IdentFunDecls.pass;Hoisting.pass;Unbloc.pass]
+ [
+  DeadCode.pass;
+  BranchMerger.pass;
+  IdentFunDecls.pass;
+  Hoisting.pass;
+  TailRec.pass;
+  Unbloc.pass
+ ]
 
 let spec=opt#spec@specBase
 

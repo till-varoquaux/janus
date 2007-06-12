@@ -15,15 +15,29 @@ module D(S:Par):Par=
   *)
   let ty _ = assert false
 
+  let sameCall args el=
+   try
+    List.for_all2 (fun a e -> e=(`Ident a)) args el
+   with Invalid_argument _ -> false
+
+  let rec unbloc= function
+   | [] -> []
+   | `Bloc b::l -> b@(unbloc l)
+   | i::l -> i::(unbloc l)
+
   (*w
-    This compils a CPS call...
+    This compiles a CPS call...
   *)
   let cpsCall cont affect=
    let args= (match affect with
                | None -> []
                | Some i -> [i])
    and fname=Env.fresh ~hint:"CpsCont" () in
-   [(`Fundecl (fname,args,`Bloc cont))],(`Ident fname)
+   match (unbloc cont) with
+    | [`Call(`Ident id,args2)] | [`Ret (`Call(`Ident id,args2))]
+      when ((sameCall args args2) && (not (List.mem id args))) ->
+       [],(`Ident id)
+    | b ->[(`Fundecl (fname,args,`Bloc b))],(`Ident fname)
 
   let rec expr= function
    | `CpsFun (al,b) -> `Fun ((return::al),instr b)
@@ -49,19 +63,23 @@ module D(S:Par):Par=
    match i with
     | `Cps i -> cpsInstr i cont
     | `Ret e ->
-       `Call ((`Ident return),[expr e])::cont
+       `Ret (`Call ((`Ident return),[expr e]))::cont
     | `TemplateCall (el,b) ->
        let call,cont=cpsCall cont None
        and el=List.map expr el in
        call@[`TemplateCall (cont::el,b)]
     | `If (e,b1,b2) ->
-       let k=Env.fresh ~hint:"Ite" () in
-       let cont=[`Fundecl(k,[],`Bloc cont);
-                 `Call(`Ident k,[])]
+       let head,cont=match (unbloc cont) with
+        | [] -> [],[]
+        | [`Call(`Ident id,[])] | [`Ret (`Call(`Ident id,[]))] ->
+           [],[`Call (`Ident id,[])]
+        | b ->
+           let k=Env.fresh ~hint:"Ite" () in
+           [`Fundecl(k,[],`Bloc b)],[`Call(`Ident k,[])]
        in
        let e1=instr' b1 cont in
        let e2=instr' b2 cont in
-       [`If (expr e,`Bloc e1,`Bloc e2)]
+       head@[`If (expr e,`Bloc e1,`Bloc e2)]
     | `While (e,i) ->
        let k=Env.fresh ~hint:"While" () in
        let cont=[`Call ((`Ident k),[])] in

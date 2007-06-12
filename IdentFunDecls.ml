@@ -28,5 +28,5 @@ let pass:#Optimise.pass=
 object
  method run = D.program
  method name="fundecl"
- method description="squish function declarations"
+ method description="function declarations squishing"
 end
