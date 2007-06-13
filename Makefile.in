@@ -9,6 +9,16 @@ FTP_TARGET=till.varoquaux@login.free.fr:/projects/$(PROJECT_NAME)
 
 BUILDDIR=_build
 
+MISSING=${error Target disabled during configuration because "$1" was missing.}
+
+ifdef DEBUG
+	OCB += -cflag -g
+endif
+
+ifdef DTYPES
+	OCB += -cflag -dtypes
+endif
+
 ifeq ($(TERM),dumb)
 	OCB += -classic-display
 endif
@@ -20,10 +30,17 @@ else
 endif
 MLI=$(wildcard *.mli)
 
-all:annot check
+ALL=$(TARGET)
+
+ifdef DEV
+	ALL += annot check
+endif
+
+all:$(ALL)
 
 Makefile:configure
-	${error Your Makefile is too old, you must rerun configure...}
+	${warning Your Makefile is too old, reruning configure...}
+	@${CONFIGURE}
 
 .PHONY:all clean opt dist doc check annot web
 
@@ -34,19 +51,29 @@ $(TARGET):sane
 
 doc:$(MLI)
 	${info * making docs...}
+ifndef LPALL
+	${call MISSING,lp4all}
+else
 	lp4all -p "$(PROJECT_NAME)" -d doc $$(darcs query manifest)
-#	@echo "$(basename $(MLI))" > doc.odocl
-#	@$(OCB) doc.docdir/index.html
+endif
 
 check:$(TARGET)
 	${info * runnning tests}
+ifndef SMJS
+	${call MISSING,smjs}
+else
 	@ocaml RunTests.ml ./$(TARGET)
+endif
 
 sane:
 	@rm -f *.annot
 
 annot:$(TARGET)
+ifndef DTYPES
+	${error You need to enable -dtypes during configuration}
+else
 	@cp _build/*.annot .
+endif
 
 web:
 	${info "updating web site"}
@@ -67,5 +94,10 @@ distclean:clean
 	@rm -f Makefile version.ml
 
 dist:
-	darcs dist -d "$(PROJECT_NAME)-$(VERSION)"
+	${info * building a tarball}
+ifndef DARCS
+	${call MISSING,darcs}
+else
+	@darcs dist -d "$(PROJECT_NAME)-$(VERSION)"
+endif
 

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #use "topfind";;(* -*- tuareg -*-
 
 
@@ -8,12 +8,23 @@
 # itself back with ocaml.
 #
 
+#This function is from BLFS. It used to emulate which on systems where which
+#isn't installed
 check_required (){
-	if ! which "$1" > /dev/null; then
+	if ! (type "$1" &> /dev/null); then
 		echo "Couldn't find required binary \"$1\", failling.." > /dev/stderr
 		exit 1
 	fi
 }
+#This function checks the ocaml version in the path is the one returned by ocamlfind
+check_path_coherence(){
+    if test "$(ocamlc -where)" != "$(ocamlfind c -where)"; then
+        echo "The binary ocamlc found in the PATH is not same as the one returned by ocamlfind" > /dev/stderr
+        echo "Please fix your PATH or install ocamlfind with this version of ocaml" > /dev/stderr
+        exit 1
+    fi
+}
+#This function takes two arguments:the major and the minor expected version
 check_ocaml_version(){
     OCV=`ocaml -version`
     OCV="${OCV##* }"
@@ -22,14 +33,14 @@ check_ocaml_version(){
     MINOR="${REST%%.*}"
     if (test "$MAJOR" -lt $1) || ((test "$MAJOR" -eq $1) && (test "$MINOR" -lt $2));then
         echo "Your version of ocaml is too old to run this script." > /dev/stderr
-        echo "You need ocaml $1.$2 or better..."
+        echo "You need ocaml $1.$2 or better..." > /dev/stderr
         exit 1
     fi
 }
-
 check_required "ocaml"
 check_ocaml_version 3 10
 check_required "ocamlfind"
+check_path_coherence
 exec ocaml $0 $@
 #We use a here doc to comment out the whole Ocaml section
 <<"OCAMLCODE_END"
@@ -83,7 +94,6 @@ let vcsVersion () =
  let is=int_of_string in
  (is yearStr),(is monthStr),((is dayStr)+1)
 
-let _ = vcsVersion ();;
 (**
    Checks wether a given filename is in the path
 *)
@@ -93,9 +103,19 @@ let isInPath s=
  in
  List.exists (fun p -> Sys.file_exists (Filename.concat p s)) path
 
-(*let ()=isInPath "darcs";;*)
+let dev=ref false
+let debug=ref false
+let dtypes=ref false
+let setDev ()=
+ dev:=true;
+ debug:=true;
+ dtypes:=true
 
-let specs=[]
+let specs=
+ ["-dev",Arg.Unit setDev,"Sets up a developpement environement. Implies -debug and -dtypes";
+  "-debug",Arg.Set debug,"Builds the target with debugging symbols";
+  "-dtypes",Arg.Set debug,"Builds the target with -dtypes";
+ ]
 let usage=
  Printf.sprintf "'%s' configures this package to adapt to many kinds of systems.
 
@@ -105,6 +125,13 @@ Where OPTION are in:" exe_name Sys.argv.(0)
 
 let checking=
  Printf.printf "Checking %s... "
+
+let warn=
+ Printf.printf "Warning: %s!\n"
+
+let error s=
+ Printf.eprintf "Error: %s!\n" s;
+ exit 1
 
 let res s=
  Printf.printf "%s\n" s
@@ -130,10 +157,25 @@ let ocaml_check expected=
  okfailed  ((expected.major > got.major) or
              (expected.major=got.major && expected.minor>=got.minor))
 
+let checkDev bin targ=
+ let res=isInPath bin in
+ checking (Printf.sprintf "whether \"%s\" is installed" bin);
+ yesno res;
+ if not res then begin
+   if !dev then
+    warn (Printf.sprintf "disabling target:\"%s\"" targ)
+   else
+    error (Printf.sprintf "\"%s\" is required to hack the source code" bin)
+ end;
+ res
+
 let _ =
  Arg.parse specs (fun s ->raise(Arg.Bad (Printf.sprintf "Unknown arg \"%s\"..." s)))
   usage;
  ocaml_check {major=3;minor=10};
+ let smjs=checkDev "smjs" "test"
+ and darcs=checkDev "darcs" "dist"
+ and lp4all=checkDev "lp4all" "doc" in
  checking "whether this is a snapshot";
  yesno isVcs;
  if isVcs then begin
@@ -141,10 +183,27 @@ let _ =
   let y,m,d=vcsVersion () in
   res (Printf.sprintf "%.2u/%.2u/%.4u" m d y);
   version:=Printf.sprintf "%.4u%.2u%.2u" y m d
+ end else begin
+  if !dev then
+   error "-dev only works on checked-out repositories"
  end;
  with_open_out (Filename.concat root "Makefile")
   begin
    fun ch ->
+    Printf.fprintf ch "CONFIGURE=%s\n"
+     (String.concat " " ((Array.to_list Sys.argv)));
+    if lp4all then
+     Printf.fprintf ch "LP4ALL=true\n";
+    if smjs then
+     Printf.fprintf ch "SMJS=true\n";
+    if darcs then
+     Printf.fprintf ch "DARCS=true\n";
+    if !debug then
+     Printf.fprintf ch "DEBUG=true\n";
+    if !dev then
+     Printf.fprintf ch "DEV=true\n";
+    if !dtypes then
+     Printf.fprintf ch "DTYPES=true\n";
     Printf.fprintf ch "VERSION=%s\n" !version;
     Printf.fprintf ch "PROJECT_NAME=%s\n" project_name;
     Printf.fprintf ch "TARGET=%s\n" project_name;
