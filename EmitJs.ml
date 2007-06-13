@@ -4,6 +4,7 @@
 open Printf
 open Pp
 open AstJs
+open General
 
 let breakNull=breakWith ""
 let escape s=
@@ -73,30 +74,25 @@ struct
   | LightBlue -> 36
   | White -> 37
 
- type style={
-  weight:weight;
-  color:color
- }
-
- let default=
-  {
-   weight=Normal;
-   color=Black
-  }
-
  let tty=Unix.isatty Unix.stdout
 
- let cPrint def ?(color=def.color) ?(weight=def.weight) txt=
+ let print ?color ?weight txt=
   if tty then
-   let weight=sprintf "%.2u" (decodeWeight weight)
-   and color=sprintf "%.2u" (decodeColor color) in
+   let weight=
+   Option.map_default
+    begin
+     fun w -> sprintf "%.1u" (decodeWeight w)
+    end "" weight
+   and color=
+    Option.map_default
+     begin
+      fun c -> sprintf "%.2u" (decodeColor c)
+     end "" color
+   in
    let col=sprintf "\027[%s;%sm" weight color in
    (nullText col)^^(text txt)^^(nullText "\027[0m")
   else
    text txt
-
- let print =
-  cPrint default
 
  let par p=
   print ~color:Red p
