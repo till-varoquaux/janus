@@ -35,6 +35,7 @@ let success s=
   Printf.printf ":success\n"
 
 let faillure ?(failled=[]) s=
+ clear ();
  Printf.eprintf "%s: faillure [%s]\n"
   (Filename.chop_extension s)
   (String.concat "," failled);

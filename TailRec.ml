@@ -1,4 +1,5 @@
 (*w
+  ====Tail reccursion optimisation====
   In this pass we shall replace all tail reccursions with loops...
   In order to preserve closure we will use javascript's ^^with^^ statement.
 *)
@@ -117,8 +118,6 @@ module D=T.Make(
        let body,tail = S.instr body (Tail (fname,args)) in
        let body=
         if tail=TailRec then
-         (*TODO: testing wether we are actually pushing anything should not be
-           done here...*)
          if args=[] then
           `Loop (contlbl,body)
          else

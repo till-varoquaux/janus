@@ -27,6 +27,9 @@ module D(S:Par):Par=
 
   (*w
     This compiles a CPS call...
+
+    It returns an eventual function (which is the continuation) and an
+    identifier which is the name of the continuation.
   *)
   let cpsCall cont affect=
    let args= (match affect with
@@ -34,8 +37,14 @@ module D(S:Par):Par=
                | Some i -> [i])
    in
    match (unbloc cont) with
+     (*w
+       we don't need to make a new function, the continuation is already a
+       function...
+
+       TODO: this should return only an expression
+     *)
     | [`Call(`Ident id,args2)] | [`Ret (`Call(`Ident id,args2))]
-      when ((sameCall args args2) && (not (List.mem id args))) ->
+        when ((sameCall args args2) && (not (List.mem id args))) ->
        [],(`Ident id)
     | b ->
        let fname=Env.fresh ~hint:"CpsCont" () in
@@ -65,7 +74,7 @@ module D(S:Par):Par=
    match i with
     | `Cps i -> cpsInstr i cont
     | `Ret e ->
-       `Ret (`Call ((`Ident return),[expr e]))::cont
+       [`Call ((`Ident return),[expr e])]
     | `TemplateCall (el,b) ->
        let call,cont=cpsCall cont None
        and el=List.map expr el in

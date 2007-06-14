@@ -11,8 +11,7 @@ gram extends AstBase {
 | `CpsMacro macrobloc,[baseTy];
  instr :=
 | `Cps instr
-| `CpsCall ident?,expr,[expr]
-   (*
+   (*w
      the ident is the return value ("a" in "a=b(x1...xn)"
    *)
 | `Var ident,expr

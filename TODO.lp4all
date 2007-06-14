@@ -6,7 +6,17 @@
 
 ==Serious==
 
- - **CallCC** add callcc
+ - **CallCC** add ^^call/cc^^: Call/CC would allow for an explicit
+     manipulation of the continuation.
+
+	Currently proposed:
+	_Add two operator ^^call/cc^^ and ^^throw^^. ^^call/cc^^ can only
+	work on cps transformed functions.%%
+call/cc:((b 'cont)=>c)=>c
+throw:(b 'cont,b)
+%%
+	Since ^^throw^^ discards its own continuation it //must// be
+    called in CPS transformed code.
  - **Lazyness in "and" and "or"**. This lazyness is not repected
    during Cps convertion.
  - **Type Checking** in cpsPropagate is not complete
