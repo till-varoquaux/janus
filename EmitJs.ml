@@ -234,9 +234,9 @@ and instr (i:instr)=
   | `If (e,b1,b2) ->(kwd "if") ^^ (cond e) ^^ (blocOrInstr ~breakAfter:true b1)
      ^^ (kwd "else") ^^ (blocOrInstr b2)
   | `While (e,b) -> (kwd "while") ^^ (cond e) ^^ (blocOrInstr b)
-  | `Loop (lbl,b) -> (ident lbl) ^^(punct ":")^^(kwd "while")^^(par "(")
-     ^^(bool "true") ^^(par ")") ^^ (blocOrInstr b)
+  | `Labeled (lbl,i) -> (ident lbl) ^^(punct ":")^^(instr i)
   | `Continue lbl -> (kwd "continue") ^^ break ^^ (ident lbl)
+  | `Break lbl -> (kwd "break") ^^ break ^^ (ident lbl)
   | `Call (f,args) ->
      let args=join expr args (punct ",")
      in

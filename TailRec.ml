@@ -95,6 +95,9 @@ module D=T.Make(
    let l,ret=aux b in
    l,ret
 
+  let loop lbl i=
+   `Labeled(lbl,`While ((`Cst (`Bool true)),i))
+
   let instr i pos =
    let tailRec (al:string list) (el:AstJs.expr list)=
     if al=[] then
@@ -108,9 +111,9 @@ module D=T.Make(
        let b1,ret1 = S.instr b1 pos
        and b2,ret2 = S.instr b2 pos
        in `If(e,b1,b2),(mergeTailInfo ret1 ret2)
-    | `Ret (`Call (`Ident i,el)),(Tail (fname,args) | InFunc
-     (fname,args)) when i=fname ->
-      tailRec args el
+    | `Ret (`Call (`Ident i,el)),
+       (Tail (fname,args) | InFunc (fname,args)) when i=fname ->
+       tailRec args el
     | (`Ret _ | `Return),_ -> i,Return
     | `Call (`Ident i,el),Tail (fname,args) when i=fname ->
        tailRec args el
@@ -119,11 +122,11 @@ module D=T.Make(
        let body=
         if tail=TailRec then
          if args=[] then
-          `Loop (contlbl,body)
+          loop contlbl body
          else
           `Bloc [`Var jsCtxId;
                  `Assign (jsCtx,`Obj[]);
-                 `Loop (contlbl,(`WithCtx (jsCtx,body,args)))]
+                 loop contlbl (`WithCtx (jsCtx,body,args))]
         else
          body
        in

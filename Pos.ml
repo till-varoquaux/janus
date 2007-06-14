@@ -19,6 +19,8 @@ let locToString (p1,p2) =
 
 type 'a pos = { node:'a; loc:location}
 
+let unPos {node=i;loc=_} = i
+
 let dummyId i=
  {loc=Lexing.dummy_pos,Lexing.dummy_pos;node=i}
 
@@ -30,6 +32,9 @@ let error ?pos s=
   | Some p -> raise (Error (Printf.sprintf "at %s,%s\n" (locToString p) s))
   | None -> raise (UnlocError s)
 
+(*w
+  This decorates unlocalized errors with some positionnal information
+*)
 let protect f (`Pos(p,e)) =
  try(
   f e

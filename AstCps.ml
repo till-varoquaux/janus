@@ -5,7 +5,10 @@ gram extends AstBase {
 | `Arrow [ty],ty (*Normal application*)
 | `CpsArrow [ty],ty (*Cps function*);
  macroitem:= `Ident ident | `Literal string;
- instr := `CpsMacro ident,[ident],macrobloc,[ty]
+ instr :=
+| `CallCC expr
+| `Throw expr,expr
+| `CpsMacro ident,[ident],macrobloc,[ty]
 | `Macro ident,[ident],macrobloc,[ty]
 | `Var ident,expr
 | super;

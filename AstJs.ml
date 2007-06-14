@@ -6,7 +6,8 @@ gram extends AstBase{
  import ty,constant,ident,lvalue,unop,binop,program,macrobloc,expr,instr,macroitem;
  instr:=
 | `Fundecl ident,[ident],instr
-| `Loop ident,instr
+| `Labeled ident,instr
+| `Break ident
 | `Continue ident
     (*w
       Thi is used to push an object on the stack, the ^^ident list^^ is a
@@ -19,7 +20,8 @@ gram extends AstBase{
    (*w
      This is the empty return statement.
 
-     TODO: we should find a way to unify it with `Ret
+     TODO: we should find a way to unify it with `Ret. This probably requires
+     polymorphic variant difference.
    *)
 | `Return
 | `Var ident

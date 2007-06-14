@@ -44,7 +44,7 @@ let reservedKeywords=[
 
 
 let fresh=
- let module M=StringHt
+ let module M=StringHashtbl
  in
  let dec=M.create 89 in
  List.iter (fun i -> M.add dec i 0) reservedKeywords;

@@ -44,7 +44,7 @@ module List=
 
 module StringMap=Map.Make(String)
 module StringSet=Set.Make(String)
-module StringHt=Hashtbl.Make (
+module StringHashtbl=Hashtbl.Make (
  struct
   type t=string
   let equal=(=)

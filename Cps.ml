@@ -41,7 +41,8 @@ module D(S:Par):Par=
        we don't need to make a new function, the continuation is already a
        function...
 
-       TODO: this should return only an expression
+       We could return an expression but the hoisting pass would have to
+       recognize duplicate anonymous functions.
      *)
     | [`Call(`Ident id,args2)] | [`Ret (`Call(`Ident id,args2))]
         when ((sameCall args args2) && (not (List.mem id args))) ->
@@ -59,12 +60,10 @@ module D(S:Par):Par=
   *)
   and instr' i cont=
    match i with
+    (*These expressions can only be converted in cps translated code*)
+    | `Throw _ | `CallCC _ | `CpsCall _ -> assert false
     | `Var (i,e) ->[`Var i;`Assign (`Ident i,expr e)]@cont (*This could be done in a micro pass*)
     | `Bloc b -> bloc b cont
-    | `CpsCall (a,e,el) ->
-       let call,cont=cpsCall cont a
-       and el=List.map expr el in
-       call@[`Call (expr e,cont::el)]
     | `Cps i -> cpsInstr i cont
     | `If (e,b1,b2) -> `If (expr e,`Bloc (instr' b1 []),`Bloc (instr' b2 []))::cont
     | `While (e,i) -> `While(expr e,`Bloc (instr' i []))::cont
@@ -72,13 +71,22 @@ module D(S:Par):Par=
 
   and cpsInstr i cont=
    match i with
+    | `CpsCall (a,e,el) ->
+       let head,cont=cpsCall cont a
+       and el=List.map expr el in
+       head@[`Call (expr e,cont::el)]
     | `Cps i -> cpsInstr i cont
+    | `Throw (k,e) ->
+       [`Call (expr k,[expr e])]
+    | `CallCC (a,e) ->
+       let head,cont=cpsCall cont a in
+       head@[`Call(expr e,[cont;cont])]
     | `Ret e ->
        [`Call ((`Ident return),[expr e])]
     | `TemplateCall (el,b) ->
-       let call,cont=cpsCall cont None
+       let head,cont=cpsCall cont None
        and el=List.map expr el in
-       call@[`TemplateCall (cont::el,b)]
+       head@[`TemplateCall (cont::el,b)]
     | `If (e,b1,b2) ->
        let head,cont=match (unbloc cont) with
         | [] -> [],[]
@@ -100,6 +108,9 @@ module D(S:Par):Par=
     | `Bloc b -> bloc b cont
     | `Var _ -> assert false
     | _ -> assert false
+
+  and cpsBloc b cont =
+   List.fold_right cpsInstr b cont
 
   and bloc b cont =
    List.fold_right instr' b cont

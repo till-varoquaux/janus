@@ -1,5 +1,8 @@
 (*w
   This pass does all the type checking and marking for cps translations.
+
+  TODO: this pass is a bloody mess!!! it really needs some cleaning up.
+  Hoisting of Cps Calls should really be made elsewhere
 *)
 open Pos
 open General
@@ -22,34 +25,64 @@ type compiledCall={
  body:expr'
 }
 
-let redef l i=
- error ~pos:l (Printf.sprintf "cannot redefine \"%s\"" i)
+(*w
+  The error message to print when an identifier is defined twice
+*)
+let redef ?previousPos pos id =
+ match previousPos with
+  | None ->error ~pos:pos (Printf.sprintf "cannot redefine \"%s\"" id)
+  | Some p ->
+     let previous=Pos.locToString p in
+     let msg=Printf.sprintf
+      "cannot redefine \"%s\" which was previously defined at %s" id previous
+     in
+     error ~pos:pos msg
 
 (*w
-   Translate a macro element
+  Translate a macro element. Literals are kept as they are but macroelemnts are
+  converted to De Bruijn indices.
 *)
 let macroElem al = function
-| `Ident {node=i;loc=p} ->
-   (try
-     `Ident (List.scan i al)
-    with Not_found ->
-     error ~pos:p (Printf.sprintf "Undefined ident \"%s\"" i)
-   )
-| `Literal _ as l -> l
+ | `Ident {node=i;loc=p} ->
+    (try
+      `Ident (List.scan i al)
+     with Not_found ->
+      error ~pos:p (Printf.sprintf "Undefined ident \"%s\"" i)
+    )
+ | `Literal _ as l -> l
 
 let cont=dummyId "cont"
 
+(*w
+  Checks wether no identifier is defined twice in the list given as an argument.
+*)
+let checkRedefs (l:ident list)=
+ let defList=StringHashtbl.create 17 in
+ List.iter
+  begin
+   fun {node=i;loc=p} ->
+    if StringHashtbl.mem defList i then
+     redef ~previousPos:(StringHashtbl.find defList i) p i
+    else
+     StringHashtbl.add defList i p
+  end l
+
+(*w
+  This typechecks a macro: it verifies none of the macros arguments have the
+  same name and returns the macro type.
+
+  The macro type is actually the macro itself, the arguments have been converted
+  to de Bruijn's notation. It also contains the macro return type.
+
+  TODO: The env should contains both types and macros in two separate tables...
+
+  TODO: CPSMacros should take their continuation as an explicit parameter
+*)
 let typeMacro m =
- let cps,{node=_;loc=_},args,b,ty=
+ let cps,args,b,ty=
   match m with
-   | (`Macro(n,args,b,ty)) -> false,n,args,b,ty
-   | (`CpsMacro(n,args,b,ty)) -> true,n,args,b,ty
- in
- let checkArg {node=i;loc=p} l  =
-  if List.mem i l then
-   redef p i
-  else
-   i::l
+   | (`Macro(_,args,b,ty)) -> false,args,b,ty
+   | (`CpsMacro(_,args,b,ty)) -> true,args,b,ty
  in
  let args=
   if cps then
@@ -57,7 +90,8 @@ let typeMacro m =
   else
    args
  in
- let args=List.fold_right checkArg args [] in
+ checkRedefs args;
+ let args=List.map unPos args in
  let b=List.map (macroElem args) b in
  if cps then
   `CpsMacro(b,ty)
@@ -72,7 +106,11 @@ let ident=Env.ident
 let rec typeExpr env=function
  | `Pos _ as p -> protect (typeExpr env) p
  | `Typed (_,ty) -> ty
- | `Fun _ -> assert false (*All defined function should be typed*)
+    (*w
+      All defined function should be typed we should therefor have passed though a
+      ^^Typed^^ node before reaching this point.
+    *)
+ | `Fun _ -> assert false
  | `Call (e,_) ->
     (match typeExpr env e with
       | `CpsArrow(_,b) -> b
@@ -123,6 +161,9 @@ let rec lvalue env:lvalue ->lvalue'*ctx=
      and e,ctx2 = expr env e in
      (`ArrayAccess (lv,e)),(ctx1@ctx2)
 
+(*w
+  Checks the args in a function call...
+*)
 and checkArg env al tyl=
  try
   List.iter2 (fun e ty -> compatible (typeExpr env e) ty ) al tyl
@@ -203,12 +244,13 @@ and expr ?(eType=(`T:ty)) env:expr -> (expr'*ctx)=function
     let c = callCompile env c in
     if c.cps then
      let ret = Env.fresh ~hint:"AssignedVar" () in
-     `Ident ret,c.ctx@[`CpsCall(Some ret,c.body,c.args)]
+     `Ident ret,c.ctx@[`Cps (`CpsCall(Some ret,c.body,c.args))]
     else
      `Call(c.body,c.args),c.ctx
  | `Ident i ->
     (`Ident (ident i env)),[]
  | `Fun (il,b) ->
+    checkRedefs il;
     let env = ref (Env.oldify env) in
     let it,_,cps = (match eType with
                    | `T -> assert false
@@ -271,7 +313,7 @@ and instr env : instr -> (instr' list*Env.t)=
   | `Call _ as c ->
      let c = callCompile env c in
      let call=if c.cps then
-      `CpsCall(None,c.body,c.args)
+      `Cps(`CpsCall(None,c.body,c.args))
      else
       `Call(c.body,c.args) in
      (c.ctx@[call]),env
@@ -290,8 +332,16 @@ and instr env : instr -> (instr' list*Env.t)=
       else
        `Ret e
      )in
-     (ctx@[r],env)
+     ctx@[r],env
      (*TODO: check return type*)
+  | `Throw (e1,e2) ->
+     let e1',ctx1=expr env e1
+     and e2',ctx2=expr env e2 in
+     ctx1@ctx2@[`Cps(`Throw (e1',e2'))],env
+      (*TODO: check for thrown value and that we are in a CPS env*)
+  | `CallCC e ->
+     let e',ctx=expr env e in
+     ctx@[`CallCC (None,e')],env
   | `While (e,b) ->
      let e,ctx=expr env e
      and b,env=instr env b in

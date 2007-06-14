@@ -13,6 +13,9 @@ MISSING=${error Target disabled during configuration because "$1" was missing.}
 
 ifdef DEBUG
 	OCB += -cflag -g
+else
+	OCB += -cflag -noassert
+	OCB += -cflag -unsafe
 endif
 
 ifdef DTYPES
