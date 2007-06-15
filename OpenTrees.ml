@@ -15,8 +15,6 @@
   Error reporting is currently extremelly bad since no efforts have been
   made. This extension is used only internally (AFAIK) so it seems to much of
   a hassle for the benefit.
-
-  TODO: the Conv module probaly doesn't need a a To argument
 *)
 
 open General
@@ -99,7 +97,8 @@ and ruleRHS=
  | PolVar of branch list
  | Alias of ruleItem
 and branch =
- | Other of string (*w This \\has\\ to be another polymorphic variant type *)
+  (*w This \\has\\ to be another polymorphic variant type *)
+ | Other of string
  | Labeled of string * ruleItem list
  | Super
 and ruleItem =
@@ -298,6 +297,8 @@ module OpenType:
   are providing only one mean of traversal: a monadic map. We (naïvely) hope
   this is powerfull enough to capture most of the other transformations one
   could yearn for.
+
+  The traversal is done using reccursive modules: TODO (finish the explanations)
 *)
 module Mappers:
 sig
@@ -422,9 +423,61 @@ let genTrav gram=
           <:str_item<module Super = $id:conv$(From)(To)(Mon) >>
           $;;
 
-     (*The whole tree is translated from the first ast to the second*)
+      (*w
+        This is a copy of the module specifying the input type (^^From^^)
+        residing at the type level.
+
+        We shall use it it latter to define a copy of (^^From^^)...
+        %%
+module type C=
+sig
+ type t=int
+end;;
+
+module B(C:C)=
+ struct
+  include C
+ end;;
+
+module rec D:C=B(D);;
+%%
+        This actually works in OCaml since types are statically resolved using
+        the type level information. This might not be the case in future versions
+        of OCaml. If this ever happens we will need to use another
+        technique. This is nothing we can't get do.
+      *)
+      module type In =
+      sig
+        $G.fold
+        begin
+         fun i _ acc -> <:sig_item<
+        type $lid:i$ = From.$lid:i$;;
+        $acc$>>
+        end gram <:sig_item< >>$
+      end
+
+
+      (*w
+        This is a copy of the output module residing at the type level (^^To^^).
+      *)
+      module type Out =
+      sig
+        $G.fold
+        begin
+         fun i _ acc -> <:sig_item<
+        type $lid:i$ = To.$lid:i$;;
+        $acc$>>
+        end gram <:sig_item< >>$
+      end
+
+     (*w
+       Represents a full transformation of the tree from the types defined in
+       ^^From^^ to the types defined in ^^To^^.
+     *)
       module type Translation =
       sig
+       module In:In
+       module Out:Out
        $G.fold
         begin
          fun i _ acc ->
@@ -435,12 +488,22 @@ let genTrav gram=
         end gram <:sig_item< >>$
       end
 
+     (*w
+       These are the object types used to close the loop in ^^From^^ and
+       ^^To^^. They are used to define partial transformation's type.
+     *)
       type i=GetConstr(From).t
       type o=GetConstr(To).t
 
-      (*The whole tree is translated From -> To excepted the toplevel node*)
+      (*w
+        The whole tree is translated From -> To excepted the root which is kept
+        identical. In case of a Map partial transformations and full
+        transformations are indentical.
+      *)
       module type PartialTranslation =
       sig
+       module In:In
+       module Out:Out
        open Gram
         $G.fold
         begin
@@ -470,7 +533,10 @@ let genTrav gram=
        functor(T:Translation) ->
       struct
        $let st =match gram.super with
-        | None -> <:str_item< >>
+        | None -> <:str_item<
+       module In=From
+       module Out=To
+           >>
         | Some _ -> <:str_item<include Super.Base(T) >>
       in
       <:str_item< $st$;; $Mappers.gen gram$>>
