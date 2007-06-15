@@ -48,24 +48,11 @@ let isTest s=
  (Filename.check_suffix s ".jis") &&
   (Sys.file_exists ((base s)^ ".expected"))
 
-(*w
-   Reads the whole content from a channel
-*)
-let readChannel ic=
- let b=Buffer.create 17 in
- try
-  while true do
-   Buffer.add_char b (input_char ic)
-  done;
-  assert false
- with End_of_file ->
-  Buffer.contents b
-
 let readProcess p=
- with_open_process_full p (fun (ic,_,_) -> readChannel ic)
+ with_open_process_full p (fun (ic,_,_) -> channelToString ic)
 
 let readFile f=
- with_open_in f readChannel
+ with_open_in f channelToString
 
 let passes=
  let re=Str.regexp "\n"

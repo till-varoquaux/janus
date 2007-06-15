@@ -45,19 +45,27 @@ Makefile:configure
 	${warning Your Makefile is too old, reruning configure...}
 	@${CONFIGURE}
 
-.PHONY:all clean opt dist doc check annot web
+.PHONY:all clean opt dist doc check annot web Changes.lp4all
 
 $(TARGET):sane
 	${info * making $(MODE) code}
 	@$(OCB) $(SRC).$(MODE)
 	@cp $(BUILDDIR)/$(SRC).$(MODE) $(TARGET)
 
-doc:$(MLI)
+Changes.lp4all:
+	${info * making the changelog}
+ifndef DARCS
+	${call MISSING,darcs}
+else
+	@ocaml Changelog.ml > $@
+endif
+
+doc:Changes.lp4all
 	${info * making docs...}
-ifndef LPALL
+ifndef LP4ALL
 	${call MISSING,lp4all}
 else
-	lp4all -p "$(PROJECT_NAME)" -d doc $$(darcs query manifest)
+	lp4all -p "$(PROJECT_NAME)" -d doc $$(darcs query manifest) Changes.lp4all
 endif
 
 check:$(TARGET)
@@ -78,19 +86,20 @@ else
 	@cp _build/*.annot .
 endif
 
-web:
+web:Changes.lp4all
 	${info "updating web site"}
 	@rm -rf web
 	@darcs get . --repo-name=web
+	@cp Changes.lp4all web
 	@cd web;\
-	lp4all -p "$(PROJECT_NAME)" $$(darcs query manifest);\
+	lp4all -p "$(PROJECT_NAME)" $$(darcs query manifest) Changes.lp4all;\
 	rm -f sparsetable.py parsetable.py;\
 	lftp -c "open $(FTP_TARGET); mirror -Renv --parallel=5 "
 
 clean:sane
 	${info * cleaning up}
 	@rm -rf web doc
-	@rm -f *~ \#* doc.odocl parsetab.py sparsetab.py
+	@rm -f *~ \#* doc.odocl parsetab.py sparsetab.py Changes.lp4all $(TARGET)
 	@$(OCB) -clean
 
 distclean:clean

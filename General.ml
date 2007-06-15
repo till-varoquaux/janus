@@ -42,6 +42,16 @@ module List=
    aux 0 l
  end
 
+module String=
+ struct
+  include String
+   (*w
+     Removes ^^n^^ characters from the beginning of a string.
+   *)
+  let chopStart s n=
+   String.sub s n ((String.length s)-n)
+ end
+
 module StringMap=Map.Make(String)
 module StringSet=Set.Make(String)
 module StringHashtbl=Hashtbl.Make (
@@ -51,7 +61,42 @@ module StringHashtbl=Hashtbl.Make (
   let hash=Hashtbl.hash
  end)
 
+(*w
+   Reads the whole content from a channel
+*)
+let channelToString ic=
+ let b=Buffer.create 17 in
+ try
+  while true do
+   Buffer.add_char b (input_char ic)
+  done;
+  assert false
+ with End_of_file ->
+  Buffer.contents b
 
+(*w
+  Reads an input channel to a list of strings, each string corresponds to a
+  line.
+*)
+let channelToStringList ic=
+ let b=Buffer.create 17
+ and res=ref [] in
+ try
+  while true do
+   match input_char ic with
+    | '\n' ->
+       res:= (Buffer.contents b)::!res;
+       Buffer.reset b
+    | c -> Buffer.add_char b c
+  done;
+  assert false
+ with End_of_file ->
+  begin
+   List.rev (if Buffer.length b > 0 then
+              Buffer.contents b::!res
+             else
+              !res)
+  end
 (*w
   ^^atomSeq f g^^
   runs f() then g() and outputs the result of f().
