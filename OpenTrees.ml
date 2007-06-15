@@ -423,7 +423,7 @@ let genTrav gram=
           $;;
 
      (*The whole tree is translated from the first ast to the second*)
-      module type Par =
+      module type Translation =
       sig
        $G.fold
         begin
@@ -439,7 +439,7 @@ let genTrav gram=
       type o=GetConstr(To).t
 
       (*The whole tree is translated From -> To excepted the toplevel node*)
-      module type T =
+      module type PartialTranslation =
       sig
        open Gram
         $G.fold
@@ -463,11 +463,11 @@ let genTrav gram=
             end gram <:str_item< >>$
           end >>$;;
 
-      module type Ext=functor (T:Par) -> T
+      module type Ext=functor (T:Translation) -> PartialTranslation
 
       (*Performs a monadic traversal of the tree...*)
       module Base:Ext=
-       functor(T:Par) ->
+       functor(T:Translation) ->
       struct
        $let st =match gram.super with
         | None -> <:str_item< >>
@@ -477,13 +477,25 @@ let genTrav gram=
        $
     end
    end
-       (*Closes the loop. This usefull to define easilly transformation within the same ast*)
+
+   module TranslateFrom(From:AstDef)(Mon:Monad.T)=
+   struct
+    include Conv(From)(ClosedDef)(Mon)
+    module type TF=functor(T:Translation) -> Translation
+    module Make(E:TF)=
+    struct
+     module rec T:Translation=E(T)
+     include T
+    end
+   end
+
+   (*Closes the loop. This usefull to define easilly transformation within the same ast*)
    module Map(Mon:Monad.T)=
    struct
     include Conv(ClosedDef)(ClosedDef)(Mon)
-    module Make(E:Ext):T=
+    module Make(E:Ext):Translation=
     struct
-     module rec T:T=E(T)
+     module rec T:Translation=E(T)
      include T
     end
    end

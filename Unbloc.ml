@@ -8,7 +8,7 @@ module Id=Monad.Id
 module T=AstJs.Trav.Map(Id);;
 
 module D=T.Make(
- functor(S:T.T) ->
+ functor(S:T.Translation) ->
  struct
   module Super=T.Base(S)
   include Super

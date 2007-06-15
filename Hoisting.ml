@@ -27,7 +27,7 @@ module Mon=Monad.StateMonad(
 module T=AstJs.Trav.Map(Mon)
 
 module Hoist=T.Make(
- functor(S:T.T) ->
+ functor(S:T.Translation) ->
  struct
   module Super=T.Base(S)
   include Super

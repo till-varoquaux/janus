@@ -45,7 +45,7 @@ module ScInfo=
 module T=AstJs.Trav.Map(ScInfo);;
 
 module D=T.Make(
- functor(S:T.T) ->
+ functor(S:T.Translation) ->
  struct
   module Super=T.Base(S)
   include Super

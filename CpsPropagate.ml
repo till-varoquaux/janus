@@ -14,7 +14,7 @@ module Mon=PropMonad
 module T=AstCpsInt.Trav.Map(Mon)
 
 module D=T.Make(
- functor(S:T.T) ->
+ functor(S:T.Translation) ->
  struct
   module Super=T.Base(S)
   include Super

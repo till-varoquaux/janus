@@ -2,10 +2,11 @@ open AstCpsInt
 
 let return="$return"
 
-module Conv=AstJs.Trav.Conv(AstCpsInt)(AstJs)(Monad.Id)
+module Conv=AstJs.Trav.TranslateFrom(AstCpsInt)(Monad.Id)
 open Conv
 
-module D(S:Par):Par=
+module D=Conv.Make(
+ functor(S:Translation) ->
  struct
   module Super=Base(S)
   include Super
@@ -122,9 +123,7 @@ module D(S:Par):Par=
   and program p=
    bloc p []
 
- end
-
-module rec T:Par=D(T)
+ end)
 
 let run=
- T.program
+ D.program
