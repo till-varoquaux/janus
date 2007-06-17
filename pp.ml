@@ -1,10 +1,13 @@
 (*
-    $Id: pp.ml,v 1.1.1.1 1999/06/13 12:55:05 lindig Exp $
+  $Id: pp.ml,v 1.1.1.1 1999/06/13 12:55:05 lindig Exp $
 
-    Copyright (c) 1999 Christian Lindig <lindig@ips.cs.tu-bs.de>. All
-    rights reserved. See COPYING for details.
+  Copyright (c) 1999 Christian Lindig <lindig@ips.cs.tu-bs.de>. All
+  rights reserved. See COPYING for details.
 
-    For changes see end of file.
+  For changes see end of file.
+
+  This version has been modified by till varoquaux (till.varoquaux@gmail.com) to
+  allow for text ignored when formatting.
 *)
 
 (* debuging makes groups visible *)

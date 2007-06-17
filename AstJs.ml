@@ -14,7 +14,7 @@ gram extends AstBase{
       signature of the object we shall push.
 
       This signature is used by the optimisation passes, faillure to provide a
-      correct signature will result in poossibly corrupted output
+      correct signature will result in possibly corrupted output
     *)
 | `WithCtx expr,instr,[ident]
    (*w
