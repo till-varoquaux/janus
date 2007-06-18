@@ -59,5 +59,5 @@ end
 
 module D=Close(Main)
 
-let print (p:AstJs.program):unit=
- print_string (ppToString 80 (D.program p))
+let print (p:AstJs.program):string=
+ ppToString 80 (D.program p)

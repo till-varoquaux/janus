@@ -12,5 +12,5 @@ gram extends AstBase {
 | `Macro ident,[ident],macrobloc,[ty]
 | `Var ident,expr
 | super;
- expr := `Fun [ident],instr | `Typed expr,ty | super
+ expr := `Typed expr,ty | super
 }
