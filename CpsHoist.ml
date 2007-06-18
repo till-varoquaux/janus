@@ -17,13 +17,36 @@ module D(S:Translation)=
   (*FIXME: check why Old.expr doesn't work*)
   type e'=i AstCpsInt.Gram.expr
   let expr: AstCpsHoistInt.expr -> AstCpsInt.expr CpsMonad.m= function
+    (*w handles lazyness in the And operator*)
+   | `Binop(`And,e1,e2) ->
+      let e1',ctx1=S.expr e1
+      and e2',ctx2=S.expr e2
+      in
+      (match ctx2 with
+        | [] ->  `Binop(`And,e1',e2'),ctx1
+        | _ ->
+           let id=Env.fresh ~hint:"hoistedAnd" () in
+           `Ident id,ctx1@[`Var (id,e1');
+                           `If(`Ident id,`Bloc ctx2,`Assign (`Ident id,`Cst (`Bool false)))]
+      )
+   (*w Lazyness of the `Or operator*)
+   | `Binop(`Or,e1,e2) ->
+      let e1',ctx1=S.expr e1
+      and e2',ctx2=S.expr e2
+      in
+      (match ctx2 with
+        | [] ->  `Binop(`Or,e1',e2'),ctx1
+        | _ ->
+           let id=Env.fresh ~hint:"hoistedAnd" () in
+           `Ident id,ctx1@[`Var (id,e1');
+                           `If(`Unop (`Not ,`Ident id),`Bloc ctx2,`Bloc [])]
+      )
    | `Hoist (e,i) ->
        let e',ctx=S.expr e
        and i',_=S.instr i in
        assert ((snd (S.instr i))= []);
        e',(i'::ctx)
    | #e' as e -> Super.expr e
-      (* TODO handle laziness in and and or *)
 
   let instr= function
    | `Cps i ->

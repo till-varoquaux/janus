@@ -17,8 +17,6 @@ throw:(b 'cont,b)
 %%
 	Since ^^throw^^ discards its own continuation it //must// be
     called in CPS transformed code.
- - **Lazyness in "and" and "or"**. This lazyness is not repected
-   during Cps convertion.
  - **Type Checking** in cpsTrans is not complete
  - **Exception Handling**...
 
