@@ -1,18 +1,15 @@
 (*w
   This pass does all the type checking and marking for cps translations.
-
-  TODO: this pass is a bloody mess!!! it really needs some cleaning up.
-  Hoisting of Cps Calls should really be made elsewhere
 *)
 open Pos
 open General
 open AstStd
-type ty'= AstCpsInt.ty
-type ident'= AstCpsInt.ident
-type instr'=AstCpsInt.instr
-type expr'=AstCpsInt.expr
-type program'=AstCpsInt.program
-type lvalue'=AstCpsInt.lvalue
+type ty'= AstCpsHoistInt.ty
+type ident'= AstCpsHoistInt.ident
+type instr'=AstCpsHoistInt.instr
+type expr'=AstCpsHoistInt.expr
+type program'=AstCpsHoistInt.program
+type lvalue'=AstCpsHoistInt.lvalue
 type ctx=instr' list
 
 (*w
@@ -20,11 +17,11 @@ type ctx=instr' list
 *)
 type compiledCall={
  cps:bool;
- ctx:ctx;
  args:expr' list;
  body:expr'
 }
 
+let nullInstr=`Bloc []
 (*w
   The error message to print when an identifier is defined twice
 *)
@@ -39,7 +36,7 @@ let redef ?previousPos pos id =
      error ~pos:pos msg
 
 (*w
-  Translate a macro element. Literals are kept as they are but macroelemnts are
+  Translate a macro element. Literals are kept as they are but macroelements are
   converted to De Bruijn indices.
 *)
 let macroElem al = function
@@ -149,17 +146,17 @@ let rec compatible t1 t2=
      error ("Cps functions can be used as arguments only when the type " ^
              "explicitly permits it")
 
-let rec lvalue env:lvalue ->lvalue'*ctx=
+let rec lvalue env:lvalue ->lvalue'=
  function
-  | `Ident i -> `Ident (ident i env),[]
+  | `Ident i -> `Ident (ident i env)
   | `ObjAccess (lv,i) ->
-     let lv,ctx = lvalue env lv
+     let lv = lvalue env lv
      and i = ident i env in
-     (`ObjAccess (lv,i)),ctx
+     `ObjAccess (lv,i)
   | `ArrayAccess (lv,e) ->
-     let lv,ctx1 = lvalue env lv
-     and e,ctx2 = expr env e in
-     (`ArrayAccess (lv,e)),(ctx1@ctx2)
+     let lv = lvalue env lv
+     and e = expr env e in
+     `ArrayAccess (lv,e)
 
 (*w
   Checks the args in a function call...
@@ -170,12 +167,12 @@ and checkArg env al tyl=
  with Invalid_argument _ ->
   error "Invalid argument count in call"
 
-and args env al : ((expr' list)*ctx)=
- let arg a (al,ctx)=
-  let a,ctx2=expr env a in
-  (a::al),(ctx@ctx2)
+and args env al : (expr' list)=
+ let arg a al=
+  let a=expr env a in
+  a::al
  in
- List.fold_right arg al ([],[])
+ List.fold_right arg al []
 
 (*w
   Takes a function call and returns all the necessary informations to compil it.
@@ -186,14 +183,11 @@ and callCompile env (`Call (e,al)) : compiledCall =
    | `T -> ()
    | `Arrow (tl,_) | `CpsArrow (tl,_) -> checkArg env al tl
  );
- let al,ctx=args env al
- and e,ctx2 = expr env e in
- let ctx=ctx@ctx2
- in
+ let al=args env al
+ and e = expr env e in
  {cps=(match funTy with
         | `CpsArrow _ -> true
         | _ -> false);
-  ctx=ctx;
   args=al;
   body=e
  }
@@ -214,41 +208,41 @@ and isMacro env=
 
   ^^eType^^ Is used to keep the type information.
 *)
-and expr ?(eType=(`T:ty)) env:expr -> (expr'*ctx)=function
+and expr ?(eType=(`T:ty)) env:expr -> expr'=function
  | `Pos _ as p -> protect (expr ~eType:eType env) p
  | `Typed (e,t) -> expr env e ~eType:t
  | `Obj (pl) ->
-    let pl',ctx=List.fold_left begin
-     fun (pl,ctx) ({node=i;loc=_},e) ->
-      let e',ctx'=expr env e in
-      ((i,e')::pl),(ctx'@ctx)
-    end  ([],[]) pl in
-    `Obj pl',ctx
+    let pl'=List.fold_left begin
+     fun pl ({node=i;loc=_},e) ->
+      let e'=expr env e in
+      ((i,e')::pl)
+    end  [] pl in
+    `Obj pl'
  | `Array (el) ->
-    let elems,ctx=List.fold_right begin
-     fun e (el,ctx) ->
-      let e2,ctx2 = expr env e in
-      (e2::el),(ctx2@ctx)
-    end el ([],[]) in
-    `Array (elems),ctx
+    let elems=List.fold_right begin
+     fun e el ->
+      let e2 = expr env e in
+      e2::el
+    end el [] in
+    `Array (elems)
     (*TODO: Array typing*)
  | `ArrayAccess (e,idx) ->
-    let e,ctx=expr env e
-    and idx,ctx2=expr env idx in
-    `ArrayAccess (e,idx),(ctx@ctx2)
+    let e=expr env e
+    and idx=expr env idx in
+    `ArrayAccess (e,idx)
  | `ObjAccess (e,id) ->
-    let e,ctx=expr env e in
-    `ObjAccess (e,ident id env),ctx
- | `Cst _ as c -> c,[]
+    let e=expr env e in
+    `ObjAccess (e,ident id env)
+ | `Cst _ as c -> c
  | `Call _ as c ->
     let c = callCompile env c in
     if c.cps then
      let ret = Env.fresh ~hint:"AssignedVar" () in
-     `Ident ret,c.ctx@[`Cps (`CpsCall(Some ret,c.body,c.args))]
+     `Hoist(`Ident ret,`Cps (`CpsCall(Some ret,c.body,c.args)))
     else
-     `Call(c.body,c.args),c.ctx
+     `Call(c.body,c.args)
  | `Ident i ->
-    (`Ident (ident i env)),[]
+    (`Ident (ident i env))
  | `Fun (il,b) ->
     checkRedefs il;
     let env = ref (Env.oldify env) in
@@ -264,34 +258,34 @@ and expr ?(eType=(`T:ty)) env:expr -> (expr'*ctx)=function
     and il =List.map (fun i -> ident i env) il
     in
     if cps then
-     `CpsFun(il,b),[]
+     `CpsFun(il,b)
     else
-     `Fun(il,b),[]
+     `Fun(il,b)
  | `Unop (u,e) ->
-    let e,ctx=expr env e in
-    `Unop (u,e),ctx
+    let e=expr env e in
+    `Unop (u,e)
  | `Binop (b,e1,e2) ->
-    let e1,ctx1=expr env e1
-    and e2,ctx2=expr env e2 in
-    (`Binop (b,e1,e2)),(ctx1@ctx2)
-     (*TODO handle lazyness in and and or*)
-and instr env : instr -> (instr' list*Env.t)=
+    let e1=expr env e1
+    and e2=expr env e2 in
+    `Binop (b,e1,e2)
+
+and instr env : instr -> (instr'*Env.t)=
  function
   | `TemplateCall _-> assert false
   | `Pos _ as p -> protect (instr env) p
   | `Macro (i,_,_,_) | `CpsMacro (i,_,_,_) as m ->
      let m=typeMacro m in
      let env=Env.add i m env in
-     [],env
+     nullInstr,env
   | `Var (i,e) ->
      let env=Env.add i ((typeExpr env e):>ty') env in
      let i=ident i env in
-     let e,ctx=expr env e in
-     (ctx@[`Var (i,e)]),env
+     let e=expr env e in
+     `Var (i,e),env
   | `Assign (lv,e) ->
-     let lv,ctx1=lvalue env lv
-     and e,ctx2=expr env e in
-     (ctx1@ctx2@[`Assign (lv,e)]),env
+     let lv=lvalue env lv
+     and e=expr env e in
+     `Assign (lv,e),env
   | `Call (i,el) when isMacro env i ->
      let rec getId=
       (function
@@ -303,12 +297,12 @@ and instr env : instr -> (instr' list*Env.t)=
      ( match Env.ty (getId i) env with
         | `Macro (b,tyl) ->
            checkArg env el tyl;
-           let args,ctx=args env el in
-           (ctx@[`TemplateCall (args,b)]),env
+           let args=args env el in
+           `TemplateCall (args,b),env
         | `CpsMacro (b,tyl) ->
            checkArg env el tyl;
-           let args,ctx=args env el in
-           (ctx@[`Cps(`TemplateCall (args,b))]),env
+           let args=args env el in
+           `Cps(`TemplateCall (args,b)),env
         | _ -> assert false)
   | `Call _ as c ->
      let c = callCompile env c in
@@ -316,47 +310,47 @@ and instr env : instr -> (instr' list*Env.t)=
       `Cps(`CpsCall(None,c.body,c.args))
      else
       `Call(c.body,c.args) in
-     (c.ctx@[call]),env
+     call,env
   | `If (e,b1,b2) ->
-     let e,ctx=expr env e
-     and b1,env=instr env b1 in
-     let b2,env=instr env b2 in
-     (ctx@[`If (e,`Bloc b1,`Bloc b2)]),env
-  | `Bloc b -> let b',env' = bloc env b in
-    b',env'
+     let e=expr env e
+     and b1,_=instr env b1 in
+     let b2,_=instr env b2 in
+     `If (e,b1,b2),env
+  | `Bloc b -> let b',_ = bloc env b in
+    `Bloc b',env
   | `Ret e ->
-     let e,ctx=expr env e in
+     let e=expr env e in
      let r = (
       if Env.cps env then
        `Cps(`Ret e)
       else
        `Ret e
      )in
-     ctx@[r],env
+     r,env
      (*TODO: check return type*)
   | `Throw (e1,e2) ->
-     let e1',ctx1=expr env e1
-     and e2',ctx2=expr env e2 in
-     ctx1@ctx2@[`Cps(`Throw (e1',e2'))],env
+     let e1'=expr env e1
+     and e2'=expr env e2 in
+     `Cps(`Throw (e1',e2')),env
       (*TODO: check for thrown value and that we are in a CPS env*)
   | `CallCC e ->
-     let e',ctx=expr env e in
-     ctx@[`CallCC (None,e')],env
+     let e'=expr env e in
+     `CallCC (None,e'),env
   | `While (e,b) ->
-     let e,ctx=expr env e
-     and b,env=instr env b in
-     (ctx@[`While (e,(`Bloc b))]),env
+     let e=expr env e
+     and b,_=instr env b in
+     `While (e,b),env
 
 and bloc (env:Env.t) : instr list -> (instr' list*Env.t) = function
  | [] -> [],env
  | h::t ->
-    let r1,env=instr env h in
-   let r2,env=bloc env t in
-   (r1@r2),env
+    let i1,env=instr env h in
+    let r2,env=bloc env t in
+    i1::r2,env
 
 and fbloc env b : instr' =
  let b,_=instr env b in
- `Bloc b
+ b
 
 let program (p:program):program'=
  fst (bloc Env.empty p)

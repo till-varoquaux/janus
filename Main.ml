@@ -62,8 +62,9 @@ let p trans printer name=
 
 let process=
  parse
- ++(p CpsTrans.run EmitCpsInt.print "cps")
- ++(p CpsPropagate.run EmitCpsInt.print "cpsprop")
+ ++(p CpsTrans.run EmitCpsHoistInt.print "cpshoist")
+ ++(p CpsHoist.run EmitCpsInt.print "cpsint")
+ ++(p CpsPropagate.run EmitCpsInt.print "cpsint2")
  ++(p Cps.run EmitJs.print "rawjs")
  ++opt#run
  ++EmitJs.print
