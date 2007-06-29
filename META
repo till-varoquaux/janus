@@ -1,0 +1,4 @@
+description = "Mini js compiler"
+requires = "unix"
+version = "0.alpha1"
+archive(byte) = "Js.cma"

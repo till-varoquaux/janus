@@ -164,9 +164,9 @@ let checkDev bin targ=
  yesno res;
  if not res then begin
    if !dev then
-    warn (Printf.sprintf "disabling target:\"%s\"" targ)
-   else
     error (Printf.sprintf "\"%s\" is required to hack the source code" bin)
+   else
+    warn (Printf.sprintf "disabling target:\"%s\"" targ)
  end;
  res
 
