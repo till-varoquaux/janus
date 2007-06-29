@@ -15,20 +15,9 @@ let version ()=
  Printf.printf "%s, version: \"%s\"\n" Version.name Version.version;
  exit 0
 
-let spec =
- ref ["-v",Arg.Unit version,"prints the version and exits"]
+let specs=["-v",Arg.Unit version,"prints the version and exits"]
 
 let (++) f g x= g (f x)
-
-let opt=new Optimise.opt
- [
-  DeadCode.pass;
-  BranchMerger.pass;
-  IdentFunDecls.pass;
-  Hoisting.pass;
-  TailRec.pass;
-  Unbloc.pass
- ]
 
 
 let parseError lexbuf s=
@@ -49,37 +38,20 @@ let parse file=
        parseError lb (sprintf "syntax error in parse rule: \"%s\"" !ParseInfo.currentRule);
  end
 
-let p trans printer name=
- let dump=ref false in
- spec:=("-dump-"^name,Arg.Set dump,"<undocumented>")::(!spec);
- fun p ->
-  flush stdout;
-  let x=trans p in
-  if !dump then
-   printf "%s\n==================\n" (printer x);
-  flush stdout;
-  x
-
 let process=
- parse
- ++(p CpsTrans.run EmitCpsHoistInt.print "cpshoist")
- ++(p CpsHoist.run EmitCpsInt.print "cpsint")
- ++(p CpsPropagate.run EmitCpsInt.print "cpsint2")
- ++(p Cps.run EmitJs.print "rawjs")
- ++opt#run
- ++EmitJs.print
+ parse++Cps.compile
 
-let spec=opt#spec@(!spec)
+let specs=Cps.specs@specs
 
 let () =
  let file = ref None in
- Arg.parse spec (fun s -> file := Some s) usage;
+ Arg.parse specs (fun s -> file := Some s) usage;
  match !file with
   |Some f ->begin
      try
-      print_string (process f)
+      process f
      with e ->
 	  eprintf "Anomaly: %s\n@." (Printexc.to_string e);
 	  exit 2
     end
-  | None -> Arg.usage spec usage; exit 1
+  | None -> Arg.usage specs usage; exit 1
