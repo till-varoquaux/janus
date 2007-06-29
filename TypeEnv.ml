@@ -43,11 +43,17 @@ let reservedKeywords=[
 ]
 
 
+let dec=
+ StringHashtbl.create 89
+
+let clear()=
+ StringHashtbl.clear dec;
+ List.iter (fun i -> StringHashtbl.add dec i 0) reservedKeywords
+
+let _ = clear()
+
 let fresh=
- let module M=StringHashtbl
- in
- let dec=M.create 89 in
- List.iter (fun i -> M.add dec i 0) reservedKeywords;
+ let module M=StringHashtbl in
  fun ?(hint="fresh")() ->
   if M.mem dec hint then begin
    let cnt=M.find dec hint in

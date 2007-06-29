@@ -77,14 +77,14 @@ let isVcs=
 
 let vcsVersion () =
  let inv=(Filename.concat (Filename.concat root "_darcs") "inventory") in
- let f=open_in inv in
+ let f=Pervasives.open_in inv in
  let lastLine=ref "" in
  (try
    while true; do
     lastLine:=input_line f
    done
   with End_of_file ->
-   close_in f);
+   Pervasives.close_in f);
  let s = !lastLine in
  (*The last line contains the date of the last commit...*)
  ignore (Str.string_match (Str.regexp ".*\\*\\*\\([0-9]*\\) *] *$") s 0);

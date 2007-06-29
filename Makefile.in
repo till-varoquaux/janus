@@ -33,7 +33,10 @@ else
 endif
 MLI=$(wildcard *.mli)
 
+LIB=Js
 ALL=$(TARGET)
+LIBM=$(shell cat $(LIB).mllib)
+LIBCMI=$(foreach a,$(LIBM),$(BUILDDIR)/$a.cmi)
 
 ifdef DEV
 	ALL += annot check
@@ -45,12 +48,29 @@ Makefile:configure
 	${warning Your Makefile is too old, reruning configure...}
 	@${CONFIGURE}
 
-.PHONY:all clean opt dist doc check annot web Changes.lp4all
+.PHONY:all clean opt dist doc check annot web lib_install
 
 $(TARGET):sane
 	${info * making $(MODE) code}
 	@$(OCB) $(SRC).$(MODE)
 	@cp $(BUILDDIR)/$(SRC).$(MODE) $(TARGET)
+
+$(LIB).cma:sane
+	$(info * making the bytecode library)
+	@$(OCB) -lflag "-linkall" $@
+	@cp $(BUILDDIR)/$@ $@
+
+$(LIB).cmxa:sane
+	$(info * making the native library)
+	@$(OCB) $@
+	@cp $(BUILDDIR)/$@ $@
+
+lib_install:$(LIB).cma
+	$(info * installing the library)
+	@if (ocamlfind list|cut -d' ' -f1 | grep -q -F "$(PROJECT_NAME)")\
+	 then ocamlfind remove "$(PROJECT_NAME)";\
+	fi
+	@ocamlfind install $(PROJECT_NAME) META $(LIBCMI) $<
 
 Changes.lp4all:
 	${info * making the changelog}
@@ -77,7 +97,7 @@ else
 endif
 
 sane:
-	@rm -f *.annot
+	@rm -f *.annot *.cma *.cmxa
 
 annot:$(TARGET)
 ifndef DTYPES
@@ -85,6 +105,7 @@ ifndef DTYPES
 else
 	@cp _build/*.annot .
 endif
+
 
 web:Changes.lp4all
 	${info "updating web site"}

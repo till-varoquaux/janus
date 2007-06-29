@@ -25,7 +25,7 @@ module D(S:Translation)=
       (match ctx2 with
         | [] ->  `Binop(`And,e1',e2'),ctx1
         | _ ->
-           let id=Env.fresh ~hint:"hoistedAnd" () in
+           let id=TypeEnv.fresh ~hint:"hoistedAnd" () in
            `Ident id,ctx1@[`Var (id,e1');
                            `If(`Ident id,`Bloc ctx2,`Assign (`Ident id,`Cst (`Bool false)))]
       )
@@ -37,7 +37,7 @@ module D(S:Translation)=
       (match ctx2 with
         | [] ->  `Binop(`Or,e1',e2'),ctx1
         | _ ->
-           let id=Env.fresh ~hint:"hoistedAnd" () in
+           let id=TypeEnv.fresh ~hint:"hoistedAnd" () in
            `Ident id,ctx1@[`Var (id,e1');
                            `If(`Unop (`Not ,`Ident id),`Bloc ctx2,`Bloc [])]
       )

@@ -95,7 +95,7 @@ let typeMacro m =
  else
   `Macro(b,ty)
 
-let ident=Env.ident
+let ident=TypeEnv.ident
 
 (*w
    Returns the type of an expression in a given environement
@@ -107,7 +107,7 @@ let rec typeExpr env=function
       All defined function should be typed we should therefor have passed though a
       ^^Typed^^ node before reaching this point.
     *)
- | `Fun _ -> assert false
+ | `Fun (args,_) -> `Arrow ((List.map (fun _ -> `T) args),`T)
  | `Call (e,_) ->
     (match typeExpr env e with
       | `CpsArrow(_,b) -> b
@@ -117,7 +117,7 @@ let rec typeExpr env=function
  | _ -> `T
 
 and typeIdent env i =
- match Env.ty i env with
+ match TypeEnv.ty i env with
   | `Macro _ | `CpsMacro _ -> error "Cannot call a macro in an expression"
   | `Arrow _ | `CpsArrow _ | `T as t-> t
 
@@ -197,7 +197,7 @@ and isMacro env=
   | `Pos _ as p -> protect (isMacro env) p
   | `Ident i ->
      begin
-      match Env.ty i env with
+      match TypeEnv.ty i env with
        | `Macro _ | `CpsMacro _ -> true
        | _ -> false
      end
@@ -212,11 +212,11 @@ and expr ?(eType=(`T:ty)) env:expr -> expr'=function
  | `Pos _ as p -> protect (expr ~eType:eType env) p
  | `Typed (e,t) -> expr env e ~eType:t
  | `Obj (pl) ->
-    let pl'=List.fold_left begin
-     fun pl ({node=i;loc=_},e) ->
+    let pl'=List.fold_right begin
+     fun ({node=i;loc=_},e) pl ->
       let e'=expr env e in
       ((i,e')::pl)
-    end  [] pl in
+    end  pl [] in
     `Obj pl'
  | `Array (el) ->
     let elems=List.fold_right begin
@@ -237,7 +237,7 @@ and expr ?(eType=(`T:ty)) env:expr -> expr'=function
  | `Call _ as c ->
     let c = callCompile env c in
     if c.cps then
-     let ret = Env.fresh ~hint:"AssignedVar" () in
+     let ret = TypeEnv.fresh ~hint:"AssignedVar" () in
      `Hoist(`Ident ret,`Cps (`CpsCall(Some ret,c.body,c.args)))
     else
      `Call(c.body,c.args)
@@ -245,15 +245,15 @@ and expr ?(eType=(`T:ty)) env:expr -> expr'=function
     (`Ident (ident i env))
  | `Fun (il,b) ->
     checkRedefs il;
-    let env = ref (Env.oldify env) in
+    let env = ref (TypeEnv.oldify env) in
     let it,_,cps = (match eType with
-                   | `T -> assert false
-                   | `CpsArrow (it,ret) -> (it,ret,true)
-                   | `Arrow (it,ret) -> (it,ret,false)
-                 )
+                     | `CpsArrow (it,ret) -> (it,ret,true)
+                     | `Arrow (it,ret) -> (it,ret,false)
+                     | `T -> ((List.map (fun _ -> `T) il),`T,false)
+                   )
     in
-    List.iter2 (fun i ty -> env := Env.add i (ty:>ty') (!env)) il it;
-    let env=Env.setCps cps !env in
+    List.iter2 (fun i ty -> env := TypeEnv.add i (ty:>ty') (!env)) il it;
+    let env=TypeEnv.setCps cps !env in
     let b=fbloc env b
     and il =List.map (fun i -> ident i env) il
     in
@@ -269,16 +269,16 @@ and expr ?(eType=(`T:ty)) env:expr -> expr'=function
     and e2=expr env e2 in
     `Binop (b,e1,e2)
 
-and instr env : instr -> (instr'*Env.t)=
+and instr env : instr -> (instr'*TypeEnv.t)=
  function
   | `TemplateCall _-> assert false
   | `Pos _ as p -> protect (instr env) p
   | `Macro (i,_,_,_) | `CpsMacro (i,_,_,_) as m ->
      let m=typeMacro m in
-     let env=Env.add i m env in
+     let env=TypeEnv.add i m env in
      nullInstr,env
   | `Var (i,e) ->
-     let env=Env.add i ((typeExpr env e):>ty') env in
+     let env=TypeEnv.add i ((typeExpr env e):>ty') env in
      let i=ident i env in
      let e=expr env e in
      `Var (i,e),env
@@ -294,7 +294,7 @@ and instr env : instr -> (instr'*Env.t)=
         | _ -> assert false
       )
      in
-     ( match Env.ty (getId i) env with
+     ( match TypeEnv.ty (getId i) env with
         | `Macro (b,tyl) ->
            checkArg env el tyl;
            let args=args env el in
@@ -321,7 +321,7 @@ and instr env : instr -> (instr'*Env.t)=
   | `Ret e ->
      let e=expr env e in
      let r = (
-      if Env.cps env then
+      if TypeEnv.cps env then
        `Cps(`Ret e)
       else
        `Ret e
@@ -341,7 +341,7 @@ and instr env : instr -> (instr'*Env.t)=
      and b,_=instr env b in
      `While (e,b),env
 
-and bloc (env:Env.t) : instr list -> (instr' list*Env.t) = function
+and bloc (env:TypeEnv.t) : instr list -> (instr' list*TypeEnv.t) = function
  | [] -> [],env
  | h::t ->
     let i1,env=instr env h in
@@ -353,7 +353,7 @@ and fbloc env b : instr' =
  b
 
 let program (p:program):program'=
- fst (bloc Env.empty p)
+ fst (bloc TypeEnv.empty p)
 
 let run=
  program

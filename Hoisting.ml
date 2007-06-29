@@ -68,7 +68,7 @@ module Hoist=T.Make(
   let expr e funs =
    match e with
     | `Fun(args,i) ->
-       let id=Env.fresh ~hint:"hoisted" () in
+       let id=TypeEnv.fresh ~hint:"hoisted" () in
        let fdecl,hFuns=fundecl id args i in
        `Ident id,
        fdecl::hFuns@funs

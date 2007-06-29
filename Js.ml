@@ -9,5 +9,7 @@ let opt=new Optimise.opt
  ]
 
 let specs=opt#spec
-let compile p=print_string(EmitJs.print(opt#run p))
+let compile p=
+ print_string(EmitJs.print(opt#run p));
+ TypeEnv.clear()
 type t=AstJs.program

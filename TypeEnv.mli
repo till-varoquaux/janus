@@ -19,6 +19,7 @@ val oldify:t->t
  *)
 val fresh:?hint:string->unit->id
 
+val clear:unit -> unit
 (*w
    Are we in a cps block
 *)

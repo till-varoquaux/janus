@@ -1,5 +1,5 @@
 include AstCpsHoistInt.ClosedDef
-module M=Compile.Pass(
+include Compile.Pass(
  struct
   type from=program
   type out=AstCpsInt.program
@@ -7,6 +7,3 @@ module M=Compile.Pass(
   let print=EmitCpsInt.print
   let name="cpsint"
  end)(CpsInt)
-
-include M
-

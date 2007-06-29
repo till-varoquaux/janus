@@ -1,5 +1,5 @@
 include AstStd.ClosedDef
-module M=Compile.Pass(
+include Compile.Pass(
  struct
   type from=program
   type out=AstCpsHoistInt.program
@@ -8,5 +8,4 @@ module M=Compile.Pass(
   let name="cpshoist"
  end)(CpsHoistInt)
 
-include M
 

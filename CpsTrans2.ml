@@ -49,7 +49,7 @@ module D=Conv.Make(
         when ((sameCall args args2) && (not (List.mem id args))) ->
        [],(`Ident id)
     | b ->
-       let fname=Env.fresh ~hint:"CpsCont" () in
+       let fname=TypeEnv.fresh ~hint:"CpsCont" () in
        [(`Fundecl (fname,args,`Bloc b))],(`Ident fname)
 
   let rec expr= function
@@ -94,14 +94,14 @@ module D=Conv.Make(
         | [`Call(`Ident id,[])] | [`Ret (`Call(`Ident id,[]))] ->
            [],[`Call (`Ident id,[])]
         | b ->
-           let k=Env.fresh ~hint:"Ite" () in
+           let k=TypeEnv.fresh ~hint:"Ite" () in
            [`Fundecl(k,[],`Bloc b)],[`Call(`Ident k,[])]
        in
        let e1=instr' b1 cont in
        let e2=instr' b2 cont in
        head@[`If (expr e,`Bloc e1,`Bloc e2)]
     | `While (e,i) ->
-       let k=Env.fresh ~hint:"While" () in
+       let k=TypeEnv.fresh ~hint:"While" () in
        let cont=[`Call ((`Ident k),[])] in
        let i=instr' i cont in
        [`Fundecl (k,[],`Bloc [`If((expr e),(`Bloc i),(`Bloc cont))]);
