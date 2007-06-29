@@ -50,16 +50,13 @@ module String=
    *)
   let chopStart s n=
    String.sub s n ((String.length s)-n)
+  let equal=(=)
+  let hash=Hashtbl.hash
  end
 
 module StringMap=Map.Make(String)
 module StringSet=Set.Make(String)
-module StringHashtbl=Hashtbl.Make (
- struct
-  type t=string
-  let equal=(=)
-  let hash=Hashtbl.hash
- end)
+module StringHashtbl=Hashtbl.Make(String)
 
 (*w
    Reads the whole content from a channel
@@ -98,23 +95,25 @@ let channelToStringList ic=
               !res)
   end
 (*w
-  ^^atomSeq f g^^
+  ^^unwind_protect f g^^
   runs f() then g() and outputs the result of f().
 *)
-let atomSeq f g=
- let runCloseFun=ref true in
- let closeAtExit ()=
-  if !runCloseFun then
-   g ()
+let unwind_protect f g=
+ let run f ()=
+  match !f with
+   | Some f -> f ()
+   | None -> ()
  in
- at_exit closeAtExit;
- let res=(try
-           f ()
-          with e ->
-           g ();
-           raise e)
+ let closeFun=ref (Some g) in
+ at_exit (run closeFun);
+ let res=
+  try
+   f ()
+  with e ->
+   g ();
+   raise e
  in
- runCloseFun := false;
+ closeFun := None;
  g ();
  res
 
@@ -124,11 +123,11 @@ let atomSeq f g=
 *)
 let with_open_in filename f=
  let ch=open_in filename in
- atomSeq (fun () -> f ch) (fun () -> close_in ch)
+ unwind_protect (fun () -> f ch) (fun () -> close_in ch)
 
 let with_open_out filename f=
  let ch=open_out filename in
- atomSeq (fun () -> f ch) (fun () -> flush ch;close_out ch)
+ unwind_protect (fun () -> f ch) (fun () -> flush ch;close_out ch)
 
 (*w
   We are now handling processes in a Lispish way. This function returns a tuple
@@ -138,6 +137,20 @@ let with_open_out filename f=
 let with_open_process_full process f=
  let chs=Unix.open_process_full process [||] in
  let status=ref None in
- let res=(atomSeq(fun () -> f chs) (fun () -> status:= Some (Unix.close_process_full
+ let res=(unwind_protect(fun () -> f chs) (fun () -> status:= Some (Unix.close_process_full
                                   chs))) in
  res,(Option.get (!status))
+
+module Abstract:sig
+ type t
+ val v:t
+end
+=
+struct
+ type t=unit
+ let v=()
+end
+let open_out=Abstract.v
+let open_in=Abstract.v
+let close_out=Abstract.v
+let close_in=Abstract.v
