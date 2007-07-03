@@ -23,7 +23,8 @@ gram{
 | `While expr,instr
 | `TemplateCall [expr],macrobloc
 | `Bloc [instr]
-| `Ret expr;
+| `Ret expr
+| `Expr expr;
  ty;
  macroitem:=`Ident int (*De bruijn index*) | `Literal string;
  macrobloc:=[macroitem];

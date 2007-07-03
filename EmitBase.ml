@@ -139,6 +139,7 @@ struct
        let args=join S.expr args (punct ",")
        in
        (S.expr f) ^^ (par args)
+    | `Expr e -> S.expr e
     | `Ret (e) ->
        (kwd "return")^^break^^(S.expr e)
         (*w This is to hard to compile without breaking abstraction, we'll let the

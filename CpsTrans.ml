@@ -268,6 +268,10 @@ and expr ?(eType=(`T:ty)) env:expr -> expr'=function
     let e1=expr env e1
     and e2=expr env e2 in
     `Binop (b,e1,e2)
+ | `Hoist (e,i) ->
+    let i,env=instr env i in
+    let e=expr env e in
+    `Hoist (e,i)
 
 and instr env : instr -> (instr'*TypeEnv.t)=
  function
@@ -316,7 +320,8 @@ and instr env : instr -> (instr'*TypeEnv.t)=
      and b1,_=instr env b1 in
      let b2,_=instr env b2 in
      `If (e,b1,b2),env
-  | `Bloc b -> let b',_ = bloc env b in
+  | `Bloc b ->
+     let b',_ = bloc (TypeEnv.oldify env) b in
     `Bloc b',env
   | `Ret e ->
      let e=expr env e in
@@ -340,6 +345,8 @@ and instr env : instr -> (instr'*TypeEnv.t)=
      let e=expr env e
      and b,_=instr env b in
      `While (e,b),env
+  | `Expr e ->
+     `Expr (expr env e),env
 
 and bloc (env:TypeEnv.t) : instr list -> (instr' list*TypeEnv.t) = function
  | [] -> [],env

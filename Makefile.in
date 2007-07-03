@@ -48,7 +48,7 @@ Makefile:configure
 	${warning Your Makefile is too old, reruning configure...}
 	@${CONFIGURE}
 
-.PHONY:all clean opt dist doc check annot web lib lib_install
+.PHONY:all clean opt dist doc check annot web lib_install
 
 $(TARGET):sane
 	${info * making $(MODE) code}
@@ -66,7 +66,7 @@ $(LIB).cmxa:sane
 	@cp $(BUILDDIR)/$@ $@
 
 lib:$(LIB).cma
-lib_install:lib
+lib_install:$(LIB).cma
 	$(info * installing the library)
 	@if (ocamlfind list|cut -d' ' -f1 | grep -q -F "$(PROJECT_NAME)")\
 	 then ocamlfind remove "$(PROJECT_NAME)";\
