@@ -26,7 +26,7 @@ module D(S:Translation)=
         | [] ->  `Binop(`And,e1',e2'),ctx1
         | _ ->
            let id=TypeEnv.fresh ~hint:"hoistedAnd" () in
-           `Ident id,ctx1@[`Var (id,e1');
+           `Ident id,ctx1@[`Var (id,Some e1');
                            `If(`Ident id,`Bloc ctx2,`Assign (`Ident id,`Cst (`Bool false)))]
       )
    (*w Lazyness of the `Or operator*)
@@ -38,7 +38,7 @@ module D(S:Translation)=
         | [] ->  `Binop(`Or,e1',e2'),ctx1
         | _ ->
            let id=TypeEnv.fresh ~hint:"hoistedAnd" () in
-           `Ident id,ctx1@[`Var (id,e1');
+           `Ident id,ctx1@[`Var (id,Some e1');
                            `If(`Unop (`Not ,`Ident id),`Bloc ctx2,`Bloc [])]
       )
    | `Hoist (e,i) ->

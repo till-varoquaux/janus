@@ -63,7 +63,6 @@ module D=Conv.Make(
    match i with
     (*These expressions can only be converted in cps translated code*)
     | `Throw _ | `CallCC _ | `CpsCall _ -> assert false
-    | `Var (i,e) ->[`Var i;`Assign (`Ident i,expr e)]@cont (*This could be done in a micro pass*)
     | `Bloc b -> bloc b cont
     | `Cps i -> cpsInstr i cont
     | `If (e,b1,b2) -> `If (expr e,`Bloc (instr' b1 []),`Bloc (instr' b2 []))::cont

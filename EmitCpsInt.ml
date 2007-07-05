@@ -33,8 +33,6 @@ struct
     | `Cps i -> cps (S.instr i)
     | `CpsCall (a,e,al) ->
        cpsAff a (instr (`Call (e,al)))
-    | `Var (i,e) ->
-       hgrp ((kwd "var") ^^ break ^^ (S.ident i) ^^ (punct "=") ^^ (S.expr e))
     | #Old.instr as i -> grp:=false;Super.instr i
        (*| `CallCC ident?,expr
        | `Throw expr,expr*)

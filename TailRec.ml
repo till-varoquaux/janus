@@ -124,8 +124,7 @@ module D=T.Make(
          if args=[] then
           loop contlbl body
          else
-          `Bloc [`Var jsCtxId;
-                 `Assign (jsCtx,`Obj[]);
+          `Bloc [`Var (jsCtxId,Some (`Obj[]));
                  loop contlbl (`WithCtx (jsCtx,body,args))]
         else
          body

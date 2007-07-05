@@ -10,7 +10,6 @@ gram extends AstBase {
 | `Throw expr,expr
 | `CpsMacro ident,[ident],macrobloc,[ty]
 | `Macro ident,[ident],macrobloc,[ty]
-| `Var ident,expr
 | super;
  expr :=
 | `Typed expr,ty

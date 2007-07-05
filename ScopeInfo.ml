@@ -61,7 +61,7 @@ module D=T.Make(
 
   let instr=WeakHt.memoize
    begin function
-    | `Var v as i->
+    | `Var (v,_) as i->
        i,{empty with
            defined=SS.singleton v
          }

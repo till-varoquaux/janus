@@ -281,11 +281,13 @@ and instr env : instr -> (instr'*TypeEnv.t)=
      let m=typeMacro m in
      let env=TypeEnv.add i m env in
      nullInstr,env
-  | `Var (i,e) ->
+  | `Var (i,None) ->
+     `Var(ident i env,None),(TypeEnv.add i `T env)
+  | `Var (i,Some e) ->
      let env=TypeEnv.add i ((typeExpr env e):>ty') env in
      let i=ident i env in
      let e=expr env e in
-     `Var (i,e),env
+     `Var (i,Some e),env
   | `Assign (lv,e) ->
      let lv=lvalue env lv
      and e=expr env e in

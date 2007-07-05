@@ -61,7 +61,7 @@ module Hoist=T.Make(
     end args in
    let capFuns,hoistFuns=sepCaptured locals hFuns
    and vars = ScopeInfo.foldDefined (ScopeInfo.instr hInstr) begin
-    fun i loc -> `Var i::loc
+    fun i loc -> `Var (i,None)::loc
    end [] in
    (`Fundecl (name,args,`Bloc (vars@capFuns@[hInstr]))),hoistFuns
 
@@ -89,12 +89,14 @@ module Hoist=T.Make(
        let capFuns,hoistFuns = sepCaptured si hFuns in
        `WithCtx (e,`Bloc(capFuns@[hInstr]),si),
        hoistFuns@funs
-    | `Var _ ->
-       (*w
-         We can safely drop the var def here: they will be hoisted and
-         recalculated from scopeInfo.
-       *)
+        (*w
+          We can safely drop the var def here: they will be hoisted and
+          recalculated from scopeInfo.
+        *)
+    | `Var (_,None) ->
        null,funs
+    | `Var (i,Some e) ->
+       (`Assign (`Ident i,e)),funs
     |_ -> Super.instr i funs
  end)
 

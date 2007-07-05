@@ -30,9 +30,6 @@ struct
   let grp=ref true in
   let r=match i with
    | `WithCtx (e,b,_) -> (kwd "with")^^(par (S.expr e )) ^^ (blocOrInstr b)
-   | `Var i -> (kwd "var ") ^^ (ident i)
-      (*TODO: collapse `Var lists*)
-      (*TODO: Collapse `Var and `Assign*)
    | `Fundecl(i,args,b) ->
       let b=protectInstr b in
       (kwd "function ")^^(ident i)^^(par(join ident args (punct ",")))^^b

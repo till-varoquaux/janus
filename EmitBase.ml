@@ -125,13 +125,13 @@ struct
    let r=match i with
     | `WithCtx (e,b,_) -> (kwd "with")^^(par (S.expr e )) ^^ (blocOrInstr b)
     | `Bloc il -> grp:=false;bloc il
-    | `Var i -> (kwd "var ") ^^ (ident i)
-       (*TODO: collapse `Var lists*)
-       (*TODO: Collapse `Var and `Assign*)
     | `Fundecl(i,args,b) ->
        let b=protectInstr b in
        (kwd "function ")^^(ident i)^^(par(join ident args (punct ",")))^^b
     | `Assign (l,e) -> (S.lvalue l) ^^ (punct "=") ^^ (S.expr e)
+    | `Var (i,None) -> (kwd "var ") ^^ (S.ident i)
+      (*TODO: collapse empty `Var lists*)
+    | `Var (i,Some e) -> (kwd "var ") ^^ (S.ident i) ^^ (punct "=") ^^ (S.expr e)
     | `If (e,b1,b2) ->(kwd "if") ^^ (cond e) ^^ (blocOrInstr ~breakAfter:true b1)
        ^^ (kwd "else") ^^ (blocOrInstr b2)
     | `While (e,b) -> (kwd "while") ^^ (cond e) ^^ (blocOrInstr b)

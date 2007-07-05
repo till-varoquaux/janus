@@ -1,6 +1,8 @@
 (*w
   This is a very dump pass: it identifies fundecls since they don't exist in the
   language we are compiling from.
+
+  TODO: It just got even dumber with the addition of proper fundecls!
 *)
 
 module T=AstJs.Trav.Map(Monad.Id)
@@ -11,16 +13,9 @@ module D=T.Make(
   module Super=T.Base(S)
   include Super
 
-  let rec bloc =function
-   | [] -> []
-   | `Var name :: `Assign((`Ident id),`Fun(args,i))::l when id=name ->
-      `Fundecl(id,args,(instr i))::(bloc l)
-   | i::l ->
-      (instr i)::(bloc l)
-  and instr = function
-   | `Bloc b -> `Bloc (bloc b)
+  let instr = function
+   | `Var (name,Some (`Fun(args,i))) -> `Fundecl(name,args,(instr i))
    | i -> Super.instr i
-  let program = bloc
  end
 )
 

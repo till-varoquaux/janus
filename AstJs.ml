@@ -24,6 +24,5 @@ gram extends AstBase{
      polymorphic variant difference.
    *)
 | `Return
-| `Var ident
 | super
 }

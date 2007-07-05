@@ -17,6 +17,5 @@ gram extends AstBase {
 | `CpsCall ident?,expr,[expr] (*TODO check wether we could extend this to lvalues*)
 | `CallCC ident?,expr
 | `Throw expr,expr
-| `Var ident,expr
 | super
 }
