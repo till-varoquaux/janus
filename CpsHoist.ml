@@ -10,7 +10,8 @@ end
 
 module Conv=AstCpsInt.Trav.TranslateFrom(AstCpsHoistInt)(CpsMonad)
 open Conv
-module D(S:Translation)=
+module T=Conv.Make(
+ functor(S:Translation)->
  struct
   module Super=Base(S)
   include Super
@@ -57,9 +58,7 @@ module D(S:Translation)=
       (match Super.instr i with
         | i,[] -> i,[]
         | i,ctx -> `Bloc (ctx@[i]),[])
- end
-
-module rec T:Translation=D(T)
+ end)
 
 let run p=
  CpsMonad.run (T.program p)

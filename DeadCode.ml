@@ -2,6 +2,10 @@
   This pass performs dead code elimination in JS code.
 *)
 
+(*w This monad allows to pass as addictional information a boolean telling
+ * wether the generated code returns (the following code in the same block will
+ * be dead code)
+ *)
 module RetMon=
 struct
  type 'a m = 'a * bool
@@ -11,21 +15,22 @@ struct
 end
 
 module T=AstJs.Trav.Map(RetMon);;
-
-module D=T.Make(
- functor(S:T.Translation) ->
+module D=T.Make(functor(S:T.Translation) ->
  struct
   module Super=T.Base(S)
   include Super
 
+  (*w Processes a list of instruction.
+   *
+   * if an instruction in the list returns the rest of the list is
+   * deadcode and therefor is dropped
+   *)
   let bloc b =
-   let rec aux res= function
-    | [] -> res,false
-    | x::l ->
-       match S.instr x with
-        | x,true ->
-           x::res,true
-        | x,false -> aux (x::res) l   in
+   let rec aux processed= function
+    | [] -> processed,false
+    | x::l ->match S.instr x with
+       | x,true -> x::processed,true
+       | x,false -> aux (x::processed) l   in
    let l,ret=aux [] b in
    (List.rev l),ret
 
@@ -42,8 +47,7 @@ module D=T.Make(
       and (b2,c2) = S.instr b2 in
       (`If (e,b1,b2)),(c1 && c2)
    | i -> Super.instr i
- end
-)
+ end)
 
 let pass:#Optimise.pass=
 object

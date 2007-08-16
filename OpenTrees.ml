@@ -571,10 +571,11 @@ EXTEND Gram
  GLOBAL: str_item;
 
  str_item: LEVEL "top" [
-  [ "gram"; e = extends ; "{" ; it=gram_items ; "}" ->
+  [ "gram"; name = OPT a_UIDENT;e = extends ; "{" ; it=gram_items ; "}" ->
    let gram=
     G.init e it
    in
+   let res=
    <:str_item<
     (*The open grammar*)
     module Gram = struct
@@ -595,6 +596,15 @@ EXTEND Gram
     end
      >>$
  >>
+ in
+ match name with
+  | None -> res
+  | Some n ->
+   <:str_item<
+   module $n$ = struct
+    $res$
+   end;;
+   >>
 ]
  ];
  gram_items:[

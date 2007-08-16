@@ -1,10 +1,11 @@
-module Id=Monad.Id
+(*w
+  Analyses if-then-else instructions and tries to merge all redundancy beetween
+  branches.
+*)
 
-let rec unroll = function
- | [] -> []
- | (`Bloc b) :: l -> (unroll b) @ (unroll l)
- | i::l -> i::(unroll l)
-
+(*w
+  Merging of branches
+*)
 let rec mergeHead b1 b2=
  match b1,b2 with
   | (h1::t1),(h2::t2) when h1=h2 ->
@@ -22,7 +23,7 @@ let merge b1 b2=
  let (r,l),tl=mergeTail tl1 tl2 in
  hd,(r,l),tl
 
-module T=AstJs.Trav.Map(Id)
+module T=AstJs.Trav.Map(Monad.Id)
 
 module D=T.Make(
  functor(S:T.Translation) ->
@@ -30,7 +31,15 @@ module D=T.Make(
   module Super=T.Base(S)
   include Super
 
+  let rec unroll = function
+   | [] -> []
+   | (`Bloc b) :: l -> (unroll b) @ (unroll l)
+   | i::l -> (S.instr i)::(unroll l)
+
   let instr = function
+    (*This must be ran after hoisting, expect bugs in var scoping otherwise*)
+   | `If(`Cst (`Bool true),b,_) | `If(`Cst (`Bool false),_,b)  ->
+      S.instr b
    | `If(e,b1,b2) ->
       let hd,(r,l),tl= merge (unroll [b1]) (unroll [b2]) in
       if hd!=[] or tl!=[] then

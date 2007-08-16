@@ -15,7 +15,7 @@ ifdef DEBUG
 	OCB += -cflag -g
 else
 	OCB += -cflag -noassert
-	OCB += -cflag -unsafe
+#	OCB += -cflag -unsafe
 endif
 
 ifdef DTYPES

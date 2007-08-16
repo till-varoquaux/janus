@@ -183,49 +183,52 @@ let blocs=Ws.create 17
 
 module Convenience(S:ConvIn)=
 struct
-   let braceIndent s=
-    vgrp(brace (vgrp(nest 4 (break^^s))^^break))
+ (*w
+   Put braces around %s%
+ *)
+ let braceIndent s=
+  vgrp(brace (vgrp(nest 4 (break^^s))^^break))
 
-   let joinInstrs l=
-    join S.instr l ((punct ";")^^break)
+ let joinInstrs l=
+  join S.instr l ((punct ";")^^break)
 
-   let bloc l =
-    let r=braceIndent (joinInstrs l) in
-    Ws.add blocs r;
-    r
+ let bloc l =
+  let r=braceIndent (joinInstrs l) in
+  Ws.add blocs r;
+  r
 
-   let protectInstr i =
-    let r=S.instr i in
-    if Ws.mem blocs r then
-     r
-    else
-     braceIndent r
+ let protectInstr i =
+  let r=S.instr i in
+  if Ws.mem blocs r then
+   r
+  else
+   braceIndent r
 
-   let cond e=
-    par (S.expr e)
+ let cond e=
+  par (S.expr e)
 
-   let rec blocOrInstr ?(breakAfter=false) i =
-    let i'=S.instr i in
-    if Ws.mem blocs i' then
-     i'
-    else if breakAfter then
-     vgrp(nest 4 (break^^i')^^ break)
-    else
-     vgrp(nest 4 (break^^i'))
+ let rec blocOrInstr ?(breakAfter=false) i =
+  let i'=S.instr i in
+  if Ws.mem blocs i' then
+   i'
+  else if breakAfter then
+   vgrp(nest 4 (break^^i')^^ break)
+  else
+   vgrp(nest 4 (break^^i'))
 
    (*w
      This function escapes Strings to be printed as javascript strings
    *)
-   let escape s=
-    let b=Buffer.create (String.length s) in
-    let a= Buffer.add_string b in
-    let process=function
-     | '\t' -> a "\\t"
-     | '\n' -> a "\\n"
-     | '\"' -> a "\\\""
-     | '\\' -> a "\\\\"
-     | c -> Buffer.add_char b c
-    in
-    String.iter process s;
-    Buffer.contents b
+ let escape s=
+  let b=Buffer.create (String.length s) in
+  let a= Buffer.add_string b in
+  let process=function
+   | '\t' -> a "\\t"
+   | '\n' -> a "\\n"
+   | '\"' -> a "\\\""
+   | '\\' -> a "\\\\"
+   | c -> Buffer.add_char b c
+  in
+  String.iter process s;
+  Buffer.contents b
 end
