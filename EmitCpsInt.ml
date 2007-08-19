@@ -27,6 +27,7 @@ struct
     | None -> cps i
     | Some s -> bracket (bracket((S.ident s) ^^ (punct "=") ^^ i))
 
+  let callCC=`Ident "CallCC"
   let instr i =
    let grp=ref true in
    let r=match i with
@@ -34,9 +35,12 @@ struct
     | `CpsCall (a,e,al) ->
        cpsAff a (instr (`Call (e,al)))
     | #Old.instr as i -> grp:=false;Super.instr i
-       (*| `CallCC ident?,expr
-       | `Throw expr,expr*)
-    | `CallCC _ | `Throw _ -> assert false
+    | `CallCC (a,e,el) ->
+       let args=join S.expr (e::el) (punct ",") in
+       cpsAff a ((kwd "CallCC")^^ (par args))
+    | `Abort -> kwd "abort"
+    | `Throw (e1,e2) ->
+       (kwd "throw")^^(par ((S.expr e1)^^(punct ",")^^(S.expr e2)))
    in
    if !grp then
     fgrp r

@@ -15,7 +15,8 @@ gram extends AstBase {
      the ident is the return value ("a" in "a=b(x1...xn)"
    *)
 | `CpsCall ident?,expr,[expr] (*TODO check wether we could extend this to lvalues*)
-| `CallCC ident?,expr
+| `CallCC ident?,expr,[expr]
 | `Throw expr,expr
+| `Abort
 | super
 }

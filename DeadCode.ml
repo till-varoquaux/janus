@@ -38,9 +38,11 @@ module D=T.Make(functor(S:T.Translation) ->
    | `Bloc b ->
       let b',ret=bloc b in
       `Bloc b',ret
-   | `Ret e ->
+   | `Ret (Some e) ->
       let (e,_) = S.expr e in
-      (`Ret e,true)
+      `Ret (Some e),true
+   | `Ret None ->
+      `Ret None,true
    | `If (e,b1,b2) ->
       let (e,_) = S.expr e
       and (b1,c1) = S.instr b1

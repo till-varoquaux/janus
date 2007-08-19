@@ -23,6 +23,5 @@ gram extends AstBase{
      TODO: we should find a way to unify it with `Ret. This probably requires
      polymorphic variant difference.
    *)
-| `Return
 | super
 }

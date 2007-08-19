@@ -81,11 +81,11 @@ module D=T.Make(
   include Super
   let bloc b pos=
    let rec aux= function
-    | [] -> (match pos with Tail _ -> [`Return] | _ -> []),Return
+    | [] -> (match pos with Tail _ -> [`Ret None] | _ -> []),Return
     | [x] ->
        let i,tcall=S.instr x pos in(
         match i,pos,tcall with
-         | _,Tail _,Instr -> [i;`Return],Return
+         | _,Tail _,Instr -> [i;`Ret None],Return
          | _ -> [i],tcall)
     | x::l ->
        let i,_=(S.instr x Main)
@@ -111,10 +111,10 @@ module D=T.Make(
        let b1,ret1 = S.instr b1 pos
        and b2,ret2 = S.instr b2 pos
        in `If(e,b1,b2),(mergeTailInfo ret1 ret2)
-    | `Ret (`Call (`Ident i,el)),
+    | `Ret (Some `Call (`Ident i,el)),
        (Tail (fname,args) | InFunc (fname,args)) when i=fname ->
        tailRec args el
-    | (`Ret _ | `Return),_ -> i,Return
+    | (`Ret _ ),_ -> i,Return
     | `Call (`Ident i,el),Tail (fname,args) when i=fname ->
        tailRec args el
     | `Fundecl (fname,args,body),_ ->

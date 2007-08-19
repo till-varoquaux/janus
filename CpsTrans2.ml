@@ -45,7 +45,7 @@ module D=Conv.Make(
        We could return an expression but the hoisting pass would have to
        recognize duplicate anonymous functions.
      *)
-    | [`Call(`Ident id,args2)] | [`Ret (`Call(`Ident id,args2))]
+    | [`Call(`Ident id,args2)] | [`Ret (Some (`Call(`Ident id,args2)))]
         when ((sameCall args args2) && (not (List.mem id args))) ->
        [],(`Ident id)
     | b ->
@@ -62,7 +62,7 @@ module D=Conv.Make(
   and instr' i cont=
    match i with
     (*These expressions can only be converted in cps translated code*)
-    | `Throw _ | `CallCC _ | `CpsCall _ -> assert false
+    | `Throw _ | `CallCC _ | `CpsCall _ | `Abort -> assert false
     | `Bloc b -> bloc b cont
     | `Cps i -> cpsInstr i cont
     | `If (e,b1,b2) -> `If (expr e,`Bloc (instr' b1 []),`Bloc (instr' b2 []))::cont
@@ -77,12 +77,25 @@ module D=Conv.Make(
        head@[`Call (expr e,cont::el)]
     | `Cps i -> cpsInstr i cont
     | `Throw (k,e) ->
-       [`Call (expr k,[expr e])]
-    | `CallCC (a,e) ->
-       let head,cont=cpsCall cont a in
-       head@[`Call(expr e,[cont;cont])]
-    | `Ret e ->
-       [`Call ((`Ident return),[expr e])]
+       [ `Ret (Some(
+                `Call (expr k,[expr e])
+               ))
+       ]
+    | `Abort -> [`Ret None]
+    | `CallCC (a,e,el) ->
+       let head,cont=cpsCall cont a
+       and el=List.map expr el in
+       head@[`Call(expr e,cont::cont::el)]
+    | `Ret (Some e) ->
+       [`Ret (Some(
+               `Call ((`Ident return),[expr e])
+             ))
+       ]
+    | `Ret None ->
+       [`Ret (Some(
+               `Call ((`Ident return),[])
+              ))
+       ]
     | `TemplateCall (el,b) ->
        let head,cont=cpsCall cont None
        and el=List.map expr el in
@@ -90,7 +103,7 @@ module D=Conv.Make(
     | `If (e,b1,b2) ->
        let head,cont=match (unbloc cont) with
         | [] -> [],[]
-        | [`Call(`Ident id,[])] | [`Ret (`Call(`Ident id,[]))] ->
+        | [`Call(`Ident id,[])] | [`Ret (Some (`Call(`Ident id,[])))] ->
            [],[`Call (`Ident id,[])]
         | b ->
            let k=TypeEnv.fresh ~hint:"Ite" () in
@@ -101,8 +114,8 @@ module D=Conv.Make(
        head@[`If (expr e,`Bloc e1,`Bloc e2)]
     | `While (e,i) ->
        let k=TypeEnv.fresh ~hint:"While" () in
-       let cont=[`Call ((`Ident k),[])] in
-       let i=instr' i cont in
+       let cont'=[`Call ((`Ident k),[])] in
+       let i=instr' i cont' in
        [`Fundecl (k,[],`Bloc [`If((expr e),(`Bloc i),(`Bloc cont))]);
         `Call (`Ident k,[])]
     | `Bloc b -> bloc b cont

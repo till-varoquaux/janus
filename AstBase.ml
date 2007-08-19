@@ -23,7 +23,7 @@ gram{
 | `While expr,instr
 | `TemplateCall [expr],macrobloc
 | `Bloc [instr]
-| `Ret expr
+| `Ret expr?
 | `Expr expr
 | `Var ident,expr?;
  ty;
