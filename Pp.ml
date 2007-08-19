@@ -1,13 +1,10 @@
 (*
-  $Id: pp.ml,v 1.1.1.1 1999/06/13 12:55:05 lindig Exp $
 
   Copyright (c) 1999 Christian Lindig <lindig@ips.cs.tu-bs.de>. All
   rights reserved. See COPYING for details.
 
-  For changes see end of file.
-
   This version has been modified by till varoquaux (till.varoquaux@gmail.com) to
-  allow for text ignored when formatting.
+  allow non printed fomatting instructions.
 *)
 
 (* debuging makes groups visible *)
@@ -31,7 +28,7 @@ type doc =
     | DocNil
     | DocCons           of doc * doc
     | DocText           of string
-    | DocNullText       of string
+    | DocFormat         of string
     | DocNest           of int * doc
     | DocBreak          of string
     | DocGroup          of gmode * doc
@@ -41,7 +38,7 @@ type doc =
 let (^^) x y            = DocCons(x,y)
 let empty               = DocNil
 let text s              = DocText(s)
-let nullText s          = DocNullText(s)
+let formatInst s        = DocFormat(s)
 let nest i x            = DocNest(i,x)
 let break               = DocBreak(" ")
 let breakWith s         = DocBreak(s)
@@ -61,28 +58,32 @@ let fgrp d              = if   debug
 type sdoc =
     | SNil
     | SText             of string * sdoc
+    | SFormat           of string * sdoc
     | SLine             of int    * sdoc    (* newline + spaces *)
 
 (* [sdocToString] formats a simple document into a string: [SLIne]
    line breaks are expanded into a newline followed by spaces *)
 
-let rec sdocToString = function
+let rec sdocToString esc = function
     | SNil              -> ""
-    | SText(s,d)        -> s ^ sdocToString d
-    | SLine(i,d)        -> let prefix = String.make i ' '
-                           in  nl ^ prefix ^ sdocToString d
+    | SText(s,d)        -> (esc s) ^ sdocToString esc d
+    | SFormat(s,d)      -> s ^ sdocToString esc d
+    | SLine(i,d)        ->
+       let prefix = String.make i ' '
+       in  (esc (nl ^ prefix)) ^ sdocToString  esc d
 
 (* [sdocToFile oc doc] formats [doc] into output channel [oc] *)
 
-let sdocToFile oc doc =
+let sdocToFile esc oc doc =
     let pstr = output_string oc in
     let rec loop = function
         | SNil          -> ()
-        | SText(s,d)    -> pstr s; loop d
+        | SText(s,d)    -> pstr (esc s); loop d
+        | SFormat(s,d)  -> pstr s; loop d
         | SLine(i,d)    -> let prefix = String.make i ' '
-                           in  pstr nl;
-                               pstr prefix;
-                               loop d
+          in  pstr (esc nl);
+          pstr (esc prefix);
+          loop d
     in
         loop doc
 
@@ -106,7 +107,7 @@ let rec fits w = function
     | (i,m,DocCons(x,y))        :: z -> fits w ((i,m,x)::(i,m,y)::z)
     | (i,m,DocNest(j,x))        :: z -> fits w ((i+j,m,x)::z)
     | (i,m,DocText(s))          :: z -> fits (w - strlen s) z
-    | (i,m,DocNullText(s))      :: z -> fits w z
+    | (i,m,DocFormat(s))        :: z -> fits w z
     | (i,Flat, DocBreak(s))     :: z -> fits (w - strlen s) z
     | (i,Fill, DocBreak(_))     :: z -> true
     | (i,Break,DocBreak(_))     :: z -> true
@@ -121,7 +122,7 @@ let rec format w k = function
     | (i,m,DocCons(x,y))        :: z -> format w k ((i,m,x)::(i,m,y)::z)
     | (i,m,DocNest(j,x))        :: z -> format w k ((i+j,m,x)::z)
     | (i,m,DocText(s))          :: z -> SText(s ,format w (k + strlen s) z)
-    | (i,m,DocNullText(s))      :: z -> SText(s ,format w k z)
+    | (i,m,DocFormat(s))        :: z -> SFormat(s ,format w k z)
     | (i,Flat, DocBreak(s))     :: z -> SText(s ,format w (k + strlen s) z)
     | (i,Fill, DocBreak(s))     :: z -> let l = strlen s in
                                             if   fits (w - k - l) z
@@ -136,27 +137,8 @@ let rec format w k = function
                                         else format w k ((i,Break,x)::z)
 
 
-let ppToString w doc =
-    sdocToString  (format w 0 [0,Flat,agrp(doc)])
+let ppToString ?(escapeFunction=fun x -> x) w doc =
+ sdocToString  escapeFunction (format w 0 [0,Flat,agrp(doc)])
 
-let ppToFile oc w doc =
-    sdocToFile oc (format w 0 [0,Flat,agrp(doc)])
-
-
-
-(*  ------------------------------------------------------------------
-    $Log: pp.ml,v $
-    Revision 1.1.1.1  1999/06/13 12:55:05  lindig
-    imported sources
-
-    Revision 1.2  1999/01/01 16:54:00  lindig
-
-    Copyright statement added.
-
-    Revision 1.1.1.1  1998/11/15 16:24:08  lindig
-    file put into CVS
-
-    ------------------------------------------------------------------ *)
-
-
-
+let ppToFile ?(escapeFunction=fun x -> x) oc w doc =
+ sdocToFile escapeFunction oc (format w 0 [0,Flat,agrp(doc)])

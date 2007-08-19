@@ -106,8 +106,7 @@ module D=Conv.Make(
        [`Fundecl (k,[],`Bloc [`If((expr e),(`Bloc i),(`Bloc cont))]);
         `Call (`Ident k,[])]
     | `Bloc b -> bloc b cont
-    | `Var _ -> assert false
-    | _ -> assert false
+    | `Var _ | `Assign _ | `Call _ | `Expr _ -> assert false
 
   and cpsBloc b cont =
    List.fold_right cpsInstr b cont

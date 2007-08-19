@@ -24,8 +24,8 @@ val (^^) : doc -> doc -> doc
 val text : string -> doc
 (* [text "hello"] creates a document containing the string ["hello"].
    This operators simply turns strings into documents. *)
-val nullText : string -> doc
- (* [nullText s] is used to put formatting informations. The text will be
+val formatInst : string -> doc
+ (* [format s] is used to put formatting informations. The text will be
     printed but will not be used to place linebreaks.*)
 val break : doc
 (* [break] represents a point where the pretty printer can decide
@@ -68,7 +68,7 @@ val fgrp : doc -> doc
    current line the [break] comes out as space. Otherwise it comes out
    as newline followed by spaces. *)
 
-val ppToString : int -> doc -> string
+val ppToString : ?escapeFunction:(string -> string) -> int -> doc -> string
 (* [ppToString w doc] formats [doc] for line length [w] (> 0) and
    returns it as string. This is not efficient and should be avoided
    for large documents.  The document is considered to be surrounded
@@ -76,27 +76,9 @@ val ppToString : int -> doc -> string
    a different group at its outermost level to protect itself from
    the [agrp]. *)
 
-val ppToFile : out_channel -> int -> doc -> unit
+val ppToFile : ?escapeFunction:(string -> string) -> out_channel -> int -> doc -> unit
 (* [ppToFile oc w doc] pretty prints [doc] for line length [w] into an
    output channel [oc]. The document is considered to be surrounded
    by a virtual [agrp] - if this is not desried it should have itself
    a different group at its outermost level to protect itself from
    this [agrp]. *)
-
-(*
-    $Log: pp.mli,v $
-    Revision 1.1.1.1  1999/06/13 12:55:05  lindig
-    imported sources
-
-    Revision 1.3  1999/01/01 17:05:52  lindig
-
-    Makefile support for generating XML files.
-
-    Revision 1.2  1998/12/30 18:38:00  lindig
-
-
-    Documentation in mli files proof read and BSD style license added.
-
-    Revision 1.1.1.1  1998/11/15 16:24:08  lindig
-    file put into CVS
-*)

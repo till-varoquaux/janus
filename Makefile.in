@@ -6,6 +6,7 @@ OCB=ocamlbuild -no-links -ocamlc "ocamlfind c" -ocamlopt "ocamlfind opt" -ocamld
 MODE=byte
 FTP_TARGET=till.varoquaux@login.free.fr:/projects/$(PROJECT_NAME)
 #end configurable options
+ALL=$(TARGET)
 
 BUILDDIR=_build
 
@@ -20,6 +21,7 @@ endif
 
 ifdef DTYPES
 	OCB += -cflag -dtypes
+	ALL += annot
 endif
 
 ifeq ($(TERM),dumb)
@@ -34,7 +36,6 @@ endif
 MLI=$(wildcard *.mli)
 
 LIB=Js
-ALL=$(TARGET)
 LIBM=$(shell cat $(LIB).mllib)
 LIBCMI=$(foreach a,$(LIBM),$(BUILDDIR)/$a.cmi)
 

@@ -26,4 +26,4 @@ module P=Process(AstCpsHoistInt)
 module rec D:P.Translation=P.Main(D)
 
 let print (p:AstCpsHoistInt.program):string=
- ppToString 80 (D.program p)
+ Printer.toString (D.program p)

@@ -33,112 +33,207 @@ let join (conv:'a -> doc) (l:'a list) (sep:doc):doc=
  List.fold_left aux empty l
 
 open General
-
-let sprintf=Printf.sprintf
+module P=Printf
 
 (*w
   ==Pretty printing style==
 
-  This module adds formatting information (decoration).
+  Stylesheets add decoration (formatting information) to the output. They are
+  represented as classes and can be changed during runTime. The styleSheet model
+  is not threadsafe and has a very imperative feel.
 *)
-module Style=
-struct
- type weight=
-  | Normal
-  | Bold
-  | Underscore
-  | Blink
-  | Reverse
-  | Concealed
+type weight=
+ | Normal
+ | Bold
+ | Underscore
+ | DefaultWeight
 
- let decodeWeight=function
-  | Normal -> 0
-  | Bold -> 1
-  | Underscore -> 2
-  | Blink -> 3
-  | Reverse -> 4
-  | Concealed -> 5
+type color=
+ | Black
+ | Red
+ | Green
+ | Yellow
+ | Blue
+ | Pink
+ | LightBlue
+ | White
+ | DefaultColor
 
- type color=
-  | Black
-  | Red
-  | Green
-  | Yellow
-  | Blue
-  | Pink
-  | LightBlue
-  | White
+(*w Stylesheets just contain informations on how color and weights to give to
+  every keyword.
+*)
+type styleSheet={
+ cpar:color;
+ cpunct:color;
+ ckwd:color;
+ cbool:color;
+ cident:color;
+ cstring:color;
+ cnumber:color;
+ cop:color;
+ clit:color;
+ wpar:weight;
+ wpunct:weight;
+ wkwd:weight;
+ wbool:weight;
+ wident:weight;
+ wstring:weight;
+ wnumber:weight;
+ wop:weight;
+ wlit:weight;
+}
+let plainStyle=
+ {
+ cpar=DefaultColor;
+ cpunct=DefaultColor;
+ ckwd=DefaultColor;
+ cbool=DefaultColor;
+ cident=DefaultColor;
+ cstring=DefaultColor;
+ cnumber=DefaultColor;
+ cop=DefaultColor;
+ clit=DefaultColor;
+ wpar=DefaultWeight;
+ wpunct=DefaultWeight;
+ wkwd=DefaultWeight;
+ wbool=DefaultWeight;
+ wident=DefaultWeight;
+ wstring=DefaultWeight;
+ wnumber=DefaultWeight;
+ wop=DefaultWeight;
+ wlit=DefaultWeight;
+}
 
- let decodeColor=function
-  | Black -> 30
-  | Red -> 31
-  | Green -> 32
-  | Yellow -> 33
-  | Blue -> 34
-  | Pink -> 35
-  | LightBlue -> 36
-  | White -> 37
+let defStyle={
+ plainStyle with
+  cpar=Red;
+  cpunct=Red;
+  ckwd=Blue;
+  wkwd=Bold;
+  cbool=Pink;
+  cstring=Green;
+  cnumber=Pink;
+  cop=Red;
+  clit=Yellow
+}
 
- let tty=Unix.isatty Unix.stdout
+class type formater=
+object
+ method decorate:color->weight->string->doc
+ method escape:string->string
+end
+let plainFormater:formater=
+object
+ method decorate _ _ x = text x
+ method escape x = x
+end
+let consoleFormater:formater=
+object
+ val decodeWeight=function
+  | Normal -> "0"
+  | Bold -> "1"
+  | Underscore -> "2"
+  | DefaultWeight -> ""
 
- let print ?color ?weight txt=
-  if tty then
-   let weight=
-   Option.map_default
-    begin
-     fun w -> sprintf "%.1u" (decodeWeight w)
-    end "" weight
-   and color=
-    Option.map_default
-     begin
-      fun c -> sprintf "%.2u" (decodeColor c)
-     end "" color
-   in
-   let col=sprintf "\027[%s;%sm" weight color in
-   (nullText col)^^(text txt)^^(nullText "\027[0m")
+ val decodeColor=function
+  | Black -> "30"
+  | Red -> "31"
+  | Green -> "32"
+  | Yellow -> "33"
+  | Blue -> "34"
+  | Pink -> "35"
+  | LightBlue -> "36"
+  | White -> "37"
+  | DefaultColor -> ""
+
+ method decorate color weight txt=
+  let weight=decodeWeight weight
+  and color=decodeColor color in
+  let col=P.sprintf "\027[%s;%sm" weight color in
+  (formatInst col)^^(text txt)^^(formatInst "\027[0m")
+
+ method escape x = x
+end
+let texFormater=
+object
+ val decodeWeight=function
+  | Normal -> ""
+  | Bold -> "\\bold{}"
+  | Underscore -> ""
+  | DefaultWeight -> ""
+
+ val decodeColor=function
+  | Black -> "Black"
+  | Red -> "Red"
+  | Green -> "Green"
+  | Yellow -> "Yellow"
+  | Blue -> "Blue"
+  | Pink -> "magenta"
+  | LightBlue -> "AquaMarine"
+  | White -> "White"
+  | DefaultColor -> assert false
+
+ method decorate color weight txt =
+  let col=if color=DefaultColor then
+   ""
   else
-   text txt
-
- let par p=
-  print ~color:Red p
-
- let punct p=
-  print ~color:Red p
-
- let kwd k=
-  print ~color:Blue ~weight:Bold k
-
- let bool c=
-  print ~color:Pink c
-
- let ident i=
-  print i
-
- let string s=
-  print ~color:Green s
-
- let number n=
-  print ~color:Pink n
-
- let op o=
-  print ~color:Red o
-
- let lit l=
-  print ~color:Yellow l
+   P.sprintf "\\color{%s}" (decodeColor color)
+  in
+  match col^(decodeWeight weight) with
+   | "" -> text txt
+   | dec ->   (formatInst ("{"^dec))^^(text txt)^^(formatInst "}")
+ (*w
+   This function escapes Strings to be printed as javascript strings
+ *)
+ method escape s=
+  let b=Buffer.create (String.length s) in
+  let a= Buffer.add_string b in
+  let process=function
+   | ' ' -> a "~"
+   | '$' | '#' | '%' | '^' | '_' | '{' | '}' as c ->
+      a "\\"; Buffer.add_char b c
+   | '\\' -> a "\\backslash{}"
+   | '\t' -> a "~~~~"
+   | '\n' -> a "\\newline{}\n\\verb++"
+   | c -> Buffer.add_char b c
+  in
+  String.iter process s;
+  Buffer.contents b
 end
 
-include Style
+let formater=ref
+ (if Unix.isatty Unix.stdout then
+   consoleFormater
+  else
+   plainFormater)
+
+let setTexFormat ()=formater:=texFormater
+
+let ssheet=ref defStyle
+
+let par p = !formater#decorate !ssheet.cpar !ssheet.wpar p
+let punct p = !formater#decorate !ssheet.cpunct !ssheet.wpunct p
+let kwd p = !formater#decorate !ssheet.ckwd !ssheet.wkwd p
+let bool p = !formater#decorate !ssheet.cbool !ssheet.wbool p
+let ident p = !formater#decorate !ssheet.cident !ssheet.wident p
+let string p = !formater#decorate !ssheet.cstring !ssheet.wstring p
+let number p = !formater#decorate !ssheet.cnumber !ssheet.wnumber p
+let op p = !formater#decorate !ssheet.cop !ssheet.wop p
+let lit p = !formater#decorate !ssheet.clit !ssheet.wlit p
+
+let toString p = Pp.ppToString ~escapeFunction:(!formater#escape) 80 p
 
 let par s =
  (par "(") ^^ s ^^ (par ")")
-
 and brace s =
  (par "{") ^^ s ^^ (par "}")
-
 and bracket s =
  (par "[") ^^ s ^^ (par "]")
 
-(*This is just used to unsure we do NOT use ^^text^^ in the functions below...*)
+(*w
+  This is just used to ensure we do NOT use ^^text^^ in the functions below...
+  It's an ugly yet effective hack.
+*)
 type abstract
 let text : abstract = Obj.magic ()
 

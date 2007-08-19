@@ -15,7 +15,10 @@ let version ()=
  Printf.printf "%s, version: \"%s\"\n" Version.name Version.version;
  exit 0
 
-let specs=["-v",Arg.Unit version,"prints the version and exits"]
+let specs=["-v",Arg.Unit version,"prints the version and exits";
+           "-tex-out",Arg.Unit Printer.setTexFormat,"pretty prints the trees as"
+            ^ "tex code"
+          ]
 
 let (++) f g x= g (f x)
 

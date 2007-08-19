@@ -234,12 +234,20 @@ and expr ?(eType=(`T:ty)) env:expr -> expr'=function
     let e=expr env e in
     `ObjAccess (e,ident id env)
  | `Cst _ as c -> c
+ | `CallCC e ->
+    if not (TypeEnv.cps env) then
+     error "Cannot use \"callcc\" in a non cps function.";
+    let e'=expr env e in
+    let ret = TypeEnv.fresh ~hint:"AssignedVar" () in
+    `Hoist(`Ident ret,`Cps (`CallCC (Some ret,e')))
  | `Call _ as c ->
     let c = callCompile env c in
-    if c.cps then
+    if c.cps then begin
+     if not (TypeEnv.cps env) then
+      error "Cannot call a cps function in a non cps function.";
      let ret = TypeEnv.fresh ~hint:"AssignedVar" () in
      `Hoist(`Ident ret,`Cps (`CpsCall(Some ret,c.body,c.args)))
-    else
+    end else
      `Call(c.body,c.args)
  | `Ident i ->
     (`Ident (ident i env))
@@ -312,9 +320,11 @@ and instr env : instr -> (instr'*TypeEnv.t)=
         | _ -> assert false)
   | `Call _ as c ->
      let c = callCompile env c in
-     let call=if c.cps then
+     let call=if c.cps then begin
+      if not (TypeEnv.cps env) then
+       error "Cannot call a cps function in a non cps function.";
       `Cps(`CpsCall(None,c.body,c.args))
-     else
+     end else
       `Call(c.body,c.args) in
      call,env
   | `If (e,b1,b2) ->
@@ -336,13 +346,17 @@ and instr env : instr -> (instr'*TypeEnv.t)=
      r,env
      (*TODO: check return type*)
   | `Throw (e1,e2) ->
+     if not (TypeEnv.cps env) then
+      error "Cannot use \"throw\" in a non cps function.";
      let e1'=expr env e1
      and e2'=expr env e2 in
      `Cps(`Throw (e1',e2')),env
-      (*TODO: check for thrown value and that we are in a CPS env*)
+      (*TODO: check for thrown value*)
   | `CallCC e ->
+     if not (TypeEnv.cps env) then
+      error "Cannot use \"callcc\" in a non cps function.";
      let e'=expr env e in
-     `CallCC (None,e'),env
+     `Cps(`CallCC (None,e')),env
   | `While (e,b) ->
      let e=expr env e
      and b,_=instr env b in

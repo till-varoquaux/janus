@@ -18,44 +18,45 @@ struct
   include Convenience(S)
 
   let ident i =
-   Style.ident i
+   Printer.ident i
   let ty _ = assert false
   let constant = function
    | `Bool true -> bool "true"
    | `Bool false -> bool "false"
    | `Int i -> number (string_of_int i)
    | `Float f -> number (string_of_float f)
-   | `String s ->  Style.string (sprintf "\"%s\"" (escape s))
+   | `String s ->  string (P.sprintf "\"%s\"" (escape s))
 
-  let expr =
-   (*w
-     We need to match subexpressions to place our parenthesis (well this is not
-     exactly true... we could place parenthesis around all subexpressions). The
-     simple algorithm needs to have a boolean returned by some subexpressions.
+  (*w
+    We need to match subexpressions to place our parenthesis (well this is not
+    exactly true... we could place parenthesis around all subexpressions). The
+    simple algorithm needs to have a boolean returned by some subexpressions.
 
-     We are faced here with an issue: we want just this function to return
-     additional informations. We are faced here with a dilemna on how to return
-     that boolean information, we could:
+    We are faced here with an issue: we want just this function to return
+    additional informations. We are faced here with a dilemna on how to return
+    that boolean information, we could:
 
-     - Use a monad that returns a couple to get this boolean.
-     - Use a global reference to encode this.
-     - Extend the return type to contain that additional information (this
+    - Use a monad that returns a couple to get this boolean.
+    - Use a global reference to encode this.
+    - Extend the return type to contain that additional information (this
      would, however make this type a lot less meaningfull)
 
-     We will use a weak set to keep these expressions, this is very simillar to
-     references but not unsafe.
-   *)
-   let fragileSet=Ws.create 17 in
-   let fragile p=
-    Ws.add fragileSet p;
-    p
-   and ep e=
-    let e'=S.expr e in
-    if Ws.mem fragileSet e' then
-     par e'
-    else
-     e'
-   in
+    We will use a weak set to keep these expressions, this is very simillar to
+    references but not unsafe.
+  *)
+  let fragileSet=Ws.create 17
+  let fragile p=
+   Ws.add fragileSet p;
+   p
+  let ep e=
+   let e'=S.expr e in
+   if Ws.mem fragileSet e' then begin
+    par e'
+   end else begin
+    e'
+   end
+
+  let expr =
    function
     | `Fun(args,b) ->
        let b=protectInstr b in
@@ -137,8 +138,14 @@ struct
     | `While (e,b) -> (kwd "while") ^^ (cond e) ^^ (blocOrInstr b)
     | `Call (f,args) ->
        let args=join S.expr args (punct ",")
-       in
-       (S.expr f) ^^ (par args)
+       and e'=S.expr f in
+       let f'=
+        if Ws.mem fragileSet e' then begin
+         par e'
+        end else begin
+         e'
+        end in
+       f' ^^ (par args)
     | `Expr e -> S.expr e
     | `Ret (e) ->
        (kwd "return")^^break^^(S.expr e)

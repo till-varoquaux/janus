@@ -12,6 +12,7 @@ gram extends AstBase {
 | `Macro ident,[ident],macrobloc,[ty]
 | super;
  expr :=
+| `CallCC expr
 | `Typed expr,ty
 | `Hoist expr,instr
 | super
