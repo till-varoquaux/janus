@@ -5,6 +5,7 @@ let opt=new Optimise.opt
   IdentFunDecls.pass;
   Hoisting.pass;
   TailRec.pass;
+  TailRet.pass;
   Unbloc.pass
  ]
 

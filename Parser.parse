@@ -11,7 +11,7 @@
 
 %token If Else While And Not Var Mod EOF
 %token Function Or  Return Cps T Macro CpsMacro
-%token CallCC Throw Abort
+%token CallCC Throw Abort Block
 %token <string> MacroLiteral
 
 /* Symbols */
@@ -95,6 +95,8 @@ expr2:/*can be the LHS of an array access or an object access*/
 | expr2 Lsquare expr Rsquare {`ArrayAccess ($1,$3)}
 | CallCC Lpar expr Rpar {`CallCC($3,[])}
 | CallCC Lpar expr Comma exprs Rpar {`CallCC($3,$5)}
+| Block Lpar expr Rpar {`BlockingEv($3,[])}
+| Block Lpar expr Comma exprs Rpar {`BlockingEv($3,$5)}
 | expr1 Lpar exprs Rpar {`Call ($1,$3)}
 
 expr_aux:
@@ -165,6 +167,8 @@ instr_aux:
 | Return {`Ret None}
 | CallCC Lpar expr Rpar {`CallCC($3,[])}
 | CallCC Lpar expr Comma exprs Rpar {`CallCC($3,$5)}
+| Block Lpar expr Rpar {`BlockingEv($3,[])}
+| Block Lpar expr Comma exprs Rpar {`BlockingEv($3,$5)}
 | Throw Lpar expr Comma expr Rpar {`Throw($3,$5)}
 | Abort {`Abort}
 | expr1 Lpar exprs Rpar {`Call($1,$3)}

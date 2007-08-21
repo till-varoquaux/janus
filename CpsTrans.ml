@@ -250,6 +250,12 @@ and expr ?(eType=(`T:ty)) env:expr -> expr'=function
      `Hoist(`Ident ret,`Cps (`CpsCall(Some ret,c.body,c.args)))
     end else
      `Call(c.body,c.args)
+ | `BlockingEv (handler,args) ->
+    if not (TypeEnv.cps env) then
+     error "Cannot call a blocking event handler in a non cps function.";
+    let ret = TypeEnv.fresh ~hint:"AssignedVar" () in
+    let args=List.map (expr env) args in
+    `Hoist(`Ident ret,`Cps (`CpsCall(Some ret,expr env handler,args)))
  | `Ident i ->
     (`Ident (ident i env))
  | `Fun (il,b) ->
@@ -328,6 +334,11 @@ and instr env : instr -> (instr'*TypeEnv.t)=
      end else
       `Call(c.body,c.args) in
      call,env
+  | `BlockingEv (handler,args) ->
+     if not (TypeEnv.cps env) then
+      error "Cannot call a blocking event handler in a non cps function.";
+     let args=List.map (expr env) args in
+     `Cps (`CpsCall(None,expr env handler,args)),env
   | `If (e,b1,b2) ->
      let e=expr env e
      and b1,_=instr env b1 in

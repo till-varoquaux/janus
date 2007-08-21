@@ -1,6 +1,6 @@
 open AstCpsInt
 
-let return="$return"
+let return="$cont"
 
 module Conv=AstJs.Trav.TranslateFrom(AstCpsInt)(Monad.Id)
 open Conv
@@ -31,6 +31,8 @@ module D=Conv.Make(
 
     It returns an eventual function (which is the continuation) and an
     identifier which is the name of the continuation.
+
+    ^^affect^^ is the name of the variable where the return value will be stored
   *)
   let cpsCall cont affect=
    let args= (match affect with
@@ -76,11 +78,7 @@ module D=Conv.Make(
        and el=List.map expr el in
        head@[`Call (expr e,cont::el)]
     | `Cps i -> cpsInstr i cont
-    | `Throw (k,e) ->
-       [ `Ret (Some(
-                `Call (expr k,[expr e])
-               ))
-       ]
+    | `Throw (k,e) ->[`Call (expr k,[expr e]);`Ret None]
     | `Abort -> [`Ret None]
     | `CallCC (a,e,el) ->
        let head,cont=cpsCall cont a
