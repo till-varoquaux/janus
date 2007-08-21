@@ -4,7 +4,6 @@ SRC=Main
 OCB=ocamlbuild -no-links -ocamlc "ocamlfind c" -ocamlopt "ocamlfind opt" -ocamldep "ocamlfind dep" -lflags "-package unix","-linkpkg"
 #YACC=menhir
 MODE=byte
-FTP_TARGET=till.varoquaux@login.free.fr:/projects/$(PROJECT_NAME)
 #end configurable options
 ALL=$(TARGET)
 
@@ -111,13 +110,21 @@ endif
 
 web:Changes.lp4all
 	${info "updating web site"}
+ifndef FTP_REPO
+        ${error "You must have an environement variable FTP_REPO\
+pointing towards the ftp repository where you want to \
+upload the result"}
+endif
 	@rm -rf web
 	@darcs get . --repo-name=web
 	@cp Changes.lp4all web
 	@cd web;\
 	lp4all -p "$(PROJECT_NAME)" $$(darcs query manifest) Changes.lp4all;\
 	rm -f sparsetable.py parsetable.py;\
-	lftp -c "open $(FTP_TARGET); mirror -Renv --parallel=5 "
+	lftp -c "open $(FTP_REPO);\
+          (cd $(PROJECT_NAME) || mkdir $(PROJECT_NAME));\
+          cd $(PROJECT_NAME);\
+          mirror -Renv --parallel=5"
 
 clean:sane
 	${info * cleaning up}
