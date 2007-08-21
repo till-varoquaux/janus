@@ -157,10 +157,10 @@ end
 let texFormater=
 object
  val decodeWeight=function
-  | Normal -> ""
-  | Bold -> "\\bold{}"
-  | Underscore -> ""
-  | DefaultWeight -> ""
+  | Normal -> "{","}"
+  | Bold -> "\\textbf{","}"
+  | Underscore -> "{","}"
+  | DefaultWeight -> "{","}"
 
  val decodeColor=function
   | Black -> "Black"
@@ -179,9 +179,10 @@ object
   else
    P.sprintf "\\color{%s}" (decodeColor color)
   in
-  match col^(decodeWeight weight) with
-   | "" -> text txt
-   | dec ->   (formatInst ("{"^dec))^^(text txt)^^(formatInst "}")
+  match col,(decodeWeight weight) with
+   | "",("{","}") -> text txt
+   | _,(o,c) ->  (formatInst (o^col))^^(text txt)^^(formatInst c)
+
  (*w
    This function escapes Strings to be printed as javascript strings
  *)
@@ -279,7 +280,7 @@ let blocs=Ws.create 17
 module Convenience(S:ConvIn)=
 struct
  (*w
-   Put braces around %s%
+   Prints a javascript bloc.
  *)
  let braceIndent s=
   vgrp(brace (vgrp(nest 4 (break^^s))^^break))
