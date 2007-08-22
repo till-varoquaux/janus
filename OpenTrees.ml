@@ -476,8 +476,6 @@ module rec D:C=B(D);;
      *)
       module type Translation =
       sig
-       module In:In
-       module Out:Out
        $G.fold
         begin
          fun i _ acc ->
@@ -502,8 +500,6 @@ module rec D:C=B(D);;
       *)
       module type PartialTranslation =
       sig
-       module In:In
-       module Out:Out
        open Gram
         $G.fold
         begin
@@ -534,8 +530,6 @@ module rec D:C=B(D);;
       struct
        $let st =match gram.super with
         | None -> <:str_item<
-       module In=From
-       module Out=To
            >>
         | Some _ -> <:str_item<include Super.Base(T) >>
       in

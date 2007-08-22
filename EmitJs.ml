@@ -12,11 +12,11 @@ module Close=Conv.Make
 module Main(S:Conv.Translation):Conv.PartialTranslation=
 struct
 
- module Tmp=EmitBase.Process(S.In)
+ module Tmp=EmitBase.Process(AstJs)
  module Super=Tmp.Main(S)
  include Super
 
- include Convenience(S)
+ include Convenience(struct include S module In=AstJs end)
 
  (*w
    This is the only function we will need to override here. We will take

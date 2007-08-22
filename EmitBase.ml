@@ -12,10 +12,10 @@ struct
  module Main(S:Conv.Translation):Conv.PartialTranslation=
  struct
 
-  module In=S.In
-  module Out=S.Out
-
-  include Convenience(S)
+  include Convenience(struct
+                       module In=From
+                       include S
+                      end)
 
   let ident i =
    Printer.ident i

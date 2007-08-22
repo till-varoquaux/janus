@@ -10,10 +10,10 @@ struct
  module Main(S:Translation):PartialTranslation=
  struct
 
-  module Tmp=EmitCpsInt.Process(S.In)
+  module Tmp=EmitCpsInt.Process(From)
   module Super=Tmp.Main(S)
   include Super
-  include Convenience(S)
+  include Convenience(struct include S module In=From end)
 
   let expr=function
    | `Hoist(e,i) -> S.expr e ^^ (brace (brace (S.instr i)))

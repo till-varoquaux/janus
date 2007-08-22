@@ -10,10 +10,10 @@ struct
  module Main(S:Translation):PartialTranslation=
  struct
 
-  module Tmp=EmitBase.Process(S.In)
+  module Tmp=EmitBase.Process(From)
   module Super=Tmp.Main(S)
   include Super
-  include Convenience(S)
+  include Convenience(struct include S module In=From end)
   let ty _ = assert false
   let cps i =
    kwd "cps:" ^^ i
