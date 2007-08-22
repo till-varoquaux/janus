@@ -36,12 +36,10 @@ module Hoist=T.Make(
     Tests wether a given instruction captures some of the locals.
   *)
   let sepCaptured locals=
-   List.partition begin
-    fun i ->
-     let sc = ScopeInfo.instr i in
-     List.exists (fun v -> ScopeInfo.isCaptured sc v) locals
-   end
-
+   List.partition
+    ~f:(fun i ->
+         let sc = ScopeInfo.instr i in
+         List.exists ~f:(fun v -> ScopeInfo.isCaptured v sc) locals)
 
   (*w
     we can safely drop all variable definitions in the program: In javascript
@@ -56,13 +54,15 @@ module Hoist=T.Make(
   let fundecl name args body=
    let hInstr,hFuns=instr body [] in
    let locals =
-    ScopeInfo.foldDefined (ScopeInfo.instr hInstr) begin
-     fun i loc -> i::loc
-    end args in
+    ScopeInfo.foldDefined (ScopeInfo.instr hInstr)
+     ~init:args
+     ~f:(fun i loc -> i::loc)
+   in
    let capFuns,hoistFuns=sepCaptured locals hFuns
-   and vars = ScopeInfo.foldDefined (ScopeInfo.instr hInstr) begin
-    fun i loc -> `Var (i,None)::loc
-   end [] in
+   and vars = ScopeInfo.foldDefined (ScopeInfo.instr hInstr)
+    ~init:[]
+    ~f:(fun i loc -> `Var (i,None)::loc)
+   in
    (`Fundecl (name,args,`Bloc (vars@capFuns@[hInstr]))),hoistFuns
 
   let expr e funs =

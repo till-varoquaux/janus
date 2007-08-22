@@ -22,6 +22,7 @@ open Camlp4.PreCast
 open Syntax
 open Ast
 module Options=Camlp4.Options
+(*module L=ListLabels*)
 
 (*w
   Syntax extension options...
@@ -51,10 +52,11 @@ let exList2ExCom= function
  | [] -> <:expr< >>
  | [e] -> e
  | l ->
-    let r=List.fold_left begin fun tup t ->
-     Ast.ExCom (_loc,tup,t)
-    end <:expr< >> l in
-    ExTup(_loc,r)
+    let r=List.fold_left l
+     ~init:<:expr< >>
+     ~f:fun tup t ->Ast.ExCom (_loc,tup,t)
+    in
+    <:expr< $tup:r$ >>
 
 (*w
   Transforms a  pattern list to a tupple of the given patterns.
@@ -63,20 +65,20 @@ let pattList2Pattern = function
  | [] -> <:patt< >>
  | [i] -> i
  | l ->
-    let r =List.fold_left begin fun tup i ->
-     Ast.PaCom (_loc,tup,i)
-    end <:patt< >> l in
-    Ast.PaTup(_loc,r)
+    let r =List.fold_left l
+     ~init:<:patt< >>
+     ~f:fun tup i ->Ast.PaCom (_loc,tup,i)
+    in
+    <:patt< $tup:r$ >>
 
 (*w
   Converts a list of match cases to the matchcase corresponding to the sum of
   all the given match cases.
 *)
 let matchcaseList2matchcase l =
- List.fold_left begin fun acc s ->
-  <:match_case< $acc$ | $s$ >>
- end <:match_case< >> l
-
+ List.fold_left l
+  ~init:<:match_case< >>
+  ~f:fun acc s -> <:match_case< $acc$ | $s$ >>
 
 (*w
   ==Grammar definition==
@@ -117,15 +119,17 @@ module ExtGram=
   let mem key g =
    StringMap.mem key g.rules
 
-  let fold f g a =
-   StringMap.fold f g.rules a
+  let fold g ~init ~f =
+   StringMap.fold g.rules ~init:init ~f:f
 
   let init super gramItems=
-   let rules=
-    List.fold_left (fun m (k,v) -> StringMap.add k v m) StringMap.empty gramItems
-   in
-   {rules=rules;
-    super=super
+   {
+    super=super;
+    rules=
+     List.fold_left
+     gramItems
+     ~init:StringMap.empty
+      ~f:fun m (k,v) -> StringMap.add m ~key:k ~data:v
    }
 
  end
@@ -195,10 +199,12 @@ module OpenType:
    | [] -> <:ctyp< >>,C.empty
    | [r] -> ruleItem gram r
    | l ->
-      let t,cst=List.fold_left begin fun (tup,cst) t ->
-       let t',cst'=ruleItem gram t in
-       (Ast.TySta (_loc,tup,t')),(C.union cst cst')
-      end (<:ctyp< >>,C.empty) l in
+      let t,cst=List.fold_left l
+       ~init:(<:ctyp< >>,C.empty)
+       ~f:fun (tup,cst) t ->
+        let t',cst'=ruleItem gram t in
+        (Ast.TySta (_loc,tup,t')),(C.union cst cst')
+      in
       <:ctyp< $tup:t$ >>,cst;;
 
   let ruleBranch gram super : branch -> constrainedType = function
@@ -207,9 +213,10 @@ module OpenType:
       let t,cst=ruleItems gram rl in
       <:ctyp< `$s$ of $t$ >>,cst
    | Super ->
-      let cst=G.fold begin fun typ _ cst ->
-       C.add typ cst
-      end gram C.empty in
+      let cst=G.fold gram
+       ~init:C.empty
+       ~f:(fun ~key ~data:_ cst -> C.add key cst)
+      in
       Option.get super,cst
 
   let ruleRHS gram super : ruleRHS -> constrainedType=function
@@ -218,17 +225,20 @@ module OpenType:
    | Alias i -> ruleItem gram i
    | Variant ([]) | PolVar [] -> assert false
    | Variant l ->
-      List.fold_left begin fun (acc,cst) (lbl,rl) ->
-       let body,cst'=ruleItems gram rl in
-       let t = <:ctyp< $uid:lbl$ of $body$ >> in
-       <:ctyp< $acc$ | $t$ >>,C.union cst cst'
-      end (<:ctyp< >>,C.empty) l
+      List.fold_left l
+       ~init:(<:ctyp< >>,C.empty)
+       ~f:fun (acc,cst) (lbl,rl) ->
+        let body,cst'=ruleItems gram rl in
+        let t = <:ctyp< $uid:lbl$ of $body$ >> in
+        <:ctyp< $acc$ | $t$ >>,C.union cst cst'
    | PolVar rb ->
       let body,cst=
-       List.fold_left begin fun (acc,cst) s ->
-        let b,cst'=ruleBranch gram super s in
+       List.fold_left rb
+        ~init:(<:ctyp< >>,C.empty)
+        ~f:fun (acc,cst) s ->
+         let b,cst'=ruleBranch gram super s in
          <:ctyp< $acc$ | $b$ >>,C.union cst cst'
-       end (<:ctyp< >>,C.empty) rb in
+      in
       <:ctyp< [ $body$ ] >>,cst;;
 
   (*
@@ -258,9 +268,9 @@ module OpenType:
     detailled description of this transformation can be found [[#OpenType|here]]
   *)
   let gen (gram:grammar)=
-   G.fold begin fun s l acc ->
-    <:str_item< $acc$ $rule gram s l$ >>
-   end gram <:str_item< >>;;
+   G.fold gram
+    ~init:<:str_item< >>
+    ~f:(fun ~key ~data acc -> <:str_item< $acc$ $rule gram key data$ >>)
 
   (*w
     Generate the object type used to close a open type. That is, assuming we
@@ -271,9 +281,10 @@ module OpenType:
     %%
   *)
   let loopbackType gram =
-   G.fold begin fun typ _ objectType ->
-    <:ctyp< $lid:typ$ : $lid:typ$ ; $objectType$ >>
-   end gram <:ctyp<>>
+   G.fold gram
+    ~init:<:ctyp< >>
+    ~f:(fun ~key:typ ~data:_ objectType ->
+         <:ctyp< $lid:typ$:$lid:typ$;$objectType$ >>)
 
   (*w [@OpenType.close@] Close a previously defined open type. A more detailled
     description of this transformation can be found [[#OpenType|here]] *)
@@ -282,9 +293,10 @@ module OpenType:
     Ast.TyDcl (_loc, s ,[],<:ctyp< cst $id:gramId$.$lid:s$>> , [])
    in
    let closedDecls=
-    G.fold begin fun s _ acc ->
-     <:ctyp< $acc$ and $trans s$ >>
-    end gram <:ctyp< >>
+    G.fold gram
+     ~init:<:ctyp< >>
+     ~f:(fun ~key:s ~data:_ acc ->
+          <:ctyp< $acc$ and $trans s$ >>)
   (*The loopback constraint...*)
    in
 <:str_item< type cst = < $loopbackType gram$ >
@@ -323,9 +335,9 @@ struct
           >>
 
  and genCom gram genRet l =
-  let elems = List.map (fun ty -> (fresh ()),ty ) l in
-  let idPats = List.map (fun (i,_) -> <:patt< $id:i$ >>) elems in
-  let retEl = List.map (fun (i,_) -> <:expr< $id:i$ >>) elems in
+  let elems = List.map l ~f:fun ty -> (fresh ()),ty in
+  let idPats = List.map elems ~f:fun (i,_) -> <:patt< $id:i$ >> in
+  let retEl = List.map elems ~f:fun (i,_) -> <:expr< $id:i$ >> in
   let process = genBinders gram
    <:expr< return ($genRet (exList2ExCom retEl)$) >> elems
   in
@@ -376,21 +388,20 @@ struct
   | Import -> <:str_item< >>
   | Alias it -> <:str_item< let $lid:name$ = $genIt gram it$ >>
   | Variant l ->
-     let cases = List.map (genVariant gram) l in
+     let cases = List.map l ~f:(genVariant gram) in
      <:str_item< let $lid:name$ = function $matchcaseList2matchcase cases$
        >>
   | PolVar l ->
-     let cases = List.map (genRule gram name) l in
+     let cases = List.map l ~f:(genRule gram name) in
      <:str_item< let $lid:name$ = function $matchcaseList2matchcase cases$
        >>
 
  let gen gram=
-  G.fold
-   begin
-    fun name l acc -> <:str_item<
-     $genFunc gram name l$;;
-   $acc$>>
-   end gram <:str_item< >>
+  G.fold gram
+   ~init:<:str_item< >>
+   ~f:(fun ~key:name ~data:l acc -> <:str_item<
+        $genFunc gram name l$;;
+       $acc$>>)
 
 end
 
@@ -399,11 +410,10 @@ let genTrav gram=
   (*The mapper*)
     module type AstDef=
     sig
-     $G.fold
-      begin
-       fun i _ acc ->
-        <:sig_item< type $lid:i$ ;; $acc$ >>
-      end gram <:sig_item< >>
+     $G.fold gram
+      ~init:<:sig_item< >>
+      ~f:fun ~key:i ~data:_ acc ->
+       <:sig_item< type $lid:i$ ;; $acc$ >>
       $
     end;;
     module GetConstr(A:AstDef)=
@@ -448,12 +458,11 @@ module rec D:C=B(D);;
       *)
       module type In =
       sig
-        $G.fold
-        begin
-         fun i _ acc -> <:sig_item<
-        type $lid:i$ = From.$lid:i$;;
-        $acc$>>
-        end gram <:sig_item< >>$
+       $G.fold gram
+        ~init:<:sig_item< >>
+        ~f:(fun ~key:i ~data:_ acc -> <:sig_item<
+            type $lid:i$ = From.$lid:i$;;
+            $acc$>>)$
       end
 
 
@@ -462,12 +471,11 @@ module rec D:C=B(D);;
       *)
       module type Out =
       sig
-        $G.fold
-        begin
-         fun i _ acc -> <:sig_item<
-        type $lid:i$ = To.$lid:i$;;
-        $acc$>>
-        end gram <:sig_item< >>$
+       $G.fold gram
+        ~init:<:sig_item< >>
+        ~f:(fun ~key:i ~data:_ acc -> <:sig_item<
+              type $lid:i$ = To.$lid:i$;;
+              $acc$>>)$
       end
 
      (*w
@@ -476,14 +484,13 @@ module rec D:C=B(D);;
      *)
       module type Translation =
       sig
-       $G.fold
-        begin
-         fun i _ acc ->
-          <:sig_item<
-        val $i$ : From.$lid:i$ -> To.$lid:i$ m;;
-        $acc$
-        >>
-        end gram <:sig_item< >>$
+       $G.fold gram
+        ~init:<:sig_item< >>
+        ~f:(fun ~key:i ~data:_ acc ->
+               <:sig_item<
+              val $i$ : From.$lid:i$ -> To.$lid:i$ m;;
+              $acc$
+              >>)$
       end
 
      (*w
@@ -501,25 +508,22 @@ module rec D:C=B(D);;
       module type PartialTranslation =
       sig
        open Gram
-        $G.fold
-        begin
-         fun i _ acc -> <:sig_item<
-        val $i$ : i $lid:i$ -> o $lid:i$ m;;
-        $acc$>>
-        end gram <:sig_item< >>$
+        $G.fold gram
+        ~init:<:sig_item< >>
+        ~f:(fun ~key:i ~data:_ acc -> <:sig_item<
+            val $i$ : i $lid:i$ -> o $lid:i$ m;;
+            $acc$>>)$
       end
 
        $ match gram.super with
         | None -> <:str_item< >>
         | Some super -> <:str_item< module Old = struct
-           $G.fold
-            begin
-             fun i _ acc ->
-              <:str_item<
-            type $lid:i$ = i $id:super$.Gram.$lid:i$;;
-            $acc$
-            >>
-            end gram <:str_item< >>$
+           $G.fold gram
+            ~init:<:str_item< >>
+            ~f:(fun ~key:i ~data:_ acc ->
+                 <:str_item<
+                type $lid:i$ = i $id:super$.Gram.$lid:i$;;
+                $acc$>>)$
           end >>$;;
 
       module type Ext=functor (T:Translation) -> PartialTranslation
@@ -606,11 +610,11 @@ EXTEND Gram
  ];
  gram_item:[
   [ "import" ; l = LIST1 a_LIDENT SEP "," ->
-     List.map  (fun s -> s,Import) l
+     List.map  l ~f:(fun s -> s,Import)
   | id=a_LIDENT ; ":=" ; OPT "|" ; l = LIST1 variant SEP "|" ->
      [id,Variant l]
   | id=a_LIDENT ; ":=" ; OPT "|" ; l = LIST1 rule_branch SEP "|" ->
-     if List.for_all (fun x -> x==Super) l then
+     if List.for_all l ~f:(fun x -> x==Super) then
       [id,Import]
      else
       [id,PolVar l]

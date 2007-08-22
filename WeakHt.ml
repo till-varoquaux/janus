@@ -77,7 +77,7 @@ let create n =
 let mem t key=
  let bucketNum =(hash key) mod (Array.length t.values) in
  ( eqWeak ~idx:bucketNum t.keys key)
- || (List.exists (fun (e,_) -> e =:= key) t.collisions.(bucketNum))
+ || (List.exists  t.collisions.(bucketNum) ~f:(fun (e,_) -> e =:= key))
 
 let find t key=
  let bucketNum =(hash key) mod (Array.length t.values) in
@@ -85,7 +85,7 @@ let find t key=
   assert (t.values.(bucketNum)<>None);
   Option.get t.values.(bucketNum)
  end else
-  snd (List.find (fun (k,_) -> k =:= key) t.collisions.(bucketNum))
+  snd (List.find t.collisions.(bucketNum) ~f:(fun (k,_) -> k =:= key))
 
 let iter f t =
  for i = 0 to (Array.length t.values)-1 do
@@ -94,14 +94,15 @@ let iter f t =
     | Some k -> let v=Option.get t.values.(i) in f k v
     | None -> ()
   end;
-  List.iter begin fun (k,v) ->
-   match Weak.get k 0 with
-    | Some k -> f k v
-    | None -> ()
-  end t.collisions.(i)
+  List.iter
+   t.collisions.(i)
+   ~f:(fun (k,v) ->
+        match Weak.get k 0 with
+         | Some k -> f k v
+         | None -> ())
  done
 
-let fold f t init =
+let fold ~f t ~init =
  let acc=ref init in
  for i = 0 to (Array.length t.values)-1 do
   begin
@@ -109,14 +110,12 @@ let fold f t init =
     | Some k -> let v=Option.get t.values.(i) in acc:=f k v !acc
     | None -> ()
   end;
-  acc:=List.fold_left
-   begin
-    fun  a (k,v) ->
-     match Weak.get k 0 with
-      | Some k -> f k v a
-      | None -> a
-   end
-   !acc t.collisions.(i)
+  acc:=List.fold_left t.collisions.(i)
+   ~init:!acc
+   ~f:(fun  a (k,v) ->
+        match Weak.get k 0 with
+         | Some k -> f k v a
+         | None -> a)
  done;
  !acc
 
@@ -185,7 +184,7 @@ let add t key value=
 let compact t =
  let sz=ref 0 in
  for i = 0 to (Array.length t.values)-1 do
-  let l=List.filter (fun (k,_) -> check k && (incr sz;true)) t.collisions.(i) in
+  let l=List.filter t.collisions.(i) ~f:(fun (k,_) -> check k && (incr sz;true)) in
   match Weak.get t.keys i with
    | Some _ -> incr sz; t.collisions.(i) <- l
    | None ->
@@ -206,21 +205,20 @@ let compact t =
 *)
 let compactAndResize t=
  let sz=ref 0 in
- let elts=fold (fun k v acc -> incr sz;(k,v)::acc) t [] in
+ let elts=fold ~f:(fun k v acc -> incr sz;(k,v)::acc) t ~init:[] in
  let size=2* !sz+1 in
  t.keys<-Weak.create size;
  t.values<-Array.make size None;
  t.collisions<-Array.make size [];
- List.iter
-  begin fun (k,v) ->
-   let bucketNum =(hash k) mod size in
-   if isNull ~idx:bucketNum t.keys then begin
-    Weak.set t.keys bucketNum (Some k);
-    t.values.(bucketNum) <- Some v
-   end else begin
-    t.collisions.(bucketNum) <- ((weakPtr k),v)::t.collisions.(bucketNum)
-   end
-  end elts;
+ List.iter elts
+  ~f:(fun (k,v) ->
+       let bucketNum =(hash k) mod size in
+       if isNull ~idx:bucketNum t.keys then begin
+        Weak.set t.keys bucketNum (Some k);
+        t.values.(bucketNum) <- Some v
+       end else begin
+        t.collisions.(bucketNum) <- ((weakPtr k),v)::t.collisions.(bucketNum)
+       end);
  t
 
 (*w ==Memoization==

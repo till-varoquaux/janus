@@ -67,7 +67,7 @@ module D=T.Make(
          }
     | `Fundecl (name,args,b) as i ->
        let _,ctx = instr b in
-       let defined=List.fold_left (fun s elt -> SS.remove elt s) SS.empty args in
+       let defined=List.fold_left ~f:(fun s elt -> SS.remove elt s) ~init:SS.empty args in
        i,{empty with
            defined=SS.singleton name;
            captured=SS.diff ctx.read defined
@@ -81,11 +81,11 @@ module D=T.Make(
 let expr e= snd(D.expr e)
 let instr i= snd(D.instr i)
 
-let foldDefined sc f=
- SS.fold f sc.defined
+let foldDefined sc ~f ~init=
+ SS.fold sc.defined ~f:f ~init:init
 
-let foldCaptured sc f =
- SS.fold f sc.captured
+let foldCaptured sc ~f ~init=
+ SS.fold sc.captured ~f:f ~init:init
 
-let isCaptured sc f =
- SS.mem f sc.captured
+let isCaptured v sc =
+ SS.mem v sc.captured

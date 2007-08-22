@@ -55,14 +55,12 @@ let cont=dummyId "cont"
 *)
 let checkRedefs (l:ident list)=
  let defList=StringHashtbl.create 17 in
- List.iter
-  begin
-   fun {node=i;loc=p} ->
-    if StringHashtbl.mem defList i then
-     redef ~previousPos:(StringHashtbl.find defList i) p i
-    else
-     StringHashtbl.add defList i p
-  end l
+ List.iter l
+  ~f:(fun {node=i;loc=p} ->
+       if StringHashtbl.mem defList i then
+        redef ~previousPos:(StringHashtbl.find defList i) p i
+       else
+        StringHashtbl.add defList ~key:i ~data:p)
 
 (*w
   This typechecks a macro: it verifies none of the macros arguments have the
@@ -88,8 +86,8 @@ let typeMacro m =
    args
  in
  checkRedefs args;
- let args=List.map unPos args in
- let b=List.map (macroElem args) b in
+ let args=List.map ~f:unPos args in
+ let b=List.map ~f:(macroElem args) b in
  if cps then
   `CpsMacro(b,ty)
  else
@@ -107,7 +105,7 @@ let rec typeExpr env=function
       All defined function should be typed we should therefor have passed though a
       ^^Typed^^ node before reaching this point.
     *)
- | `Fun (args,_) -> `Arrow ((List.map (fun _ -> `T) args),`T)
+ | `Fun (args,_) -> `Arrow ((List.map ~f:(fun _ -> `T) args),`T)
  | `Call (e,_) ->
     (match typeExpr env e with
       | `CpsArrow(_,b) -> b
@@ -133,11 +131,11 @@ let rec compatible t1 t2=
  match (t1,t2) with
   | `T,`T -> ()
   | `Arrow (tl,ty),`T | `T,`Arrow (tl,ty) ->
-     List.iter (compatible `T) tl;compatible `T ty
+     List.iter tl ~f:(compatible `T);compatible `T ty
   | `Arrow (t1,t'1),`Arrow(t2,t'2)
   | `CpsArrow (t1,t'1),`CpsArrow(t2,t'2) ->
      (try
-       List.iter2 compatible t1 t2
+       List.iter2 ~f:compatible t1 t2
       with Invalid_argument _ ->
        error ("Type error:wrong arity")
      );
@@ -163,7 +161,7 @@ let rec lvalue env:lvalue ->lvalue'=
 *)
 and checkArg env al tyl=
  try
-  List.iter2 (fun e ty -> compatible (typeExpr env e) ty ) al tyl
+  List.iter2 ~f:(fun e ty -> compatible (typeExpr env e) ty ) al tyl
  with Invalid_argument _ ->
   error "Invalid argument count in call"
 
@@ -172,7 +170,7 @@ and args env al : (expr' list)=
   let a=expr env a in
   a::al
  in
- List.fold_right arg al []
+ List.fold_right al ~f:arg ~init:[]
 
 (*w
   Takes a function call and returns all the necessary informations to compil it.
@@ -212,18 +210,20 @@ and expr ?(eType=(`T:ty)) env:expr -> expr'=function
  | `Pos _ as p -> protect (expr ~eType:eType env) p
  | `Typed (e,t) -> expr env e ~eType:t
  | `Obj (pl) ->
-    let pl'=List.fold_right begin
-     fun ({node=i;loc=_},e) pl ->
-      let e'=expr env e in
-      ((i,e')::pl)
-    end  pl [] in
+    let pl'=List.fold_right pl
+     ~init:[]
+     ~f:(fun ({node=i;loc=_},e) pl ->
+          let e'=expr env e in
+          ((i,e')::pl))
+    in
     `Obj pl'
  | `Array (el) ->
-    let elems=List.fold_right begin
-     fun e el ->
-      let e2 = expr env e in
-      e2::el
-    end el [] in
+    let elems=List.fold_right el
+     ~init:[]
+     ~f:(fun e el ->
+          let e2 = expr env e in
+          e2::el)
+    in
     `Array (elems)
     (*TODO: Array typing*)
  | `ArrayAccess (e,idx) ->
@@ -238,7 +238,7 @@ and expr ?(eType=(`T:ty)) env:expr -> expr'=function
     if not (TypeEnv.cps env) then
      error "Cannot use \"callcc\" in a non cps function.";
     let e'=expr env e
-    and el'=List.map (expr env) el in
+    and el'=List.map el ~f:(expr env) in
     let ret = TypeEnv.fresh ~hint:"AssignedVar" () in
     `Hoist(`Ident ret,`Cps (`CallCC (Some ret,e',el')))
  | `Call _ as c ->
@@ -254,7 +254,7 @@ and expr ?(eType=(`T:ty)) env:expr -> expr'=function
     if not (TypeEnv.cps env) then
      error "Cannot call a blocking event handler in a non cps function.";
     let ret = TypeEnv.fresh ~hint:"AssignedVar" () in
-    let args=List.map (expr env) args in
+    let args=List.map args ~f:(expr env) in
     `Hoist(`Ident ret,`Cps (`CpsCall(Some ret,expr env handler,args)))
  | `Ident i ->
     (`Ident (ident i env))
@@ -264,13 +264,15 @@ and expr ?(eType=(`T:ty)) env:expr -> expr'=function
     let it,_,cps = (match eType with
                      | `CpsArrow (it,ret) -> (it,ret,true)
                      | `Arrow (it,ret) -> (it,ret,false)
-                     | `T -> ((List.map (fun _ -> `T) il),`T,false)
+                     | `T -> ((List.map ~f:(fun _ -> `T) il),`T,false)
                    )
     in
-    List.iter2 (fun i ty -> env := TypeEnv.add i (ty:>ty') (!env)) il it;
+    List.iter2 il it
+     ~f:(fun i ty -> env := TypeEnv.add i (ty:>ty') (!env))
+    ;
     let env=TypeEnv.setCps cps !env in
     let b=fbloc env b
-    and il =List.map (fun i -> ident i env) il
+    and il =List.map ~f:(fun i -> ident i env) il
     in
     if cps then
      `CpsFun(il,b)
@@ -337,7 +339,7 @@ and instr env : instr -> (instr'*TypeEnv.t)=
   | `BlockingEv (handler,args) ->
      if not (TypeEnv.cps env) then
       error "Cannot call a blocking event handler in a non cps function.";
-     let args=List.map (expr env) args in
+     let args=List.map ~f:(expr env) args in
      `Cps (`CpsCall(None,expr env handler,args)),env
   | `If (e,b1,b2) ->
      let e=expr env e
@@ -376,7 +378,7 @@ and instr env : instr -> (instr'*TypeEnv.t)=
      if not (TypeEnv.cps env) then
       error "Cannot use \"callcc\" in a non cps function.";
      let e'=expr env e
-     and el'=List.map (expr env) el in
+     and el'=List.map ~f:(expr env) el in
      `Cps(`CallCC (None,e',el')),env
   | `Abort ->
      if not (TypeEnv.cps env) then

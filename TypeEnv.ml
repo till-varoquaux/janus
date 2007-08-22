@@ -48,7 +48,7 @@ let dec=
 
 let clear()=
  StringHashtbl.clear dec;
- List.iter (fun i -> StringHashtbl.add dec i 0) reservedKeywords
+ List.iter reservedKeywords ~f:(fun i -> StringHashtbl.add dec ~key:i ~data:0)
 
 let _ = clear()
 
@@ -58,10 +58,10 @@ let fresh=
   if M.mem dec hint then begin
    let cnt=M.find dec hint in
    M.remove dec hint;
-   M.add dec hint (cnt+1);
+   M.add dec ~key:hint ~data:(cnt+1);
    Printf.sprintf "%s$%i" hint cnt
   end else begin
-   M.add dec hint 0;
+   M.add dec ~key:hint ~data:0;
    Printf.sprintf "%s" hint
   end;;
 

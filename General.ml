@@ -9,6 +9,9 @@
   [[http://ocaml-lib.sourceforge.net/doc/Option.html|ExtLib's option
   module]].
 *)
+
+open StdLabels
+open MoreLabels
 module Option=
  struct
   exception No_value
@@ -30,6 +33,17 @@ module Option=
    | None -> null
  end
 
+module ListPlus=
+ struct
+   let scan a l =
+    let rec aux i = function
+     | [] -> raise Not_found
+     | x::_ when x=a -> i
+     | _::t -> aux (i+1) t
+    in
+    aux 0 l
+ end
+
 module List=
  struct
   include List
@@ -49,7 +63,7 @@ module String=
      Removes ^^n^^ characters from the beginning of a string.
    *)
   let chopStart s n=
-   String.sub s n ((String.length s)-n)
+   String.sub s ~pos:n ~len:((String.length s)-n)
   let equal=(=)
   let hash=Hashtbl.hash
  end
@@ -58,6 +72,29 @@ module StringMap=Map.Make(String)
 module StringSet=Set.Make(String)
 module StringHashtbl=Hashtbl.Make(String)
 
+let (|>) a b = b a
+(*w ==Bottom type and value ==
+  The type bottom is inhabited by a single abstract value.
+*)
+module Abstract:sig
+ type t
+ val v:t
+end
+=
+struct
+ type t=unit
+ let v=()
+end
+type bottom=Abstract.t
+let bottom:bottom=Abstract.v
+
+
+(*w
+  ===Input/output===
+*)
+(*w
+  ==Reading channels==
+*)
 (*w
    Reads the whole content from a channel
 *)
@@ -94,6 +131,15 @@ let channelToStringList ic=
              else
               !res)
   end
+
+(*w
+  ==Openning/Closing channels==
+
+  We will ensure atomicity of reads and writes using a technique from the lisp
+  world: instead of letting the user open and close channels we new ask him to
+  pass a function working on a channel and will wrap the context of this
+  function with the open/close operations
+*)
 
 (*w
   ^^unwind_protect f g^^
@@ -142,16 +188,7 @@ let with_open_process_full process f=
                                   chs))) in
  res,(Option.get (!status))
 
-module Abstract:sig
- type t
- val v:t
-end
-=
-struct
- type t=unit
- let v=()
-end
-let open_out=Abstract.v
-let open_in=Abstract.v
-let close_out=Abstract.v
-let close_in=Abstract.v
+let open_out=bottom
+let open_in=bottom
+let close_out=bottom
+let close_in=bottom

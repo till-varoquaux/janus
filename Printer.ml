@@ -8,6 +8,7 @@
   We are using the Pp module from Christian Liding
 *)
 include Pp
+open General
 
 (*w
   This indicates a point where we can break a line when formatting.
@@ -21,16 +22,16 @@ let breakNull=breakWith ""
 *)
 let join (conv:'a -> doc) (l:'a list) (sep:doc):doc=
  let first=ref true in
- let aux beg el =
-  match (conv el),!first with
-   | c,_ when c=empty -> empty
-   | c,true ->
-      first:=false;
-      c
-   | c,false ->
-      beg ^^ sep ^^ c
- in
- List.fold_left aux empty l
+ List.fold_left l
+  ~init:empty
+  ~f:(fun beg el ->
+       match (conv el),!first with
+        | c,_ when c=empty -> empty
+        | c,true ->
+           first:=false;
+           c
+        | c,false ->
+           beg ^^ sep ^^ c)
 
 open General
 module P=Printf
@@ -198,7 +199,7 @@ object
    | '\n' -> a "\\newline{}\n\\verb++"
    | c -> Buffer.add_char b c
   in
-  String.iter process s;
+  String.iter ~f:process s;
   Buffer.contents b
 end
 
@@ -235,8 +236,7 @@ and bracket s =
   This is just used to ensure we do NOT use ^^text^^ in the functions below...
   It's an ugly yet effective hack.
 *)
-type abstract
-let text : abstract = Obj.magic ()
+let text = bottom
 
 (*w
   ==Monadic traversal==
@@ -325,6 +325,6 @@ struct
    | '\\' -> a "\\\\"
    | c -> Buffer.add_char b c
   in
-  String.iter process s;
+  String.iter ~f:process s;
   Buffer.contents b
 end
