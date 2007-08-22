@@ -20,7 +20,7 @@ struct
 
   let expr=function
    | `CpsFun (al,b) -> cps (Super.expr (`Fun(al,b)))
-   | #Old.expr as e -> Super.expr e
+   | #In.expr as e -> Super.expr e
 
   let cpsAff aff i =
    match aff with
@@ -34,7 +34,7 @@ struct
     | `Cps i -> cps (S.instr i)
     | `CpsCall (a,e,al) ->
        cpsAff a (instr (`Call (e,al)))
-    | #Old.instr as i -> grp:=false;Super.instr i
+    | #In.instr as i -> grp:=false;Super.instr i
     | `CallCC (a,e,el) ->
        let args=join S.expr (e::el) (punct ",") in
        cpsAff a ((kwd "CallCC")^^ (par args))

@@ -15,7 +15,7 @@ module T=Conv.Make(
  struct
   module Super=Base(S)
   include Super
-  (*FIXME: check why Old.expr doesn't work*)
+  (*FIXME: check why In.expr doesn't work*)
   type e'=i AstCpsInt.Gram.expr
   let expr: AstCpsHoistInt.expr -> AstCpsInt.expr CpsMonad.m= function
     (*w handles lazyness in the And operator*)

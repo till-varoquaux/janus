@@ -56,7 +56,7 @@ module D=Conv.Make(
 
   let rec expr= function
    | `CpsFun (al,b) -> `Fun ((return::al),instr b)
-   | #Old.expr as e -> Super.expr e
+   | #In.expr as e -> Super.expr e
 
   (*w
     Compils an instruction with a given continuation
@@ -69,7 +69,7 @@ module D=Conv.Make(
     | `Cps i -> cpsInstr i cont
     | `If (e,b1,b2) -> `If (expr e,`Bloc (instr' b1 []),`Bloc (instr' b2 []))::cont
     | `While (e,i) -> `While(expr e,`Bloc (instr' i []))::cont
-    | #Old.instr as i -> (Super.instr i)::cont
+    | #In.instr as i -> (Super.instr i)::cont
 
   and cpsInstr i cont=
    match i with

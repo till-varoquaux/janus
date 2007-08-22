@@ -46,7 +46,7 @@ struct
       join (function
              | `Literal l ->  lit l
              | `Ident i -> List.nth al i) b empty
-   | #Conv.Old.instr as i -> grp:=false;Super.instr i
+   | #Conv.In.instr as i -> grp:=false;Super.instr i
   in
   if !grp then
    fgrp r

@@ -369,7 +369,7 @@ struct
      let pat = Ast.PaApp (_loc,<:patt< `$s$ >>,pat) in
      <:match_case< $pat$ -> $process$ >>
   | Super ->
-     <:match_case< #Old.$lid:name$ as i ->
+     <:match_case< #In.$lid:name$ as i ->
    Mon.bind ($lid:name$ i) ( fun i -> return (i :> (o Gram.$lid:name$)))
    >>
 
@@ -517,7 +517,7 @@ module rec D:C=B(D);;
 
        $ match gram.super with
         | None -> <:str_item< >>
-        | Some super -> <:str_item< module Old = struct
+        | Some super -> <:str_item< module In = struct
            $G.fold gram
             ~init:<:str_item< >>
             ~f:(fun ~key:i ~data:_ acc ->

@@ -17,7 +17,7 @@ struct
 
   let expr=function
    | `Hoist(e,i) -> S.expr e ^^ (brace (brace (S.instr i)))
-   | #Old.expr as e -> Super.expr e
+   | #In.expr as e -> Super.expr e
 
  end
 end
