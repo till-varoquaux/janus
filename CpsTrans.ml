@@ -240,14 +240,14 @@ and expr ?(eType=(`T:ty)) env:expr -> expr'=function
     let e'=expr env e
     and el'=List.map el ~f:(expr env) in
     let ret = TypeEnv.fresh ~hint:"AssignedVar" () in
-    `Hoist(`Ident ret,`Cps (`CallCC (Some ret,e',el')))
+    `Hoist(`Ident ret,`CallCC (Some ret,e',el'))
  | `Call _ as c ->
     let c = callCompile env c in
     if c.cps then begin
      if not (TypeEnv.cps env) then
       error "Cannot call a cps function in a non cps function.";
      let ret = TypeEnv.fresh ~hint:"AssignedVar" () in
-     `Hoist(`Ident ret,`Cps (`CpsCall(Some ret,c.body,c.args)))
+     `Hoist(`Ident ret,`CpsCall(Some ret,c.body,c.args))
     end else
      `Call(c.body,c.args)
  | `BlockingEv (handler,args) ->
@@ -255,7 +255,7 @@ and expr ?(eType=(`T:ty)) env:expr -> expr'=function
      error "Cannot call a blocking event handler in a non cps function.";
     let ret = TypeEnv.fresh ~hint:"AssignedVar" () in
     let args=List.map args ~f:(expr env) in
-    `Hoist(`Ident ret,`Cps (`CpsCall(Some ret,expr env handler,args)))
+    `Hoist(`Ident ret,`CpsCall(Some ret,expr env handler,args))
  | `Ident i ->
     (`Ident (ident i env))
  | `Fun (il,b) ->
@@ -325,14 +325,14 @@ and instr env : instr -> (instr'*TypeEnv.t)=
         | `CpsMacro (b,tyl) ->
            checkArg env el tyl;
            let args=args env el in
-           `Cps(`TemplateCall (args,b)),env
+           `CpsTemplateCall (args,b),env
         | _ -> assert false)
   | `Call _ as c ->
      let c = callCompile env c in
      let call=if c.cps then begin
       if not (TypeEnv.cps env) then
        error "Cannot call a cps function in a non cps function.";
-      `Cps(`CpsCall(None,c.body,c.args))
+      `CpsCall(None,c.body,c.args)
      end else
       `Call(c.body,c.args) in
      call,env
@@ -340,7 +340,7 @@ and instr env : instr -> (instr'*TypeEnv.t)=
      if not (TypeEnv.cps env) then
       error "Cannot call a blocking event handler in a non cps function.";
      let args=List.map ~f:(expr env) args in
-     `Cps (`CpsCall(None,expr env handler,args)),env
+     `CpsCall(None,expr env handler,args),env
   | `If (e,b1,b2) ->
      let e=expr env e
      and b1,_=instr env b1 in
@@ -353,7 +353,7 @@ and instr env : instr -> (instr'*TypeEnv.t)=
      let e=expr env e in
      let r = (
       if TypeEnv.cps env then
-       `Cps(`Ret (Some e))
+       `CpsRet (Some e)
       else
        `Ret (Some e)
      )in
@@ -361,7 +361,7 @@ and instr env : instr -> (instr'*TypeEnv.t)=
   | `Ret None ->
      let r = (
       if TypeEnv.cps env then
-       `Cps(`Ret None)
+       `CpsRet None
       else
        `Ret None
      ) in
@@ -372,18 +372,18 @@ and instr env : instr -> (instr'*TypeEnv.t)=
       error "Cannot use \"throw\" in a non cps function.";
      let e1'=expr env e1
      and e2'=expr env e2 in
-     `Cps(`Throw (e1',e2')),env
+     `Throw (e1',e2'),env
       (*TODO: check for thrown value*)
   | `CallCC (e,el) ->
      if not (TypeEnv.cps env) then
       error "Cannot use \"callcc\" in a non cps function.";
      let e'=expr env e
      and el'=List.map ~f:(expr env) el in
-     `Cps(`CallCC (None,e',el')),env
+     `CallCC (None,e',el'),env
   | `Abort ->
      if not (TypeEnv.cps env) then
       error "Cannot call a abort in a non cps function.";
-     `Cps(`Abort),env
+     `Abort,env
   | `While (e,b) ->
      let e=expr env e
      and b,_=instr env b in

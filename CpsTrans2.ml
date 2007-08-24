@@ -1,8 +1,6 @@
-open AstCpsInt
-
 let return="$cont"
 
-module Conv=AstJs.Trav.TranslateFrom(AstCpsInt)(Monad.Id)
+module Conv=AstJs.Trav.TranslateFrom(AstCpsMarked)(Monad.Id)
 open Conv
 
 module D=Conv.Make(
@@ -55,8 +53,20 @@ module D=Conv.Make(
        [(`Fundecl (fname,args,`Bloc b))],(`Ident fname)
 
   let rec expr= function
-   | `CpsFun (al,b) -> `Fun ((return::al),instr b)
+   | `CpsFun (al,b) -> `Fun ((return::al),maybeCpsInstr b)
    | #In.expr as e -> Super.expr e
+
+  and instr i =
+   let c=instr' i [] in
+   `Bloc c
+
+  and cpsInstr i =
+   let c=cpsInstr' i [] in
+   `Bloc c
+
+  and maybeCpsInstr i=
+   let c=maybeCpsInstr' i [] in
+   `Bloc c
 
   (*w
     Compils an instruction with a given continuation
@@ -64,37 +74,38 @@ module D=Conv.Make(
   and instr' i cont=
    match i with
     (*These expressions can only be converted in cps translated code*)
-    | `Throw _ | `CallCC _ | `CpsCall _ | `Abort -> assert false
+    | `Throw _ | `CallCC _ | `CpsCall _ | `CpsRet _ | `CpsTemplateCall _ | `Abort -> assert false
     | `Bloc b -> bloc b cont
-    | `Cps i -> cpsInstr i cont
+    | `Cps i -> cpsInstr' i cont
     | `If (e,b1,b2) -> `If (expr e,`Bloc (instr' b1 []),`Bloc (instr' b2 []))::cont
     | `While (e,i) -> `While(expr e,`Bloc (instr' i []))::cont
     | #In.instr as i -> (Super.instr i)::cont
 
-  and cpsInstr i cont=
+  and cpsInstr' i cont=
    match i with
+    | `TemplateCall _ | `Ret _ -> assert false
     | `CpsCall (a,e,el) ->
        let head,cont=cpsCall cont a
        and el=List.map expr el in
        head@[`Call (expr e,cont::el)]
-    | `Cps i -> cpsInstr i cont
+    | `Cps i -> cpsInstr' i cont
     | `Throw (k,e) ->[`Call (expr k,[expr e]);`Ret None]
     | `Abort -> [`Ret None]
     | `CallCC (a,e,el) ->
        let head,cont=cpsCall cont a
        and el=List.map expr el in
        head@[`Call(expr e,cont::cont::el)]
-    | `Ret (Some e) ->
+    | `CpsRet (Some e) ->
        [`Ret (Some(
                `Call ((`Ident return),[expr e])
              ))
        ]
-    | `Ret None ->
+    | `CpsRet None ->
        [`Ret (Some(
                `Call ((`Ident return),[])
               ))
        ]
-    | `TemplateCall (el,b) ->
+    | `CpsTemplateCall (el,b) ->
        let head,cont=cpsCall cont None
        and el=List.map expr el in
        head@[`TemplateCall (cont::el,b)]
@@ -119,18 +130,19 @@ module D=Conv.Make(
     | `Bloc b -> bloc b cont
     | `Var _ | `Assign _ | `Call _ | `Expr _ -> assert false
 
+  and maybeCpsInstr' i cont =
+   match i with
+    | `Cps i -> cpsInstr' i cont
+    | _ -> instr' i cont
+
   and cpsBloc b cont =
-   List.fold_right cpsInstr b cont
+   List.fold_right cpsInstr' b cont
 
   and bloc b cont =
    List.fold_right instr' b cont
 
-  and instr i =
-   let c=instr' i [] in
-   `Bloc c
-
   and program p=
-   bloc p []
+   List.fold_right maybeCpsInstr' p []
 
  end)
 

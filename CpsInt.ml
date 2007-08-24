@@ -1,15 +1,15 @@
 include AstCpsInt.ClosedDef
 include Compile.Pass(
  struct
-  type from=program
-  type out=program
+  type from=AstCpsInt.program
+  type out=AstCpsMarked.program
   let trans=CpsPropagate.run
-  let print=EmitCpsInt.print
+  let print=EmitCpsMarked.print
   let name="cpsint2"
  end)(
  Compile.Pass(
   struct
-   type from=program
+   type from=AstCpsMarked.program
    type out=AstJs.program
    let trans=CpsTrans2.run
    let name="rawjs"

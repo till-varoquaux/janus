@@ -50,10 +50,10 @@ module T=Conv.Make(
    | #e' as e -> Super.expr e
 
   let instr= function
-   | `Cps i ->
+(*   | `Cps i ->
       (match Super.instr i with
         | i,[] -> `Cps i,[]
-        | i,ctx -> `Bloc (ctx@[`Cps i]),[])
+        | i,ctx -> `Bloc (ctx@[`Cps i]),[])*)
    | i ->
       (match Super.instr i with
         | i,[] -> i,[]

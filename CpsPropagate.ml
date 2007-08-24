@@ -10,23 +10,26 @@ struct
 end;;
 
 module Mon=PropMonad
-
-module T=AstCpsInt.Trav.Map(Mon)
-
-module D=T.Make(
- functor(S:T.Translation) ->
+module Conv=AstCpsMarked.Trav.TranslateFrom(AstCpsInt)(Mon)
+open Conv
+module D=Conv.Make(
+ functor(S:Translation) ->
  struct
-  module Super=T.Base(S)
+  module Super=Conv.Base(S)
   include Super
   let expr=function
    | `Fun (args,i) ->
-      `Fun(args,fst (Super.instr i)),false
+      `Fun(args,fst (S.instr i)),false
    | `CpsFun (args,i) ->
-      `CpsFun(args,fst (Super.instr i)),false
+      `CpsFun(args,fst (S.instr i)),false
    | e -> Super.expr e
   let instr=function
-   | `Cps i -> `Cps i,true
-   | i ->
+   | (`CpsCall _ | `CpsRet _
+     | `CallCC _ | `Throw _
+     | `Abort    | `CpsTemplateCall _) as i ->
+      `Cps (fst(Super.instr i)),true
+   | `Cps i -> `Cps (fst (S.instr i)),true
+   | #In.instr as i ->
       let i,cps=Super.instr i in
       if cps then
        `Cps i,true
@@ -34,4 +37,4 @@ module D=T.Make(
        i,false
  end)
 
-let run p:AstCpsInt.program=Mon.run (D.program p)
+let run p:AstCpsMarked.program=Mon.run (D.program p)

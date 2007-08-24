@@ -10,11 +10,13 @@ gram extends AstBase {
 | `Macro macrobloc,[baseTy]
 | `CpsMacro macrobloc,[baseTy];
  instr :=
-| `Cps instr
+(*| `Cps instr*)
    (*w
      the ident is the return value ("a" in "a=b(x1...xn)"
    *)
-| `CpsCall ident?,expr,[expr] (*TODO check wether we could extend this to lvalues*)
+| `CpsCall ident?,expr,[expr]
+| `CpsRet expr?
+| `CpsTemplateCall [expr],macrobloc
 | `CallCC ident?,expr,[expr]
 | `Throw expr,expr
 | `Abort

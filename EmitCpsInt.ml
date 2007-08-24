@@ -34,6 +34,8 @@ struct
     | `Cps i -> cps (S.instr i)
     | `CpsCall (a,e,al) ->
        cpsAff a (instr (`Call (e,al)))
+    | `CpsRet i -> Super.instr (`Ret i)
+    | `CpsTemplateCall (i,mb)-> Super.instr (`TemplateCall (i,mb))
     | #In.instr as i -> grp:=false;Super.instr i
     | `CallCC (a,e,el) ->
        let args=join S.expr (e::el) (punct ",") in
