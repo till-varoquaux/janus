@@ -14,6 +14,8 @@
 open General
 open ScopeInfo
 
+module SS=StringSet
+
 (*w
   The null instruction: doesn't do anything
 *)
@@ -42,28 +44,40 @@ module Hoist=T.Make(
          List.exists ~f:(fun v -> ScopeInfo.isCaptured v sc) locals)
 
   (*w
+    Get the named of a declared function.
+  *)
+  let getFname = function
+   | `Fundecl (name,_,_) -> name
+   | _ -> assert false
+
+  (*w
     we can safely drop all variable definitions in the program: In javascript
     the ^^var^^ keyword is only used to restrict the scope of a variable.
   *)
   let program p _=
    let prog,funs = Super.program p []
    in
-   (funs@prog),[]
+   ((List.rev funs)@prog),[]
 
 (*w compils a function declaration... *)
   let fundecl name args body=
    let hInstr,hFuns=instr body [] in
    let locals =
-    ScopeInfo.foldDefined (ScopeInfo.instr hInstr)
+    ScopeInfo.foldDefined (ScopeInfo.instr body)
      ~init:args
      ~f:(fun i loc -> i::loc)
    in
-   let capFuns,hoistFuns=sepCaptured locals hFuns
-   and vars = ScopeInfo.foldDefined (ScopeInfo.instr hInstr)
-    ~init:[]
-    ~f:(fun i loc -> `Var (i,None)::loc)
+   let capFuns,hoistFuns=sepCaptured locals hFuns in
+   let fNames=
+    List.fold_left hFuns
+     ~init:SS.empty
+     ~f:(fun s i -> SS.add (getFname i) s)
    in
-   (`Fundecl (name,args,`Bloc (vars@capFuns@[hInstr]))),hoistFuns
+   let vars = ScopeInfo.foldDefined (ScopeInfo.instr body)
+    ~init:[]
+    ~f:(fun i loc -> if not (SS.mem i fNames) then `Var (i,None)::loc else loc)
+   in
+   (`Fundecl (name,args,`Bloc ((List.rev vars)@(List.rev capFuns)@[hInstr]))),hoistFuns
 
   let expr e funs =
    match e with

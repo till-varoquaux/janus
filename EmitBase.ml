@@ -145,7 +145,7 @@ struct
        f' ^^ (par args)
     | `Expr e -> S.expr e
     | `Ret (Some e) ->
-       (kwd "return")^^break^^(S.expr e)
+       (kwd "return")^^break^^(ep e)
     | `Ret None -> kwd "return"
    in
    if !grp then
