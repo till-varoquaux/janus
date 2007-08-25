@@ -3,7 +3,7 @@
   javascript optimisation passes will map over these types.
 *)
 gram extends AstBase{
- import ty,constant,ident,lvalue,unop,binop,program,macrobloc,expr,instr,macroitem;
+ import ty,constant,ident,lvalue,unop,binop,program,expr,instr;
  instr:=
 | `Fundecl ident,[ident],instr
 | `Labeled ident,instr

@@ -40,12 +40,6 @@ struct
    | `Labeled (lbl,i) -> (ident lbl) ^^(punct ":")^^(S.instr i)
    | `Continue lbl -> (kwd "continue") ^^ break ^^ (ident lbl)
    | `Break lbl -> (kwd "break") ^^ break ^^ (ident lbl)
-   | `Return -> kwd "return"
-   | `TemplateCall (al,b) ->
-      let al=List.map S.expr al in
-      join (function
-             | `Literal l ->  lit l
-             | `Ident i -> List.nth al i) b empty
    | #Conv.In.instr as i -> grp:=false;Super.instr i
   in
   if !grp then

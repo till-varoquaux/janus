@@ -33,7 +33,7 @@ let parse file=
    let lb = Lexing.from_channel c in
    try
     Lexer.setFile lb file;
-    Parser.program Lexer.lex lb
+    Parser.program Lexer.token lb
    with
     | Lexical_error s ->
        parseError lb (sprintf "lexical error: %s" s)

@@ -1,16 +1,13 @@
 gram extends AstBase {
- import ty,constant,ident,lvalue,unop,binop,program,macrobloc;
+ import ty,constant,ident,lvalue,unop,binop,program;
  ty :=
 | `T (*Base type*)
 | `Arrow [ty],ty (*Normal application*)
 | `CpsArrow [ty],ty (*Cps function*);
- macroitem:= `Ident ident | `Literal string;
  instr :=
 | `CallCC expr,[expr]
 | `BlockingEv expr,[expr]
 | `Throw expr,expr
-| `CpsMacro ident,[ident],macrobloc,[ty]
-| `Macro ident,[ident],macrobloc,[ty]
 | `Abort
 | super;
  expr :=

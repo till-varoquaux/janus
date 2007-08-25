@@ -26,7 +26,7 @@ module D=Conv.Make(
   let instr=function
    | (`CpsCall _ | `CpsRet _
      | `CallCC _ | `Throw _
-     | `Abort    | `CpsTemplateCall _) as i ->
+     | `Abort) as i ->
       `Cps (fst(Super.instr i)),true
    | `Cps i -> `Cps (fst (S.instr i)),true
    | #In.instr as i ->

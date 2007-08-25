@@ -1,4 +1,0 @@
-macro disp(n) ${print($n)}$;
-cps_macro cps_disp(n) ${print($n);$cont()}$;
-cps_disp("cpsdisp");
-disp("disp")

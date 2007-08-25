@@ -1,9 +1,8 @@
 open General
 open Pos
-open AstCpsInt
+open AstStd
 module C=Map.Make(String)
 type id=AstCpsInt.ident
-type ty'=AstCpsInt.ty
 
 (*w
   This is a list of reserved keywords. Since they are used in javascript we do
@@ -27,16 +26,16 @@ let reservedKeywords=[
   "debugger";"implements";"protected";"volatile";
   "double";"import";"public";
   (*JS 1.5 keywords*)
-  (**Objects*)
+  (*Objects*)
   "Array";"Boolean";"Date";
   "Error";"Function";"java";
   "JavaArray";"JavaClass";"JavaObject";
   "JavaPackage";"Math";"netscape";
   "Number";"Object";"Packages";
   "RegExp";"String";"sun";
-   (**Properties*)
+   (*Properties*)
   "Infinity";"NaN";"undefined";
-   (**Functions*)
+   (*Functions*)
   "decodeURI";"decodeURIComponent";"encodeURI";
   "encodeURIComponent";"eval";"isFinite";
   "isNaN";"parseFloat";"parseInt"
@@ -89,7 +88,7 @@ let ident {node=i;loc=_} env =
    with Not_found -> i
   )
 
-let ty {node=i;loc=_} env=
+let ty {node=i;loc=_} env:AstStd.ty=
  try
   snd (C.find i env.recent)
  with Not_found ->

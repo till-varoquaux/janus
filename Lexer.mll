@@ -9,9 +9,8 @@
     let h = Hashtbl.create 17 in
     List.iter (fun (s,k) -> Hashtbl.add h s k)
      [ "if", If; "else", Else; "while", While; "and", And;"not", Not; "var",
-        Var;"or", Or; "function", Function;"cps",Cps;"return", Return; "macro" ,
-       Macro; "cps_macro",CpsMacro; "throw",Throw; "callcc",CallCC;
-       "abort",Abort; "blocking",Block];
+       Var;"or", Or; "function", Function;"cps",Cps;"return", Return;
+       "throw",Throw; "callcc",CallCC; "abort",Abort; "blocking",Block];
     fun s -> try Hashtbl.find h s with Not_found -> Ident s
 
   let setFile lexbuf file =
@@ -22,12 +21,6 @@
     let pos = lexbuf.lex_curr_p in
     lexbuf.lex_curr_p <-
       { pos with pos_lnum = pos.pos_lnum + 1; pos_bol = pos.pos_cnum }
-
-  type state=
-   | Token
-   | Macro
-
-  let state=ref Token
 }
 
 let alpha = ['a'-'z' 'A'-'Z']
@@ -111,8 +104,6 @@ rule token = parse
      string (Buffer.add_string b) lexbuf;
      let s=Buffer.contents b in
      Constant (`String s) }
- | "${"
-    {state:=Macro;macrobloc lexbuf}
  | _
    { raise (Lexical_error ("illegal character: " ^ lexeme lexbuf)) }
  | eof
@@ -157,15 +148,6 @@ and string a = parse
  | "\t" { a "\\t"; string a lexbuf }
  | _ { a (lexeme lexbuf); string a lexbuf }
 
-and macrobloc= parse
- | "}$" {state:=Token;token lexbuf}
- | "$" { macroident lexbuf}
- | _  { MacroLiteral (lexeme lexbuf) }
- | eof  { raise (Lexical_error "unterminated macro") }
-
-and macroident = parse
- | ident {Ident (lexeme lexbuf)}
-
 and comment = parse
  | "*/" { () }
  | '\n' { newline lexbuf; comment lexbuf }
@@ -176,10 +158,3 @@ and comment2 = parse
  | "\n"  { () }
  | _    { comment2 lexbuf }
  | eof  { raise (Lexical_error "unterminated comment") }
-
-{
- let lex l=
-  match !state with
-   | Macro -> macrobloc l
-   | Token -> token l
-}

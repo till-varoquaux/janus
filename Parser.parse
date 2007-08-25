@@ -10,9 +10,8 @@
 /* Keywords */
 
 %token If Else While And Not Var Mod EOF
-%token Function Or  Return Cps T Macro CpsMacro
+%token Function Or  Return Cps T
 %token CallCC Throw Abort Block
-%token <string> MacroLiteral
 
 /* Symbols */
 
@@ -138,26 +137,10 @@ lvalue:
 cond:
 | Lpar expr Rpar {$2}
 
-macroelem:
-| ident {`Ident $1}
-| MacroLiteral {`Literal $1}
-
-macrobloc:
-| {[]}
-| macroelem macrobloc {$1::$2}
-
 instr:
 | instr_aux {`Pos ((symbol_start_pos(),symbol_end_pos()),$1)}
 
 instr_aux:
-| Macro ident Lpar args Rpar  macrobloc {
-   let args,args_ty= List.split $4 in
-   `Macro ($2,args,$6,args_ty)
-  }
-| CpsMacro ident Lpar args Rpar  macrobloc {
-   let args,args_ty= List.split $4 in
-   `CpsMacro ($2,args,$6,args_ty)
-  }
 | Var ident Eq expr {`Var ($2,Some $4)}
 | lvalue Aff expr {`Assign ($1,$3)}
 | If cond bloc_or_instr {`If ($2,$3,`Bloc [])}

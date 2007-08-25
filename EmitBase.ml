@@ -115,9 +115,6 @@ struct
    | `ArrayAccess (l,e) -> (S.lvalue l) ^^ (bracket (S.expr e))
    | `ObjAccess (l,i) -> (S.lvalue l) ^^ (punct ".") ^^ (S.ident i)
 
-  let macroitem _= assert false
-  let macrobloc _= assert false
-
   let instr (i)=
    (*w
      Wether we will need to group the result in a fgrp
@@ -149,10 +146,7 @@ struct
     | `Expr e -> S.expr e
     | `Ret (Some e) ->
        (kwd "return")^^break^^(S.expr e)
-        (*w This is to hard to compile without breaking abstraction, we'll let the
-          specialized functions handle it*)
     | `Ret None -> kwd "return"
-    | `TemplateCall _ -> assert false
    in
    if !grp then
     fgrp r

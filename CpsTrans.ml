@@ -4,7 +4,6 @@
 open Pos
 open General
 open AstStd
-type ty'= AstCpsHoistInt.ty
 type ident'= AstCpsHoistInt.ident
 type instr'=AstCpsHoistInt.instr
 type expr'=AstCpsHoistInt.expr
@@ -35,19 +34,6 @@ let redef ?previousPos pos id =
      in
      error ~pos:pos msg
 
-(*w
-  Translate a macro element. Literals are kept as they are but macroelements are
-  converted to De Bruijn indices.
-*)
-let macroElem al = function
- | `Ident {node=i;loc=p} ->
-    (try
-      `Ident (List.scan i al)
-     with Not_found ->
-      error ~pos:p (Printf.sprintf "Undefined ident \"%s\"" i)
-    )
- | `Literal _ as l -> l
-
 let cont=dummyId "cont"
 
 (*w
@@ -61,37 +47,6 @@ let checkRedefs (l:ident list)=
         redef ~previousPos:(StringHashtbl.find defList i) p i
        else
         StringHashtbl.add defList ~key:i ~data:p)
-
-(*w
-  This typechecks a macro: it verifies none of the macros arguments have the
-  same name and returns the macro type.
-
-  The macro type is actually the macro itself, the arguments have been converted
-  to de Bruijn's notation. It also contains the macro return type.
-
-  TODO: The env should contains both types and macros in two separate tables...
-
-  TODO: CPSMacros should take their continuation as an explicit parameter
-*)
-let typeMacro m =
- let cps,args,b,ty=
-  match m with
-   | (`Macro(_,args,b,ty)) -> false,args,b,ty
-   | (`CpsMacro(_,args,b,ty)) -> true,args,b,ty
- in
- let args=
-  if cps then
-   cont::args
-  else
-   args
- in
- checkRedefs args;
- let args=List.map ~f:unPos args in
- let b=List.map ~f:(macroElem args) b in
- if cps then
-  `CpsMacro(b,ty)
- else
-  `Macro(b,ty)
 
 let ident=TypeEnv.ident
 
@@ -111,16 +66,11 @@ let rec typeExpr env=function
       | `CpsArrow(_,b) -> b
       | `Arrow (_,b) -> b
       | `T -> `T)
- | `Ident i -> typeIdent env i
+ | `Ident i -> TypeEnv.ty i env
  | _ -> `T
 
-and typeIdent env i =
- match TypeEnv.ty i env with
-  | `Macro _ | `CpsMacro _ -> error "Cannot call a macro in an expression"
-  | `Arrow _ | `CpsArrow _ | `T as t-> t
-
 and typeLvalue env=function
- | `Ident i -> typeIdent env i
+ | `Ident i -> TypeEnv.ty i env
  | `Array _ -> error "not handling arrays yet"
  | `Access _ -> error "not handling objects yet"
 
@@ -190,17 +140,6 @@ and callCompile env (`Call (e,al)) : compiledCall =
   body=e
  }
 
-and isMacro env=
- function
-  | `Pos _ as p -> protect (isMacro env) p
-  | `Ident i ->
-     begin
-      match TypeEnv.ty i env with
-       | `Macro _ | `CpsMacro _ -> true
-       | _ -> false
-     end
-  | _ -> false
-
 (*w
   Converts an expression
 
@@ -268,7 +207,7 @@ and expr ?(eType=(`T:ty)) env:expr -> expr'=function
                    )
     in
     List.iter2 il it
-     ~f:(fun i ty -> env := TypeEnv.add i (ty:>ty') (!env))
+     ~f:(fun i ty -> env := TypeEnv.add i ty (!env))
     ;
     let env=TypeEnv.setCps cps !env in
     let b=fbloc env b
@@ -292,16 +231,11 @@ and expr ?(eType=(`T:ty)) env:expr -> expr'=function
 
 and instr env : instr -> (instr'*TypeEnv.t)=
  function
-  | `TemplateCall _-> assert false
   | `Pos _ as p -> protect (instr env) p
-  | `Macro (i,_,_,_) | `CpsMacro (i,_,_,_) as m ->
-     let m=typeMacro m in
-     let env=TypeEnv.add i m env in
-     nullInstr,env
   | `Var (i,None) ->
      `Var(ident i env,None),(TypeEnv.add i `T env)
   | `Var (i,Some e) ->
-     let env=TypeEnv.add i ((typeExpr env e):>ty') env in
+     let env=TypeEnv.add i (typeExpr env e) env in
      let i=ident i env in
      let e=expr env e in
      `Var (i,Some e),env
@@ -309,24 +243,6 @@ and instr env : instr -> (instr'*TypeEnv.t)=
      let lv=lvalue env lv
      and e=expr env e in
      `Assign (lv,e),env
-  | `Call (i,el) when isMacro env i ->
-     let rec getId=
-      (function
-        | `Pos (_,p) -> getId p
-        | `Ident i -> i
-        | _ -> assert false
-      )
-     in
-     ( match TypeEnv.ty (getId i) env with
-        | `Macro (b,tyl) ->
-           checkArg env el tyl;
-           let args=args env el in
-           `TemplateCall (args,b),env
-        | `CpsMacro (b,tyl) ->
-           checkArg env el tyl;
-           let args=args env el in
-           `CpsTemplateCall (args,b),env
-        | _ -> assert false)
   | `Call _ as c ->
      let c = callCompile env c in
      let call=if c.cps then begin

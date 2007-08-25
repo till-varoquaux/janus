@@ -74,7 +74,7 @@ module D=Conv.Make(
   and instr' i cont=
    match i with
     (*These expressions can only be converted in cps translated code*)
-    | `Throw _ | `CallCC _ | `CpsCall _ | `CpsRet _ | `CpsTemplateCall _ | `Abort -> assert false
+    | `Throw _ | `CallCC _ | `CpsCall _ | `CpsRet _ | `Abort -> assert false
     | `Bloc b -> bloc b cont
     | `Cps i -> cpsInstr' i cont
     | `If (e,b1,b2) -> `If (expr e,`Bloc (instr' b1 []),`Bloc (instr' b2 []))::cont
@@ -83,7 +83,7 @@ module D=Conv.Make(
 
   and cpsInstr' i cont=
    match i with
-    | `TemplateCall _ | `Ret _ -> assert false
+    | `Ret _ -> assert false
     | `CpsCall (a,e,el) ->
        let head,cont=cpsCall cont a
        and el=List.map expr el in
@@ -105,10 +105,6 @@ module D=Conv.Make(
                `Call ((`Ident return),[])
               ))
        ]
-    | `CpsTemplateCall (el,b) ->
-       let head,cont=cpsCall cont None
-       and el=List.map expr el in
-       head@[`TemplateCall (cont::el,b)]
     | `If (e,b1,b2) ->
        let head,cont=match (unbloc cont) with
         | [] -> [],[]

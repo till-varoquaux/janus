@@ -21,13 +21,10 @@ gram{
 | `Assign lvalue,expr
 | `If expr,instr,instr
 | `While expr,instr
-| `TemplateCall [expr],macrobloc
 | `Bloc [instr]
 | `Ret expr?
 | `Expr expr
 | `Var ident,expr?;
  ty;
- macroitem:=`Ident int (*De bruijn index*) | `Literal string;
- macrobloc:=[macroitem];
  program := [instr]
 }
