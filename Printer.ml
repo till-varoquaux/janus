@@ -33,6 +33,19 @@ let join (conv:'a -> doc) (l:'a list) (sep:doc):doc=
         | c,false ->
            beg ^^ sep ^^ c)
 
+let sjoin (l:'a list) (sep:doc):doc=
+ let first=ref true in
+ List.fold_left l
+  ~init:empty
+  ~f:(fun beg el ->
+       match el,!first with
+        | c,_ when c=empty -> empty
+        | c,true ->
+           first:=false;
+           c
+        | c,false ->
+           beg ^^ sep ^^ c)
+
 open General
 module P=Printf
 
@@ -196,7 +209,7 @@ object
       a "\\"; Buffer.add_char b c
    | '\\' -> a "\\backslash{}"
    | '\t' -> a "~~~~"
-   | '\n' -> a "\\newline{}\n\\verb++"
+   | '\n' -> a "\\\\\n\\mbox{}"
    | c -> Buffer.add_char b c
   in
   String.iter ~f:process s;
@@ -276,6 +289,7 @@ sig
 end
 
 let blocs=Ws.create 17
+let instrSep=((punct ";")^^break)
 
 module Convenience(S:ConvIn)=
 struct
@@ -286,12 +300,21 @@ struct
   vgrp(brace (vgrp(nest 4 (break^^s))^^break))
 
  let joinInstrs l=
-  join S.instr l ((punct ";")^^break)
+  join S.instr l instrSep
 
  let bloc l =
   let r=braceIndent (joinInstrs l) in
   Ws.add blocs r;
   r
+
+ let grpInstr i=
+  if Ws.mem blocs i then
+   i
+  else begin
+   let r=fgrp i in
+   (*Ws.add blocs r;*)
+   r
+  end
 
  let protectInstr i =
   let r=S.instr i in

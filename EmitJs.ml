@@ -18,6 +18,20 @@ struct
 
  include Convenience(struct include S module In=AstJs end)
 
+ let rec instrs=function
+  | (`Var (i,None))::r -> squishVar [i] r
+  | (i::t) -> (S.instr i)::(instrs t)
+  | [] -> []
+ and squishVar vars=function
+  | (`Var (i,None))::r -> squishVar (i::vars) r
+  |  l -> (kwd "var " ^^(join ident vars (punct ",")))::instrs l
+
+ let bloc l =
+  let il=instrs l in
+  let r=braceIndent (sjoin il instrSep) in
+  Ws.add blocs r;
+  r
+
  (*w
    This is the only function we will need to override here. We will take
    advantage of the fact that we can break abstraction to do more precise
@@ -27,8 +41,8 @@ struct
   (*w
     Wether we will need to group the result in a fgrp
   *)
-  let grp=ref true in
   let r=match i with
+   | `Bloc b -> bloc b
    | `WithCtx (e,b,_) -> (kwd "with")^^(par (S.expr e )) ^^ (blocOrInstr b)
    | `Fundecl(i,args,b) ->
       let b=protectInstr b in
@@ -40,12 +54,10 @@ struct
    | `Labeled (lbl,i) -> (ident lbl) ^^(punct ":")^^(S.instr i)
    | `Continue lbl -> (kwd "continue") ^^ break ^^ (ident lbl)
    | `Break lbl -> (kwd "break") ^^ break ^^ (ident lbl)
-   | #Conv.In.instr as i -> grp:=false;Super.instr i
+   | #Conv.In.instr as i -> Super.instr i
   in
-  if !grp then
-   fgrp r
-  else
-   r
+   grpInstr r
+
 end
 
 module D=Close(Main)

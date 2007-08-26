@@ -18,7 +18,7 @@ module T=Conv.Make(
   (*FIXME: check why In.expr doesn't work*)
   type e'=i AstCpsInt.Gram.expr
   let expr: AstCpsHoistInt.expr -> AstCpsInt.expr CpsMonad.m= function
-    (*w handles lazyness in the And operator*)
+    (*w handles lazyness of the `And operator*)
    | `Binop(`And,e1,e2) ->
       let e1',ctx1=S.expr e1
       and e2',ctx2=S.expr e2

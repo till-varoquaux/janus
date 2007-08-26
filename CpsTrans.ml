@@ -173,6 +173,7 @@ and expr ?(eType=(`T:ty)) env:expr -> expr'=function
     let e=expr env e in
     `ObjAccess (e,ident id env)
  | `Cst _ as c -> c
+    (*Todo: typecheck CallCC and throw*)
  | `CallCC (e,el) ->
     if not (TypeEnv.cps env) then
      error "Cannot use \"callcc\" in a non cps function.";

@@ -116,13 +116,9 @@ struct
    | `ObjAccess (l,i) -> (S.lvalue l) ^^ (punct ".") ^^ (S.ident i)
 
   let instr (i)=
-   (*w
-     Wether we will need to group the result in a fgrp
-   *)
-   let grp=ref true in
    let r=match i with
     | `WithCtx (e,b,_) -> (kwd "with")^^(par (S.expr e )) ^^ (blocOrInstr b)
-    | `Bloc il -> grp:=false;bloc il
+    | `Bloc il -> bloc il
     | `Fundecl(i,args,b) ->
        let b=protectInstr b in
        (kwd "function ")^^(ident i)^^(par(join ident args (punct ",")))^^b
@@ -148,10 +144,7 @@ struct
        (kwd "return")^^break^^(ep e)
     | `Ret None -> kwd "return"
    in
-   if !grp then
-    fgrp r
-   else
-    r
+   grpInstr r
 
   let program p=
    vgrp((joinInstrs p)^^break)
