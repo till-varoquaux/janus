@@ -47,7 +47,7 @@ exec ocaml $0 $@
 *)
 #require "unix"
 #require "str"
-#use "General.ml"
+#use "src/General.ml"
 
 type caml_version=
   {major:int;

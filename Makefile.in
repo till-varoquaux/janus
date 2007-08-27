@@ -1,7 +1,7 @@
 SHELL = /bin/sh
 #Configurable options
 SRC=Main
-OCB=ocamlbuild -no-links -ocamlc "ocamlfind c" -ocamlopt "ocamlfind opt" -ocamldep "ocamlfind dep" -lflags "-package unix","-linkpkg"
+OCB=ocamlbuild -no-links -ocamlc "ocamlfind c" -ocamlopt "ocamlfind opt" -ocamldep "ocamlfind dep" -lflags "-package unix","-linkpkg" -I src
 #YACC=menhir
 MODE=byte
 #end configurable options
@@ -36,7 +36,7 @@ MLI=$(wildcard *.mli)
 
 LIB=Js
 LIBM=$(shell cat $(LIB).mllib)
-LIBCMI=$(foreach a,$(LIBM),$(BUILDDIR)/$a.cmi)
+LIBCMI=$(foreach a,$(LIBM),$(BUILDDIR)/src/$a.cmi)
 
 ifdef DEV
 	ALL += annot check
@@ -53,7 +53,7 @@ Makefile:configure
 $(TARGET):sane
 	${info * making $(MODE) code}
 	@$(OCB) $(SRC).$(MODE)
-	@cp $(BUILDDIR)/$(SRC).$(MODE) $(TARGET)
+	@cp $(BUILDDIR)/src/$(SRC).$(MODE) $(TARGET)
 
 $(LIB).cma:sane
 	$(info * making the bytecode library)
@@ -73,7 +73,7 @@ lib_install:$(LIB).cma
 	fi
 	@ocamlfind install $(PROJECT_NAME) META $(LIBCMI) $<
 
-Changes.lp4all:
+src/Changes.lp4all:
 	${info * making the changelog}
 ifndef DARCS
 	${call MISSING,darcs}
@@ -81,12 +81,13 @@ else
 	@ocaml Changelog.ml > $@
 endif
 
-doc:Changes.lp4all
+doc:src/Changes.lp4all
 	${info * making docs...}
 ifndef LP4ALL
 	${call MISSING,lp4all}
 else
-	lp4all -p "$(PROJECT_NAME)" -d doc $$(darcs query manifest) Changes.lp4all
+	@cd src;\
+	lp4all -p "$(PROJECT_NAME)" -d ../doc $$(darcs query manifest| sed -ne 's|^./src/||p') Changes.lp4all
 endif
 
 check:$(TARGET)
@@ -98,17 +99,17 @@ else
 endif
 
 sane:
-	@rm -f *.annot *.cma *.cmxa
+	@rm -f src/*.annot *.cma *.cmxa
 
 annot:$(TARGET)
 ifndef DTYPES
 	${error You need to enable -dtypes during configuration}
 else
-	@cp _build/*.annot .
+	@cp _build/src/*.annot src
 endif
 
 
-web:Changes.lp4all
+web:src/Changes.lp4all
 	${info "updating web site"}
 ifndef FTP_REPO
         ${error "You must have an environement variable FTP_REPO\
@@ -117,10 +118,11 @@ upload the result"}
 endif
 	@rm -rf web
 	@darcs get . --repo-name=web
-	@cp Changes.lp4all web
+	@cp src/Changes.lp4all web/src
+	@cd web/src;\
+        lp4all -p "$(PROJECT_NAME)" -d .. $$(darcs query manifest| sed -ne 's|^./src/||p') Changes.lp4all;\
+	rm -f sparsetable.py parsetable.py
 	@cd web;\
-	lp4all -p "$(PROJECT_NAME)" $$(darcs query manifest) Changes.lp4all;\
-	rm -f sparsetable.py parsetable.py;\
 	lftp -c "open $(FTP_REPO);\
           (cd $(PROJECT_NAME) || mkdir $(PROJECT_NAME));\
           cd $(PROJECT_NAME);\
@@ -129,7 +131,8 @@ endif
 clean:sane
 	${info * cleaning up}
 	@rm -rf web doc
-	@rm -f *~ \#* doc.odocl parsetab.py sparsetab.py Changes.lp4all $(TARGET)
+	@rm -f *~ \#* src/*~ src/\#*
+	@rm -f doc.odocl src/parsetab.py src/sparsetab.py src/Changes.lp4all $(TARGET)
 	@$(OCB) -clean
 
 distclean:clean

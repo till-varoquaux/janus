@@ -3,9 +3,9 @@ open Command;;
 dispatch begin function
 | After_rules ->
     dep  ["ocaml"; "ocamldep"; "syntax:OpenTrees"]
-         ["OpenTrees.cma"];
+         ["src/OpenTrees.cma"];
     flag ["ocaml"; "pp"; "syntax:OpenTrees"]
-         (A"./OpenTrees.cma");
+         (A"src/OpenTrees.cma");
     rule "parse -> mly"
       ~dep:"%.parse"
       ~prod:"%.mly"

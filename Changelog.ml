@@ -4,7 +4,7 @@
 #use "topfind"
 #require "unix"
 #require "str"
-#use "General.ml"
+#use "src/General.ml"
 #use "Version.ml"
 
 type change={
