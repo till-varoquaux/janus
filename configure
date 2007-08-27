@@ -217,6 +217,14 @@ let _ =
     printf "let version=\"%s\"\n" !version;
     printf "let name=\"%s\"\n" project_name;
     printf "let author=\"%s\"\n" author;
+  end;
+  with_open_out (Filename.concat root (Filename.concat "src" "Makefile"))
+   begin
+    fun ch ->
+     let printf=Printf.fprintf ch in
+     printf ".phony: all\n";
+     printf "all:\n";
+     printf "\t@$(MAKE) -C ..\n"
   end
 (*
 OCAMLCODE_END

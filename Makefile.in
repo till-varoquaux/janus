@@ -133,7 +133,7 @@ clean:sane
 	@$(OCB) -clean
 
 distclean:clean
-	@rm -f Makefile version.ml
+	@rm -f Makefile Version.ml src/Makefile
 
 dist:
 	${info * building a tarball}
