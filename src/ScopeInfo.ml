@@ -1,11 +1,29 @@
 (*w
-  This module collects status information about the variables in a bloc or in an
-  expression. Variables are either defined,read or captured.
-*)
+ * ====Scoping information====
+ * This module collects status information about the variables in a bloc or in
+ * an expression. Variables are either defined,read or captured.
+ *
+ * Although it is implemented as a pass it isn't intended to be ran as one, we
+ * are just reusing or framework here in order to avoid writing boilerplate code
+ * for the navigation. Computation cost is amortized using memoization.
+ *
+ * Memoization cannot be added in the monads. See "generalizing monads to
+ * arrows" for a eventual solution.
+ *
+ * FUTURE:
+ * Extend this module to liveness information.
+ *)
 open General
 
 module SS=StringSet
 
+(*w
+ * This is our monad.
+ *
+ * It would seem logical for our monad type to be ^^t^^ (the value we are
+ * computing) but since we need the value of the first branch in "bind" we need
+ * to return this value in our monad our monad type is ^^'a*t^^.
+ *)
 module type InfoMonad=
 sig
  type t

@@ -1,8 +1,20 @@
 (*w
-  This pass performs dead code elimination in JS code.
+ *  ===Dead code removal===
+ *
+ * This pass performs dead code elimination in JS code. It is avery simple pass
+ * and will only remove code situated directly after a ^^return^^
+ * instruction. Changing it to handle ^^while^^ loops (^^break^^ and
+ * ^^continue^^) should be easy.
+ *
+ * A more involved future evolution would be ro replace this pass alltogether
+ * with a
+ * [[http://en.wikipedia.org/wiki/Sparse_conditional_constant_propagation|sparse
+ * constant propagation]] pass. This would require implementing SSA somewhere in
+ * the compiler.
 *)
 
-(*w This monad allows to pass as addictional information a boolean telling
+(*w
+ * This monad allows to pass as addictional information a boolean telling
  * wether the generated code returns (the following code in the same block will
  * be dead code)
  *)
@@ -20,7 +32,8 @@ module D=T.Make(functor(S:T.Translation) ->
   module Super=T.Base(S)
   include Super
 
-  (*w Processes a list of instruction.
+  (*w
+   * Processes a list of instruction.
    *
    * if an instruction in the list returns the rest of the list is
    * deadcode and therefor is dropped

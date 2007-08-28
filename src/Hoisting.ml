@@ -1,24 +1,25 @@
 (*w
-  This javascript to javascript optimisation pass performs hoisting of
-  function definitions and variable declarations. It relies on the facts that
-  variables have a unique name and that javascript uses late bindings (function
-  definitions can therefore be hoisted).
-
-  All the function definitions are collected and moved to the top of there
-  containing scope (with statements or functions). since variable names are
-  unique (and javascript has no block scoping) vars can be safelly moved to the
-  top of their containing functions.
-
-  TODO:Mutually reccursive functions are not hoisted
-*)
+ * ====Hoisting====
+ * This javascript to javascript optimisation pass performs hoisting of
+ * function definitions and variable declarations. It relies on the facts that
+ * variables have a unique name and that javascript uses late bindings (function
+ * definitions can therefore be hoisted).
+ *
+ * All the function definitions are collected and moved to the top of there
+ * containing scope (with statements or functions). since variable names are
+ * unique (and javascript has no block scoping) vars can be safelly moved to the
+ * top of their containing functions.
+ *
+ * TODO:Mutually reccursive functions are not hoisted
+ *)
 open General
 open ScopeInfo
 
 module SS=StringSet
 
 (*w
-  The null instruction: doesn't do anything
-*)
+ * The null instruction: doesn't do anything
+ *)
 let null=`Bloc []
 module Mon=Monad.StateMonad(
  struct
@@ -35,8 +36,8 @@ module Hoist=T.Make(
   include Super
 
   (*w
-    Tests wether a given instruction captures some of the locals.
-  *)
+   * Tests wether a given instruction captures some of the locals.
+   *)
   let sepCaptured locals=
    List.partition
     ~f:(fun i ->
@@ -44,16 +45,16 @@ module Hoist=T.Make(
          List.exists ~f:(fun v -> ScopeInfo.isCaptured v sc) locals)
 
   (*w
-    Get the named of a declared function.
-  *)
+   * Get the named of a declared function.
+   *)
   let getFname = function
    | `Fundecl (name,_,_) -> name
    | _ -> assert false
 
   (*w
-    we can safely drop all variable definitions in the program: In javascript
-    the ^^var^^ keyword is only used to restrict the scope of a variable.
-  *)
+   * we can safely drop all variable definitions in the program: In javascript
+   * the ^^var^^ keyword is only used to restrict the scope of a variable.
+   *)
   let program p _=
    let prog,funs = Super.program p []
    in
@@ -96,17 +97,17 @@ module Hoist=T.Make(
        fdecl::hFuns@funs
     | `WithCtx (e,i,si) ->
        (*w
-         the only purpose of using "with" is to ensure closures are correctly
-         defined, therefor we don't want to hoist function declarations any higher...
+        * The only purpose of using "with" is to ensure closures are correctly
+        * defined, therefor we don't want to hoist function declarations any higher...
         *)
        let hInstr,hFuns=instr i [] in
        let capFuns,hoistFuns = sepCaptured si hFuns in
        `WithCtx (e,`Bloc(capFuns@[hInstr]),si),
        hoistFuns@funs
         (*w
-          We can safely drop the var def here: they will be hoisted and
-          recalculated from scopeInfo.
-        *)
+         * We can safely drop the var def here: they will be hoisted and
+         * recalculated from scopeInfo.
+         *)
     | `Var (_,None) ->
        null,funs
     | `Var (i,Some e) ->

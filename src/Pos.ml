@@ -1,6 +1,7 @@
 (*w
-  This module handles position in a source tree and the reporting of errors
-*)
+ * ====Positions and error handling====
+ * This module handles position in a source tree and the reporting of errors
+ *)
 open Lexing
 type location = Lexing.position * Lexing.position
 

@@ -1,4 +1,5 @@
 (*w
+  ====Suppresion of unneeded return instructions====
   This pass identify the empty return placed at the end of a function. Since
   functions call return implicitly when they end we migh as well remove them.
 *)

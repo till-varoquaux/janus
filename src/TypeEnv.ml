@@ -1,3 +1,7 @@
+(*w ====Cps typing environement ====
+ *
+ * Refer to the interface for a description
+ *)
 open General
 open Pos
 open AstStd
@@ -5,9 +9,10 @@ module C=Map.Make(String)
 type id=AstCpsInt.ident
 
 (*w
-  This is a list of reserved keywords. Since they are used in javascript we do
-  not want to override them.
-*)
+ *
+ * This is a list of reserved keywords. Since they are used in javascript we do
+ * not want to override them.
+ *)
 let reservedKeywords=[
  (*Ecma 263 reserved words*)
  "break";"else";"new";"var";
@@ -41,29 +46,49 @@ let reservedKeywords=[
   "isNaN";"parseFloat";"parseInt"
 ]
 
-
-let dec=
+(*w
+ * A hashtable of all declared variables and the named they are translated to.
+ * We use this table to remove all name conflicts (give a unique name to all
+ * variables).
+ *)
+let declared=
  StringHashtbl.create 89
 
+(*w
+ * Clears the table of declared variables
+ *)
 let clear()=
- StringHashtbl.clear dec;
- List.iter reservedKeywords ~f:(fun i -> StringHashtbl.add dec ~key:i ~data:0)
+ StringHashtbl.clear declared;
+ List.iter reservedKeywords ~f:(fun i -> StringHashtbl.add declared ~key:i ~data:0)
 
 let _ = clear()
 
+(*w
+ * Generates a new fresh identifier name. It will be unique within the program.
+ *)
 let fresh=
  let module M=StringHashtbl in
  fun ?(hint="fresh")() ->
-  if M.mem dec hint then begin
-   let cnt=M.find dec hint in
-   M.remove dec hint;
-   M.add dec ~key:hint ~data:(cnt+1);
+  if M.mem declared hint then begin
+   let cnt=M.find declared hint in
+   M.remove declared hint;
+   M.add declared ~key:hint ~data:(cnt+1);
    Printf.sprintf "%s$%i" hint cnt
   end else begin
-   M.add dec ~key:hint ~data:0;
+   M.add declared ~key:hint ~data:0;
    Printf.sprintf "%s" hint
   end;;
 
+(*w
+ * This is the type of our environements
+ *
+ * Since we are checking for roubl declarations within the same scope we have 2
+ * pools an old and a recent. If a variable is added whilst there is one with
+ * the same name (before renaming) in the recent pool an error is raised.
+ *
+ * The pools contain two informations:the unique name that was assigned to a
+ * given identifier and it's type.
+ *)
 type t={old:(string*ty) C.t;
         recent:(string*ty) C.t;
         cps:bool
@@ -80,6 +105,9 @@ let add {node=i;loc=l} (ty:ty) env=
   in
   {env with recent=C.add i (name,(ty:>ty)) env.recent}
 
+(*w
+ * Returns the unique identifier name that a given identifier was assigned.
+ *)
 let ident {node=i;loc=_} env =
  try
   fst (C.find i env.recent)
@@ -88,6 +116,10 @@ let ident {node=i;loc=_} env =
    with Not_found -> i
   )
 
+(*w
+ * Returns the type associated wit a given identifier. If the identifier is
+ * unkwnown we type it as a javascript value (T)
+*)
 let ty {node=i;loc=_} env:AstStd.ty=
  try
   snd (C.find i env.recent)
@@ -96,6 +128,9 @@ let ty {node=i;loc=_} env:AstStd.ty=
    with Not_found -> `T
   )
 
+(*w
+ * The empty environement
+ *)
 let empty=
  {old=C.empty;
   recent=C.empty;
@@ -107,6 +142,10 @@ let cps e=
 let setCps b e=
  {e with cps=b}
 
+(*w
+ * Empties the "recent" pool in the old pool.
+ * This is used we are exiting a naming environement (ie it becomes old).
+ *)
 let oldify t =
  {t with
    old=C.fold (fun k e env -> C.add k e env) t.recent t.old;

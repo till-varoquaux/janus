@@ -1,4 +1,5 @@
 (*w
+  ====Optimisation passes====
   This module handles the various Javascript optimisation passes. These passes
   must of type ^^passes^^. Programm options to enable and disable individually
   each pass are automatically generated.

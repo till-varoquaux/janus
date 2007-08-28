@@ -1,6 +1,6 @@
 (*w
-  ====AstCpsInt pretty printer====
-*)
+ * ====AstCpsMaked pretty printer====
+ *)
 open Printer
 
 module Process(From:AstCpsMarked.Trav.AstDef)=
