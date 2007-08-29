@@ -1,9 +1,10 @@
 (*w
-  ==Compilation pass==
-
-  This function codes for a compilation pass, it is used to allow us to compile
-  from one of our intermediate AST's.
-*)
+ * ===Compilation pass===
+ *
+ * This modules handles the binding code for our compilation pass, it is used to
+ * allow us to compile from one of our intermediate AST's.
+ *
+ *)
 
 module type Pass=
  sig
@@ -22,7 +23,9 @@ module type Run=
 
 module Pass(In:Pass)(P:Run with type t=In.out):(Run with type t=In.from)=
  struct
+
   type t=In.from
+
   let dump=ref false
 
   let stop=ref false

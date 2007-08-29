@@ -1,8 +1,10 @@
 (*w
-  ====Ast pretty printers====
-
-  This is the base module of all our pretty printers
-*)
+ * ====Ast pretty printers====
+ *
+ * This is the base module of all our pretty printers. Pretty-printing is
+ * separated in two phase: indenting and syntax highlighting. The syntax
+ * highlighting phase uses 
+ *)
 
 (*w ==Formatter module==
   We are using the Pp module from Christian Liding
@@ -131,16 +133,32 @@ let defStyle={
   clit=Yellow
 }
 
+(*w
+ * ==Formatters==
+ *
+ * Formatters are classes we use to do the syntax-highliting part and character
+ * escaping. This part is dependent on the support we're pretty printing to. We
+ * are using a class, we can therefor switch formatters at run time.
+ *)
 class type formater=
 object
  method decorate:color->weight->string->doc
  method escape:string->string
 end
+
+(*w
+ * This is a very basic formatter: it doesn't add any colors nor does it escape
+ * any characters. It is usefull to ouptut ascii files (source files).
+ *)
 let plainFormater:formater=
 object
  method decorate _ _ x = text x
  method escape x = x
 end
+
+(*w
+ * This formater adds escape sequences to do the syntax highlighting.
+ *)
 let consoleFormater:formater=
 object
  val decodeWeight=function
@@ -168,6 +186,10 @@ object
 
  method escape x = x
 end
+
+(*w
+ * This formatter outputs to colored latex
+ *)
 let texFormater=
 object
  val decodeWeight=function
@@ -216,11 +238,13 @@ object
   Buffer.contents b
 end
 
-let formater=ref
+let autoFormater=
  (if Unix.isatty Unix.stdout then
    consoleFormater
   else
    plainFormater)
+
+let formater=ref autoFormater
 
 let setTexFormat ()=formater:=texFormater
 
