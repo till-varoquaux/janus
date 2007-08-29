@@ -51,7 +51,7 @@ object
  method name="Optimisations"
  method spec=
   ("-noopt",(Arg.Unit (fun () -> optDisabled:=true)),"Disables all the optimisation passes")
-  ::("-shoptpasses",Arg.Unit passopt,"(undocumented)")
+  ::("-shoptpasses",Arg.Unit passopt,"<undocumented>")
   ::spec
  method description="Optimisations"
 end

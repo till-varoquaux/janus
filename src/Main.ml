@@ -17,7 +17,8 @@ let version ()=
 
 let specs=["-v",Arg.Unit version,"prints the version and exits";
            "-tex-out",Arg.Unit Printer.setTexFormat,"pretty prints the trees as"
-            ^ "tex code"
+            ^ "tex code";
+            "-stdin",Arg.Set readFromStdIn,"read data from standard in"
           ]
 
 let (++) f g x= g (f x)
@@ -44,7 +45,7 @@ let parse file=
 let process=
  parse++Cps.compile
 
-let specs=Cps.specs@specs
+let specs=Arg.align (Cps.specs@specs)
 
 let () =
  let file = ref None in

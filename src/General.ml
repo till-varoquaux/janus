@@ -33,17 +33,6 @@ module Option=
    | None -> null
  end
 
-module ListPlus=
- struct
-   let scan a l =
-    let rec aux i = function
-     | [] -> raise Not_found
-     | x::_ when x=a -> i
-     | _::t -> aux (i+1) t
-    in
-    aux 0 l
- end
-
 module List=
  struct
   include List
@@ -68,6 +57,26 @@ module String=
   let hash=Hashtbl.hash
  end
 
+module Arg=
+ struct
+  include Arg
+  let align specs=
+   let specCmp ((k1,_,_) as s1) ((k2,_,_) as s2) =
+    match String.compare k1 k2 with
+     | 0 -> compare s1 s2
+     | n -> n
+   and padd (k,f,des) =
+    if String.length des>0 && des.[0]!=' ' then
+     k,f,(" "^des)
+    else
+     k,f,des
+   in
+   let specs=List.sort
+    ~cmp:specCmp specs
+   in
+   let specs=List.map ~f:padd specs in
+   align specs
+ end
 module StringMap=Map.Make(String)
 module StringSet=Set.Make(String)
 module StringHashtbl=Hashtbl.Make(String)

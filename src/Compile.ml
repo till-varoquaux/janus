@@ -24,11 +24,21 @@ module Pass(In:Pass)(P:Run with type t=In.out):(Run with type t=In.from)=
  struct
   type t=In.from
   let dump=ref false
-  let specs=["-dump-"^In.name,Arg.Set dump,"<undocumented>"]@P.specs
+
+  let stop=ref false
+
+  let specs=["-dump-"^In.name,Arg.Set dump,"<undocumented>";
+             "-to-"^In.name,Arg.Set stop,"<undocumented>"
+            ]@P.specs
+
   let compile=
      fun p ->
       flush stdout;
       let x=In.trans p in
+      if !stop then begin
+       print_string (In.print x);
+       exit 0
+      end;
       if !dump then
        Printf.printf "%s\n==================\n" (In.print x);
       flush stdout;
