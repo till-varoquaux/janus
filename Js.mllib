@@ -35,3 +35,6 @@ CpsHoistInt
 CpsHoist
 CpsTrans
 EmitCpsHoistInt
+Parser
+Lexer
+ParseInfo

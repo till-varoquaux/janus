@@ -1,11 +1,11 @@
 var tmp=false;
-var warn=cps(msg,a){
+var warn=cpsfun(msg,a){
 	print(msg);
 	return a
 };
-tmp:=warn("ok",true) and false;
-tmp:=false and warn("fail",true);
-tmp:=true and warn("ok",true);
-tmp:=true or warn("fail",true);
-tmp:=false or warn("ok",true);
-tmp:=warn("ok",true) or false;
+tmp=warn("ok",true) and false;
+tmp=false and warn("fail",true);
+tmp=true and warn("ok",true);
+tmp=true or warn("fail",true);
+tmp=false or warn("ok",true);
+tmp=warn("ok",true) or false;

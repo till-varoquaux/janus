@@ -1,3 +1,7 @@
+(*w
+ * ==== The base grammar ====
+ * This is our base grammar, we will expand it to define the other grammars.
+ *)
 gram{
  ident := string;
  constant:= `Bool bool | `Int int | `Float float | `String string;
@@ -25,6 +29,6 @@ gram{
 | `Ret expr?
 | `Expr expr
 | `Var ident,expr?;
- ty;
+ ty;(*Our language is not typed*)
  program := [instr]
 }

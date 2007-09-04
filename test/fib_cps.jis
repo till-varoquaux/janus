@@ -1,4 +1,4 @@
-var fib=cps(n){
+var fib=cpsfun(n){
   if(n<=1){
     return n
   }else{

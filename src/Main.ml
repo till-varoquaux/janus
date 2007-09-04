@@ -17,29 +17,10 @@ let version ()=
 let specs=["-v",Arg.Unit version,"prints the version and exits";
            "-tex-out",Arg.Unit Printer.setTexFormat,"pretty prints the trees as"
             ^ "tex code";
+           "-html-out",Arg.Unit Printer.setHtmlFormat,"pretty prints the trees as"
+            ^ "html code";
             "-stdin",Arg.Set readFromStdIn,"read data from standard in"
           ]
-
-let (++) f g x= g (f x)
-
-
-let parseError lexbuf s=
- Printf.eprintf "%s\n%s\n@." (Pos.locToString
-                               (Lexing.lexeme_start_p lexbuf,
-                                Lexing.lexeme_end_p lexbuf)) s;
- exit 1
-
-let parse fname chan=
- let lb = Lexing.from_channel chan in
- try
-  Lexer.setFile lb fname;
-  Parser.program Lexer.token lb
- with
-  | Lexer.Lexical_error s ->
-     parseError lb (Printf.sprintf "lexical error: %s" s)
-  | Parsing.Parse_error ->
-     parseError lb (Printf.sprintf "syntax error in parse rule: \"%s\""
-                     !ParseInfo.currentRule)
 
 let specs=Arg.align (Cps.specs@specs)
 
@@ -49,10 +30,10 @@ let () =
  try
   let ast=match !file,!readFromStdIn with
    |Some f,false ->
-     with_open_in f (parse f)
-   | None,true -> parse "<STDIN>" stdin
+     with_open_in f (Cps.parse f)
+   | None,true -> Cps.parse "<STDIN>" stdin
    | _ -> Arg.usage specs usage; exit 1
-  in Cps.compile ast
+  in print_string (Cps.compile ast)
  with e ->
   Printf.eprintf "Anomaly: %s\n@." (Printexc.to_string e);
   exit 2

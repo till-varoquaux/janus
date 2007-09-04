@@ -4,6 +4,9 @@
  * This modules handles the binding code for our compilation pass, it is used to
  * allow us to compile from one of our intermediate AST's.
  *
+ * TODO: handle properly dumpers and formatters in a clean way. Maybe using
+ * records the PXP way.
+ *
  *)
 
 module type Pass=
@@ -17,7 +20,7 @@ module type Pass=
 module type Run=
  sig
   type t
-  val compile:t->unit
+  val compile:t->string
   val specs:(Arg.key * Arg.spec * Arg.doc) list
  end
 
@@ -34,16 +37,14 @@ module Pass(In:Pass)(P:Run with type t=In.out):(Run with type t=In.from)=
              "-to-"^In.name,Arg.Set stop,"<undocumented>"
             ]@P.specs
 
-  let compile=
-     fun p ->
-      flush stdout;
+  let compile p=
       let x=In.trans p in
-      if !stop then begin
-       print_string (In.print x);
-       exit 0
-      end;
-      if !dump then
-       Printf.printf "%s\n==================\n" (In.print x);
-      flush stdout;
-      P.compile x
+      if !stop then
+       In.print x
+      else begin
+       if !dump then
+        Printf.printf "%s\n==================\n" (In.print x);
+       flush stdout;
+       P.compile x
+      end
  end

@@ -9,56 +9,52 @@ module D=Conv.Make(
   module Super=Base(S)
   include Super
 
-  (*w
-    Our language is typeless
-  *)
-  let ty _ = assert false
-
   let sameCall args el=
    try
     List.for_all2 (fun a e -> e=(`Ident a)) args el
    with Invalid_argument _ -> false
 
-  let rec unbloc= function
+  let rec flattenBloc= function
    | [] -> []
-   | `Bloc b::l -> b@(unbloc l)
-   | i::l -> i::(unbloc l)
+   | `Bloc b::l -> b@(flattenBloc l)
+   | i::l -> i::(flattenBloc l)
 
   (*w
-    This compiles a CPS call...
-
-    It returns an eventual function (which is the continuation) and an
-    identifier which is the name of the continuation.
-
-    ^^affect^^ is the name of the variable where the return value will be stored
+   *  This compiles a CPS call...
+   *
+   * It returns an eventual function (which is the continuation) and an
+   * identifier which is the name of the continuation.
+   *
+   * ^^affect^^ is the name of the variable where the return value will be stored
   *)
   let cpsCall cont affect=
    let args= (match affect with
                | None -> []
                | Some i -> [i])
    in
-   match (unbloc cont) with
+   match (flattenBloc cont) with
      (*w
-       we don't need to make a new function, the continuation is already a
-       function...
-
-       We could return an expression but the hoisting pass would have to
-       recognize duplicate anonymous functions.
-     *)
-    | [`Call(`Ident id,args2)] | [`Ret (Some (`Call(`Ident id,args2)))]
-        when ((sameCall args args2) && (not (List.mem id args))) ->
-       [],(`Ident id)
+      * we don't need to make a new function, the continuation is already a
+      * function...
+      *
+      * We could return an expression but the hoisting pass would have to
+      * recognize duplicate anonymous functions.
+      *)
+    | ([`Call(`Ident id,args2);`Ret None] | [`Call(`Ident id,args2)])
+      when ((sameCall args args2) && (not (List.mem id args))) -> [],(`Ident id)
     | b ->
-       let fname=TypeEnv.fresh ~hint:"CpsCont" () in
+       let fname=TypeEnv.fresh ~hint:"$CpsCont" () in
        [(`Fundecl (fname,args,`Bloc b))],(`Ident fname)
 
   let rec expr= function
-   | `CpsFun (al,b) -> `Fun ((return::al),maybeCpsInstr b)
+   | `CpsFun (al,b) -> `Fun ((return::al),`Bloc[maybeCpsInstr b;`Call ((`Ident return),[])])
    | #In.expr as e -> Super.expr e
 
-  and instr i =
-   let c=instr' i [] in
-   `Bloc c
+  and instr= function
+    (*These expressions can only be converted in cps translated code*)
+   | `Throw _ | `CallCC _ | `CpsCall _
+   | `CpsRet _ | `Abort | `Cps _ -> assert false
+   | #In.instr as i -> Super.instr i
 
   and cpsInstr i =
    let c=cpsInstr' i [] in
@@ -68,45 +64,37 @@ module D=Conv.Make(
    let c=maybeCpsInstr' i [] in
    `Bloc c
 
-  (*w
-    Compils an instruction with a given continuation
-  *)
-  and instr' i cont=
-   match i with
-    (*These expressions can only be converted in cps translated code*)
-    | `Throw _ | `CallCC _ | `CpsCall _ | `CpsRet _ | `Abort -> assert false
-    | `Bloc b -> bloc b cont
-    | `Cps i -> cpsInstr' i cont
-    | `If (e,b1,b2) -> `If (expr e,`Bloc (instr' b1 []),`Bloc (instr' b2 []))::cont
-    | `While (e,i) -> `While(expr e,`Bloc (instr' i []))::cont
-    | #In.instr as i -> (Super.instr i)::cont
-
-  and cpsInstr' i cont=
+  and cpsInstr' ?(top=false) i cont=
+   let cps=
+    if top then
+     fun head i -> head@[i]
+    else
+     fun head i -> head@[i;`Ret None]
+   in
    match i with
     | `Ret _ -> assert false
     | `CpsCall (a,e,el) ->
        let head,cont=cpsCall cont a
        and el=List.map expr el in
-       head@[`Call (expr e,cont::el)]
-    | `Cps i -> cpsInstr' i cont
-    | `Throw (k,e) ->[`Call (expr k,[expr e]);`Ret None]
-    | `Abort -> [`Ret None]
+       cps head (`Call (expr e,cont::el))
+    | `Cps i -> cpsInstr' ~top:top i cont
+    | `Throw (k,e) ->
+       cps [] (`Call (expr k,[expr e]))
+    | `Abort ->
+       if top then
+        []
+       else
+        [`Ret None]
     | `CallCC (a,e,el) ->
        let head,cont=cpsCall cont a
        and el=List.map expr el in
        head@[`Call(expr e,cont::cont::el)]
     | `CpsRet (Some e) ->
-       [`Ret (Some(
-               `Call ((`Ident return),[expr e])
-             ))
-       ]
+       cps [] (`Call (`Ident return,[expr e]))
     | `CpsRet None ->
-       [`Ret (Some(
-               `Call ((`Ident return),[])
-              ))
-       ]
+       cps [] (`Call (`Ident return,[]))
     | `If (e,b1,b2) ->
-       let head,cont=match (unbloc cont) with
+       let head,cont=match (flattenBloc cont) with
         | [] -> [],[]
         | [`Call(`Ident id,[])] | [`Ret (Some (`Call(`Ident id,[])))] ->
            [],[`Call (`Ident id,[])]
@@ -114,31 +102,35 @@ module D=Conv.Make(
            let k=TypeEnv.fresh ~hint:"Ite" () in
            [`Fundecl(k,[],`Bloc b)],[`Call(`Ident k,[])]
        in
-       let e1=instr' b1 cont in
-       let e2=instr' b2 cont in
+       let e1=maybeCpsInstr' ~top:top b1 cont in
+       let e2=maybeCpsInstr' ~top:top b2 cont in
        head@[`If (expr e,`Bloc e1,`Bloc e2)]
     | `While (e,i) ->
        let k=TypeEnv.fresh ~hint:"While" () in
        let cont'=[`Call ((`Ident k),[])] in
-       let i=instr' i cont' in
+       let i=maybeCpsInstr' ~top:top i cont' in
        [`Fundecl (k,[],`Bloc [`If((expr e),(`Bloc i),(`Bloc cont))]);
         `Call (`Ident k,[])]
-    | `Bloc b -> bloc b cont
+    | `Bloc b -> cpsBloc ~top:top b cont
     | `Var _ | `Assign _ | `Call _ | `Expr _ -> assert false
 
-  and maybeCpsInstr' i cont =
+  (*w
+   * Compile an instruction that could be either a cps instruction or a simple
+   * one. ^^cont^^ is the continuation (given as a list of instructions), and
+   * top is a boolean telling us wether we are in a function or not.
+   *)
+  and maybeCpsInstr' ?(top=false) i cont =
    match i with
-    | `Cps i -> cpsInstr' i cont
-    | _ -> instr' i cont
+    | `Cps i -> cpsInstr' ~top:top i cont
+    | `Throw _ | `CallCC _ | `CpsCall _
+    | `CpsRet _ | `Abort -> assert false
+    | #In.instr as i -> (Super.instr i)::cont
 
-  and cpsBloc b cont =
-   List.fold_right cpsInstr' b cont
-
-  and bloc b cont =
-   List.fold_right instr' b cont
+  and cpsBloc ?(top=false) b cont =
+   List.fold_right (maybeCpsInstr' ~top:top) b cont
 
   and program p=
-   List.fold_right maybeCpsInstr' p []
+   List.fold_right (maybeCpsInstr' ~top:true) p []
 
  end)
 

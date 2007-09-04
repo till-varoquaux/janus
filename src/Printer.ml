@@ -3,25 +3,27 @@
  *
  * This is the base module of all our pretty printers. Pretty-printing is
  * separated in two phase: indenting and syntax highlighting. The syntax
- * highlighting phase uses 
+ * highlighting phase uses a "formatter" wich can be swapped at
+ * runtime. Formatters take care of the device dependant part of the pretty
+ * printing such as escaping characters or adding colors.
  *)
 
 (*w ==Formatter module==
-  We are using the Pp module from Christian Liding
-*)
+ * We are using the Pp module from Christian Liding
+ *)
 include Pp
 open General
 
 (*w
-  This indicates a point where we can break a line when formatting.
-*)
+ *  This indicates a point where we can break a line when formatting.
+ *)
 let breakNull=breakWith ""
 
 (*w
-  Pretty print a list of elements. Takes the list of elements to pretty print,
-  the function used to pretty an element and the separator to insert in beetween
-  pretty printed elements.
-*)
+ * Pretty print a list of elements. Takes the list of elements to pretty print,
+ * the function used to pretty an element and the separator to insert in
+ * beetween pretty printed elements.
+ *)
 let join (conv:'a -> doc) (l:'a list) (sep:doc):doc=
  let first=ref true in
  List.fold_left l
@@ -52,12 +54,12 @@ open General
 module P=Printf
 
 (*w
-  ==Pretty printing style==
-
-  Stylesheets add decoration (formatting information) to the output. They are
-  represented as classes and can be changed during runTime. The styleSheet model
-  is not threadsafe and has a very imperative feel.
-*)
+ * ==Pretty printing style==
+ *
+ * Stylesheets add decoration (formatting information) to the output. They are
+ * represented as classes and can be changed during runTime. The styleSheet
+ * model is not threadsafe and has a very imperative feel.
+ *)
 type weight=
  | Normal
  | Bold
@@ -75,9 +77,10 @@ type color=
  | White
  | DefaultColor
 
-(*w Stylesheets just contain informations on how color and weights to give to
-  every keyword.
-*)
+(*w
+ * Stylesheets just contain informations on how color and weights to give to
+ * every keyword.
+ *)
 type styleSheet={
  cpar:color;
  cpunct:color;
@@ -220,8 +223,8 @@ object
    | _,(o,c) ->  (formatInst (o^col))^^(text txt)^^(formatInst c)
 
  (*w
-   This function escapes Strings to be printed as javascript strings
- *)
+  * This function escapes Strings to be printed as javascript strings
+  *)
  method escape s=
   let b=Buffer.create (String.length s) in
   let a= Buffer.add_string b in
@@ -238,6 +241,56 @@ object
   Buffer.contents b
 end
 
+(*w
+ * This formatter outputs to colored html
+ *)
+let htmlFormater=
+object
+ val decodeWeight=function
+  | Normal -> "",""
+  | Bold -> "<b>","</b>"
+  | Underscore -> "<u>","</u>"
+  | DefaultWeight -> "",""
+
+ val decodeColor=function
+  | Black -> "black"
+  | Red -> "red"
+  | Green -> "green"
+  | Yellow -> "yellow"
+  | Blue -> "blue"
+  | Pink -> "magenta"
+  | LightBlue -> "lightblue"
+  | White -> "white"
+  | DefaultColor -> assert false
+
+ method decorate color weight txt =
+  let col=if color=DefaultColor then
+   "",""
+  else
+   (P.sprintf "<font color=\"%s\">" (decodeColor color)),"</font>"
+  in
+  match col,(decodeWeight weight) with
+   | ("",""),("{","}") -> text txt
+   | (o1,c1),(o2,c2) ->  (formatInst (o1^o2))^^(text txt)^^(formatInst (c2^c1))
+
+ (*w
+  * This function escapes Strings to be printed as javascript strings
+  *)
+ method escape s=
+  let b=Buffer.create (String.length s) in
+  let a= Buffer.add_string b in
+  let process=function
+   | '<' -> a "&lt;"
+   | '>' -> a "&gt;"
+   | '&' -> a "&amp;"
+   (*| '\n' -> a "\\\\\n\\mbox{}"*)
+   | c -> Buffer.add_char b c
+  in
+  String.iter ~f:process s;
+  Buffer.contents b
+end
+
+
 let autoFormater=
  (if Unix.isatty Unix.stdout then
    consoleFormater
@@ -247,6 +300,7 @@ let autoFormater=
 let formater=ref autoFormater
 
 let setTexFormat ()=formater:=texFormater
+let setHtmlFormat ()=formater:=htmlFormater
 
 let ssheet=ref defStyle
 
@@ -270,14 +324,14 @@ and bracket s =
  (par "[") ^^ s ^^ (par "]")
 
 (*w
-  This is just used to ensure we do NOT use ^^text^^ in the functions below...
-  It's an ugly yet effective hack.
-*)
+ * This is just used to ensure we do NOT use ^^text^^ in the functions below...
+ * It's an ugly yet effective hack.
+ *)
 let text = bottom
 
 (*w
-  ==Monadic traversal==
-*)
+ * ==Monadic traversal==
+ *)
 module PrinterMonad=
 struct
  exception NotImplemented
@@ -287,8 +341,8 @@ struct
 end
 
 (*w
-  A weak set of formated text
-*)
+ * A weak set of formated text
+ *)
 module Ws=
  Weak.Make(
   struct
@@ -299,8 +353,8 @@ module Ws=
  )
 
 (*w
-  A bunch of convenience functions required by all the printers.
-*)
+ * A bunch of convenience functions required by all the printers.
+ *)
 module type ConvIn=
 sig
  module In:

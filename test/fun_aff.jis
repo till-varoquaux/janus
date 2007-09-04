@@ -2,7 +2,7 @@ var a=function(){
 	print(1);
 };
 var b=function(){
-	a:=function(){
+	a=function(){
 		print(2);
 	};
 };

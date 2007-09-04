@@ -1,3 +1,12 @@
+(*w
+ * ====Hoisting of instructions====
+ *
+ * This pulls all the instructions marked  with ^^`Hoist^^ (defined in
+ * [[AstCpsHoit.ml.html|AstCpsHoist]]). These instructions should be executed
+ * before the expression they mark is evaluated, they should also be evaluated
+ * when and only when the expression they mark is evaluated.
+ *
+ *)
 module CpsMonad=
 struct
  type 'a m = 'a * (AstCpsInt.instr list)
@@ -50,10 +59,13 @@ module T=Conv.Make(
    | #e' as e -> Super.expr e
 
   let instr= function
-(*   | `Cps i ->
-      (match Super.instr i with
-        | i,[] -> `Cps i,[]
-        | i,ctx -> `Bloc (ctx@[`Cps i]),[])*)
+   | `While(e,b) ->
+      let e,ctx = S.expr e
+      and b,_ = S.instr b in
+      let _ = b,e,ctx in
+      (match ctx with
+        | [] -> `While(e,b),[]
+        | _ -> `Bloc (ctx@[`While(e,`Bloc (b::ctx))]),[])
    | i ->
       (match Super.instr i with
         | i,[] -> i,[]

@@ -11,6 +11,7 @@ let opt=new Optimise.opt
 
 let specs=opt#spec
 let compile p=
- print_string(EmitJs.print(opt#run p));
- TypeEnv.clear()
+ let r=(EmitJs.print(opt#run p)) in
+ TypeEnv.clear();
+ r
 type t=AstJs.program

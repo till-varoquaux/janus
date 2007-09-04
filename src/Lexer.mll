@@ -9,8 +9,9 @@
     let h = Hashtbl.create 17 in
     List.iter (fun (s,k) -> Hashtbl.add h s k)
      [ "if", If; "else", Else; "while", While; "and", And;"not", Not; "var",
-       Var;"or", Or; "function", Function;"cps",Cps;"return", Return;
-       "throw",Throw; "callcc",CallCC; "abort",Abort; "blocking",Block];
+       Var;"or", Or; "function", Function;"cpsfun",Cps;"return", Return;
+       "throw",Throw; "callcc",CallCC; "abort",Abort; "blocking",Block;
+       "for",For];
     fun s -> try Hashtbl.find h s with Not_found -> Ident s
 
   let setFile lexbuf file =
@@ -155,6 +156,5 @@ and comment = parse
  | eof  { raise (Lexical_error "unterminated comment") }
 
 and comment2 = parse
- | "\n"  { () }
+ | "\n"  { newline lexbuf;() }
  | _    { comment2 lexbuf }
- | eof  { raise (Lexical_error "unterminated comment") }

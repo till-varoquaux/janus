@@ -1,5 +1,5 @@
-var fact = cps(n){
-  if(n=0){
+var fact = cpsfun(n){
+  if(n==0){
     return 1;
   }else{
     return n*fact(n-1);
