@@ -3,7 +3,7 @@ include Compile.Pass(
  struct
   type from=AstCpsInt.program
   type out=AstCpsMarked.program
-  let trans=CpsPropagate.run
+  let trans=CpsMark.run
   let print=EmitCpsMarked.print
   let name="cpsint2"
  end)(

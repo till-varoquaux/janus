@@ -1,12 +1,30 @@
+(*w
+ * ====Cps conversion 2/2 ====
+ * This is the second part of the cps conversion. In the input code all the
+ * operations to convert are marked.
+ *
+ * None of the instructions have CPS function calls as
+ * there argumenent (that is: there are no Cps expression). This is reminiscent
+ * of [[http://en.wikipedia.org/wiki/Administrative_normal_form|A normal form]].
+ *
+ * **TODO**: There are some ad-hoc hacks to avoid introducing unnecessary lambda
+ * terms. These should be removed and replaced by more general javascript
+ * optimisation passes (administrative reductions).
+ *
+ * **Grade** E
+ *)
+
+
+
 let return="$cont"
 
 module Conv=AstJs.Trav.TranslateFrom(AstCpsMarked)(Monad.Id)
-open Conv
+(*open Conv*)
 
 module D=Conv.Make(
- functor(S:Translation) ->
+ functor(S:Conv.Translation) ->
  struct
-  module Super=Base(S)
+  module Super=Conv.Base(S)
   include Super
 
   let sameCall args el=
@@ -48,13 +66,13 @@ module D=Conv.Make(
 
   let rec expr= function
    | `CpsFun (al,b) -> `Fun ((return::al),`Bloc[maybeCpsInstr b;`Call ((`Ident return),[])])
-   | #In.expr as e -> Super.expr e
+   | #Conv.In.expr as e -> Super.expr e
 
   and instr= function
     (*These expressions can only be converted in cps translated code*)
    | `Throw _ | `CallCC _ | `CpsCall _
    | `CpsRet _ | `Abort | `Cps _ -> assert false
-   | #In.instr as i -> Super.instr i
+   | #Conv.In.instr as i -> Super.instr i
 
   and cpsInstr i =
    let c=cpsInstr' i [] in
@@ -106,7 +124,7 @@ module D=Conv.Make(
        let e2=maybeCpsInstr' ~top:top b2 cont in
        head@[`If (expr e,`Bloc e1,`Bloc e2)]
     | `While (e,i) ->
-       let k=TypeEnv.fresh ~hint:"While" () in
+       let k=TypeEnv.fresh ~hint:"CpsWhile" () in
        let cont'=[`Call ((`Ident k),[])] in
        let i=maybeCpsInstr' ~top:top i cont' in
        [`Fundecl (k,[],`Bloc [`If((expr e),(`Bloc i),(`Bloc cont))]);
@@ -123,8 +141,8 @@ module D=Conv.Make(
    match i with
     | `Cps i -> cpsInstr' ~top:top i cont
     | `Throw _ | `CallCC _ | `CpsCall _
-    | `CpsRet _ | `Abort -> assert false
-    | #In.instr as i -> (Super.instr i)::cont
+    | `CpsRet _ | `Abort -> assert false (*These should be marked*)
+    | #Conv.In.instr as i -> (Super.instr i)::cont
 
   and cpsBloc ?(top=false) b cont =
    List.fold_right (maybeCpsInstr' ~top:top) b cont

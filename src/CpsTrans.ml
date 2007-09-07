@@ -1,6 +1,21 @@
 (*w
-  This pass does all the type checking and marking for cps translations.
-*)
+ * ====Cps conversion 1/2====
+ * This pass does all the type checking. In this pass types are erased,
+ * variables are renamed to have a unique name. Since we remove types we Cps
+ * calls are differenciated from normal function calls.
+ *
+ * **TODO** this pass needs a real cleanup, the code is gruesome.
+ *
+ * A solution could be to split this pass in three different passes:
+ *
+ * - variables are renamed to have a unique name.
+ *
+ * - Types are erased.
+ *
+ * - Change cps expressions to instruction contexts.
+ *
+ * **Grade** F
+ *)
 open Pos
 open General
 open AstStd
@@ -12,8 +27,8 @@ type lvalue'=AstCpsHoistInt.lvalue
 type ctx=instr' list
 
 (*w
-   This is the type of a compiled function call...
-*)
+ *This is the type of a compiled function call...
+ *)
 type compiledCall={
  cps:bool;
  args:expr' list;
@@ -22,8 +37,8 @@ type compiledCall={
 
 let nullInstr=`Bloc []
 (*w
-  The error message to print when an identifier is defined twice
-*)
+ * The error message to print when an identifier is defined twice
+ *)
 let redef ?previousPos pos id =
  match previousPos with
   | None ->error ~pos:pos (Printf.sprintf "cannot redefine \"%s\"" id)
@@ -37,8 +52,8 @@ let redef ?previousPos pos id =
 let cont=dummyId "cont"
 
 (*w
-  Checks wether no identifier is defined twice in the list given as an argument.
-*)
+ * Checks wether no identifier is defined twice in the list given as an argument.
+ *)
 let checkRedefs (l:ident list)=
  let defList=StringHashtbl.create 17 in
  List.iter l
@@ -51,8 +66,8 @@ let checkRedefs (l:ident list)=
 let ident=TypeEnv.ident
 
 (*w
-   Returns the type of an expression in a given environement
-*)
+ *  Returns the type of an expression in a given environement
+ *)
 let rec typeExpr env=function
  | `Pos _ as p -> protect (typeExpr env) p
  | `Typed (_,ty) -> ty
@@ -75,8 +90,8 @@ and typeLvalue env=function
  | `Access _ -> error "not handling objects yet"
 
 (*w
-   Checks that two types are compatible; raises an error if not.
-*)
+ *  Checks that two types are compatible; raises an error if not.
+ *)
 let rec compatible t1 t2=
  match (t1,t2) with
   | `T,`T -> ()
@@ -107,8 +122,8 @@ let rec lvalue env:lvalue ->lvalue'=
      `ArrayAccess (lv,e)
 
 (*w
-  Checks the args in a function call...
-*)
+ *   Checks the args in a function call...
+ *)
 and checkArg env al tyl=
  try
   List.iter2 ~f:(fun e ty -> compatible (typeExpr env e) ty ) al tyl
@@ -123,8 +138,8 @@ and args env al : (expr' list)=
  List.fold_right al ~f:arg ~init:[]
 
 (*w
-  Takes a function call and returns all the necessary informations to compil it.
-*)
+ * Takes a function call and returns all the necessary informations to compil it.
+ *)
 and callCompile env (`Call (e,al)) : compiledCall =
   let funTy= typeExpr env e in
  (match funTy with
@@ -141,10 +156,10 @@ and callCompile env (`Call (e,al)) : compiledCall =
  }
 
 (*w
-  Converts an expression
-
-  ^^eType^^ Is used to keep the type information.
-*)
+ * Converts an expression
+ *
+ * ^^eType^^ Is used to keep the type information.
+ *)
 and expr ?(eType=(`T:ty)) env:expr -> expr'=function
  | `Pos _ as p -> protect (expr ~eType:eType env) p
  | `Typed (e,t) -> expr env e ~eType:t
@@ -322,5 +337,4 @@ and fbloc env b : instr' =
 let program (p:program):program'=
  fst (bloc TypeEnv.empty p)
 
-let run=
- program
+let run = program

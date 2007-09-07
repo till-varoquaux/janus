@@ -1,17 +1,18 @@
 (*w
-  This file contains many general utility functions. It is yet another extension
-  to the standard library.
-*)
+ * ====Standard library====
+ * This file contains many general utility functions. It is yet another
+ * extension to the standard library.
+ *
+ * **Grade** C
+ *)
 
 (*w
-  Ocaml's stdlib seems to be strangely lacking of some basic features. This
-  module stub is inspired by
-  [[http://ocaml-lib.sourceforge.net/doc/Option.html|ExtLib's option
-  module]].
-*)
+ * Ocaml's stdlib seems to be strangely lacking of some basic features. This
+ * module stub is inspired by
+ * [[http://ocaml-lib.sourceforge.net/doc/Option.html|ExtLib's option
+ * module]].
+ *)
 
-open StdLabels
-open MoreLabels
 module Option=
  struct
   exception No_value
@@ -32,6 +33,10 @@ module Option=
    | Some v -> v
    | None -> null
  end
+
+
+open StdLabels
+open MoreLabels
 
 module List=
  struct
@@ -82,9 +87,11 @@ module StringSet=Set.Make(String)
 module StringHashtbl=Hashtbl.Make(String)
 
 let (|>) a b = b a
-(*w ==Bottom type and value ==
-  The type bottom is inhabited by a single abstract value.
-*)
+
+(*w
+ * ==Bottom type and value ==
+ * The type bottom is inhabited by a single abstract value.
+ *)
 module Abstract:sig
  type t
  val v:t
@@ -99,14 +106,14 @@ let bottom:bottom=Abstract.v
 
 
 (*w
-  ===Input/output===
-*)
+ * ===Input/output===
+ *)
 (*w
   ==Reading channels==
 *)
 (*w
-   Reads the whole content from a channel
-*)
+ * Reads the whole content from a channel
+ *)
 let channelToString ic=
  let b=Buffer.create 17 in
  try
@@ -118,9 +125,9 @@ let channelToString ic=
   Buffer.contents b
 
 (*w
-  Reads an input channel to a list of strings, each string corresponds to a
-  line.
-*)
+ * Reads an input channel to a list of strings, each string corresponds to a
+ * line.
+ *)
 let channelToStringList ic=
  let b=Buffer.create 17
  and res=ref [] in
@@ -142,18 +149,18 @@ let channelToStringList ic=
   end
 
 (*w
-  ==Openning/Closing channels==
-
-  We will ensure atomicity of reads and writes using a technique from the lisp
-  world: instead of letting the user open and close channels we new ask him to
-  pass a function working on a channel and will wrap the context of this
-  function with the open/close operations
-*)
+ * ==Openning/Closing channels==
+ *
+ * We will ensure atomicity of reads and writes using a technique from the lisp
+ * world: instead of letting the user open and close channels we new ask him to
+ * pass a function working on a channel and will wrap the context of this
+ * function with the open/close operations
+ *)
 
 (*w
-  ^^unwind_protect f g^^
-  runs f() then g() and outputs the result of f().
-*)
+ * ^^unwind_protect f g^^
+ * runs f() then g() and outputs the result of f().
+ *)
 let unwind_protect f g=
  let run f ()=
   match !f with
@@ -174,9 +181,9 @@ let unwind_protect f g=
  res
 
 (*w
-  This is the standard lisp way to proceed with file handles... Suprisingly it
-  is cleaner than what we usualy do in ocaml.
-*)
+ * This is the standard lisp way to proceed with file handles... Suprisingly it
+ * is cleaner than what we usualy do in ocaml.
+ *)
 let with_open_in filename f=
  let ch=open_in filename in
  unwind_protect (fun () -> f ch) (fun () -> close_in ch)
@@ -186,10 +193,10 @@ let with_open_out filename f=
  unwind_protect (fun () -> f ch) (fun () -> flush ch;close_out ch)
 
 (*w
-  We are now handling processes in a Lispish way. This function returns a tuple
-  composed of the result and the exit status.
-  Todo: stop dumping stderr.
-*)
+ * We are now handling processes in a Lispish way. This function returns a tuple
+ * composed of the result and the exit status.
+ * **Todo**: stop dumping stderr.
+ *)
 let with_open_process_full process f=
  let chs=Unix.open_process_full process [||] in
  let status=ref None in
@@ -197,6 +204,20 @@ let with_open_process_full process f=
                                   chs))) in
  res,(Option.get (!status))
 
+(*w
+ * **TODO**
+ * Actually we shouldn't be abstracting these away. It would seem fairer to have
+ * a subtyping relation beetween channel you can't close and channel you can
+ * (and should) close. If you want to be a lazy personn you could also assign
+ * the garbage collector to close them.
+ *
+ * Since channels are not classes there are no subtyping relations beetween
+ * them. Phantom types could be usefull here. Let's say you have:
+ *
+ * - ^^[> ] in_channel^^: an input channel (that you can't close).
+ *
+ * - ^^[> 'Closeable ] in_channel^^: a closeable input channel.
+ *)
 let open_out=bottom
 let open_in=bottom
 let close_out=bottom

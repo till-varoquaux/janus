@@ -1,8 +1,8 @@
 (*w
-  ====Suppresion of unneeded return instructions====
-  This pass identify the empty return placed at the end of a function. Since
-  functions call return implicitly when they end we migh as well remove them.
-*)
+ *  ====Suppresion of unneeded return instructions====
+ * This pass identify the empty return placed at the end of a function. Since
+ * functions call return implicitly when they end we might as well remove them.
+ *)
 
 module T=AstJs.Trav.Map(Monad.Id)
 
