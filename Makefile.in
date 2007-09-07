@@ -12,7 +12,7 @@ BUILDDIR=_build
 MISSING=${error Target disabled during configuration because "$1" was missing.}
 
 ifdef DEBUG
-	OCB += -cflag -g
+	OCB += -lflag -g -cflag -g
 else
 	OCB += -cflag -noassert
 #	OCB += -cflag -unsafe

@@ -27,13 +27,13 @@ let specs=Arg.align (Cps.specs@specs)
 let () =
  let file = ref None in
  Arg.parse specs (fun s -> file := Some s) usage;
- try
-  let ast=match !file,!readFromStdIn with
-   |Some f,false ->
-     with_open_in f (Cps.parse f)
-   | None,true -> Cps.parse "<STDIN>" stdin
-   | _ -> Arg.usage specs usage; exit 1
-  in print_string (Cps.compile ast)
- with e ->
+ (*try*)
+ let ast=match !file,!readFromStdIn with
+  |Some f,false ->
+    with_open_in f (Cps.parse f)
+  | None,true -> Cps.parse "<STDIN>" stdin
+  | _ -> Arg.usage specs usage; exit 1
+ in print_string (Cps.compile ast)
+ (*with e ->
   Printf.eprintf "Anomaly: %s\n@." (Printexc.to_string e);
-  exit 2
+  exit 2*)
