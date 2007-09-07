@@ -44,7 +44,7 @@ let eqWeak ?(idx=0) ptr value=
   | None -> false
 
 let (=:=) x y= eqWeak x y
-let check ?(idx=0) ptr = Weak.check ptr idx
+let nonNull ?(idx=0) ptr = Weak.check ptr idx
 
 let isNull ?(idx=0) ptr = not (Weak.check ptr idx)
 
@@ -87,7 +87,7 @@ let find t key=
  end else
   snd (List.find t.collisions.(bucketNum) ~f:(fun (k,_) -> k =:= key))
 
-let iter f t =
+let iter ~f t =
  for i = 0 to (Array.length t.values)-1 do
   begin
    match Weak.get t.keys i with
@@ -125,17 +125,16 @@ let resize t=
  and values=Array.make dim None
  and collisions=Array.make dim [] in
  t.size <- 0;
- iter
-  begin fun k v ->
-   t.size <- t.size+1;
-   let bucketNum =(hash k) mod dim in
-   if isNull ~idx:bucketNum keys then begin
-    Weak.set keys bucketNum (Some k);
-    values.(bucketNum) <- Some v
-   end else begin
-    collisions.(bucketNum) <- ((weakPtr k),v)::collisions.(bucketNum)
-   end
-  end t;
+ iter t
+  ~f:(fun k v ->
+       t.size <- t.size+1;
+       let bucketNum =(hash k) mod dim in
+       if isNull ~idx:bucketNum keys then begin
+        Weak.set keys bucketNum (Some k);
+        values.(bucketNum) <- Some v
+       end else begin
+        collisions.(bucketNum) <- ((weakPtr k),v)::collisions.(bucketNum)
+       end);
  t.keys <- keys;
  t.values <- values;
  t.collisions <- collisions
@@ -184,7 +183,7 @@ let add t key value=
 let compact t =
  let sz=ref 0 in
  for i = 0 to (Array.length t.values)-1 do
-  let l=List.filter t.collisions.(i) ~f:(fun (k,_) -> check k && (incr sz;true)) in
+  let l=List.filter t.collisions.(i) ~f:(fun (k,_) -> nonNull k && (incr sz;true)) in
   match Weak.get t.keys i with
    | Some _ -> incr sz; t.collisions.(i) <- l
    | None ->
