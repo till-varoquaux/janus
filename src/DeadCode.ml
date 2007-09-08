@@ -3,8 +3,7 @@
  *
  * This pass performs dead code elimination in JS code. It is avery simple pass
  * and will only remove code situated directly after a ^^return^^
- * instruction. Changing it to handle ^^while^^ loops (^^break^^ and
- * ^^continue^^) should be easy.
+ * instruction.
  *
  * A more involved future evolution would be ro replace this pass alltogether
  * with a
@@ -38,14 +37,13 @@ module D=T.Make(functor(S:T.Translation) ->
    * if an instruction in the list returns the rest of the list is
    * deadcode and therefor is dropped
    *)
-  let bloc b =
-   let rec aux processed= function
-    | [] -> processed,false
-    | x::l ->match S.instr x with
-       | x,true -> x::processed,true
-       | x,false -> aux (x::processed) l   in
-   let l,ret=aux [] b in
-   (List.rev l),ret
+  let rec bloc=function
+   | [] -> [],false
+   | h::t -> match S.instr h with
+      | x,true -> [x],true
+      | x,false ->
+         let t',ret = bloc t in
+         (x::t'),ret
 
   let instr = function
    | `Bloc b ->
@@ -54,13 +52,16 @@ module D=T.Make(functor(S:T.Translation) ->
    | `Ret (Some e) ->
       let (e,_) = S.expr e in
       `Ret (Some e),true
-   | `Ret None ->
-      `Ret None,true
+   | (`Ret None | `Continue _ | `Break _ )as i -> i,true
    | `If (e,b1,b2) ->
       let (e,_) = S.expr e
       and (b1,c1) = S.instr b1
       and (b2,c2) = S.instr b2 in
       (`If (e,b1,b2)),(c1 && c2)
+   | `While (e,b) ->
+      let (e,_) = S.expr e
+      and (b,_) = S.instr b in
+      `While (e,b),false
    | i -> Super.instr i
  end)
 

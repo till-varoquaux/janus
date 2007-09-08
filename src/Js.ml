@@ -1,10 +1,10 @@
 let opt=new Optimise.opt
  [
-  DeadCode.pass;
   BranchMerger.pass;
   IdentFunDecls.pass;
   Hoisting.pass;
   TailRec.pass;
+  DeadCode.pass;
   TailRet.pass;
   Unbloc.pass
  ]
