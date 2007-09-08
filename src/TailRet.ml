@@ -2,6 +2,8 @@
  *  ====Suppresion of unneeded return instructions====
  * This pass identify the empty return placed at the end of a function. Since
  * functions call return implicitly when they end we might as well remove them.
+ *
+ * Unused continues in while loops and labels are also removed.
  *)
 
 type pos = LoopTail | FunTail | Normal
@@ -35,7 +37,9 @@ module D'=Mapper.Make(
     | `Fundecl(name,args,body) ->
        `Fundecl(name,args,S.instr body FunTail None)
     | `Ret None when pos=FunTail -> `Bloc []
-    | `Continue i when (pos=LoopTail) && (loopName=Some i) -> `Bloc []
+    | `Continue (Some i) when (pos=LoopTail) && (loopName=Some i) -> `Bloc []
+    | `Continue None when (pos=LoopTail) -> `Bloc []
+    | `Continue (Some i) when (loopName=Some i) -> `Continue None
     | `If (e,i1,i2) ->
        let e'=S.expr e Normal loopName
        and i1'=S.instr i1 pos loopName
@@ -48,7 +52,11 @@ module D'=Mapper.Make(
     | `Labeled(lbl,`While(e,i)) ->
        let e'=S.expr e Normal (Some lbl)
        and i'=S.instr i LoopTail (Some lbl) in
-       `Labeled(lbl,`While(e',i'))
+       let w=`While(e',i') in
+       if ScopeInfo.isUsedLabel lbl w then
+        `Labeled(lbl,w)
+       else
+        w
     | `Labeled(lbl,i) ->
        `Labeled(lbl, S.instr i pos loopName)
     | `Bloc b -> `Bloc (bloc b pos loopName)
