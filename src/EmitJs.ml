@@ -52,8 +52,10 @@ struct
       (kwd "if") ^^ (cond e) ^^ (blocOrInstr ~breakAfter:true b1) ^^
        (kwd "else ")^^(S.instr b2)
    | `Labeled (lbl,i) -> (ident lbl) ^^(punct ":")^^(S.instr i)
-   | `Continue lbl -> (kwd "continue") ^^ break ^^ (ident lbl)
-   | `Break lbl -> (kwd "break") ^^ break ^^ (ident lbl)
+   | `Continue (Some lbl) -> (kwd "continue") ^^ break ^^ (ident lbl)
+   | `Continue None -> kwd "continue"
+   | `Break (Some lbl) -> (kwd "break") ^^ break ^^ (ident lbl)
+   | `Break None -> kwd "break"
    | #Conv.In.instr as i -> Super.instr i
   in
    grpInstr r

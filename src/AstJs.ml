@@ -8,8 +8,8 @@ gram extends AstBase{
  instr:=
 | `Fundecl ident,[ident],instr
 | `Labeled ident,instr
-| `Break ident
-| `Continue ident
+| `Break ident?
+| `Continue ident?
     (*w
      * This is used to push an object on the stack, the ^^ident list^^ is a
      * signature of the object we shall push.
