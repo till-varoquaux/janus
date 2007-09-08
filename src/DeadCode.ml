@@ -10,7 +10,9 @@
  * [[http://en.wikipedia.org/wiki/Sparse_conditional_constant_propagation|sparse
  * constant propagation]] pass. This would require implementing SSA somewhere in
  * the compiler.
-*)
+ *
+ * **Grade** C
+ *)
 
 (*w
  * This monad allows to pass as addictional information a boolean telling
