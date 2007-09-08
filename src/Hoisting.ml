@@ -41,8 +41,7 @@ module Hoist=T.Make(
   let sepCaptured locals=
    List.partition
     ~f:(fun i ->
-         let sc = ScopeInfo.instr i in
-         List.exists ~f:(fun v -> ScopeInfo.isCaptured v sc) locals)
+         List.exists ~f:(fun v -> ScopeInfo.isCaptured v i) locals)
 
   (*w
    * Get the named of a declared function.
@@ -64,7 +63,7 @@ module Hoist=T.Make(
   let fundecl name args body=
    let hInstr,hFuns=instr body [] in
    let locals =
-    ScopeInfo.foldDefined (ScopeInfo.instr body)
+    ScopeInfo.foldDefined body
      ~init:args
      ~f:(fun i loc -> i::loc)
    in
@@ -74,7 +73,7 @@ module Hoist=T.Make(
      ~init:SS.empty
      ~f:(fun s i -> SS.add (getFname i) s)
    in
-   let vars = ScopeInfo.foldDefined (ScopeInfo.instr body)
+   let vars = ScopeInfo.foldDefined body
     ~init:[]
     ~f:(fun i loc -> if not (SS.mem i fNames) then `Var (i,None)::loc else loc)
    in

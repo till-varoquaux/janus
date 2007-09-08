@@ -36,19 +36,22 @@ type scopes=
   {
    defined:SS.t;
    read:SS.t;
-   captured:SS.t
+   captured:SS.t;
+   usedLabels:SS.t
   }
 
 let empty={
  defined=SS.empty;
  read=SS.empty;
- captured=StringSet.empty
+ captured=SS.empty;
+ usedLabels=SS.empty
 }
 
 let merge m1 m2={
- defined=StringSet.union m1.defined m2.defined;
- read=StringSet.union m1.read m2.read;
- captured=StringSet.union m1.captured m2.captured;
+ defined=SS.union m1.defined m2.defined;
+ read=SS.union m1.read m2.read;
+ captured=SS.union m1.captured m2.captured;
+ usedLabels=SS.union m1.usedLabels m2.usedLabels;
 }
 
 let haveCommon m1 m2=
@@ -115,7 +118,8 @@ module D=T.Make(
        i,{
         read=cap;
         defined=SS.singleton name;
-        captured=cap
+        captured=cap;
+        usedLabels=SS.empty
          }
     | `WithCtx (e,b,locals) as i ->
        let _,ctx1 = S.instr b
@@ -125,13 +129,20 @@ module D=T.Make(
         read=SS.union ctx1.read (rmList locals ctx2.read);
         defined=SS.union ctx1.defined ctx2.defined;
         captured=
-         let bCap=rmList locals ctx2.captured in
-         SS.union ctx1.captured (if capturesLocal then
-                                  SS.union bCap ctx1.read
-                                 else
-                                  bCap
-                                )
+         (let bCap=rmList locals ctx2.captured in
+          SS.union ctx1.captured (if capturesLocal then
+                                   SS.union bCap ctx1.read
+                                  else
+                                   bCap
+                                 ));
+         usedLabels=SS.union ctx1.usedLabels ctx2.usedLabels
        }
+    | `Continue (Some lbl) | `Break (Some lbl) as i -> i,{ empty with
+                                       usedLabels=SS.singleton lbl}
+    | `Labeled (lbl,subI) as i->
+       let _,ctx=S.instr subI in
+       i,{ctx with
+           usedLabels=SS.remove lbl ctx.usedLabels}
     | i ->Super.instr i
    end
  end
@@ -140,11 +151,14 @@ module D=T.Make(
 let expr e= snd(D.expr e)
 let instr i= snd(D.instr i)
 
-let foldDefined sc ~f ~init=
- SS.fold sc.defined ~f:f ~init:init
+let foldDefined i ~f ~init=
+ SS.fold (instr i).defined ~f:f ~init:init
 
-let foldCaptured sc ~f ~init=
- SS.fold sc.captured ~f:f ~init:init
+let foldCaptured i ~f ~init=
+ SS.fold (instr i).captured ~f:f ~init:init
 
-let isCaptured v sc =
- SS.mem v sc.captured
+let isCaptured v i =
+ SS.mem v (instr i).captured
+
+let isUsedLabel l i =
+ SS.mem l (instr i).usedLabels
