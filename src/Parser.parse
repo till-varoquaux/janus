@@ -11,7 +11,7 @@
 
 %token If Else While For And Not Var Mod EOF
 %token Function Or  Return Cps T
-%token CallCC Throw Abort Block
+%token CallCC Throw Block
 
 /* Symbols */
 
@@ -187,7 +187,6 @@ instr_aux:
 | Block Lpar expr Rpar {`BlockingEv($3,[])}
 | Block Lpar expr Comma exprs Rpar {`BlockingEv($3,$5)}
 | Throw Lpar expr Comma expr Rpar {`Throw($3,$5)}
-| Abort {`Abort}
 | expr1 Lpar exprs Rpar {`Call($1,$3)}
 
 maybeInstr:

@@ -8,7 +8,6 @@ gram extends AstBase {
 | `CallCC expr,[expr]
 | `BlockingEv expr,[expr]
 | `Throw expr,expr
-| `Abort
 | super;
  expr :=
 | `CallCC expr,[expr]

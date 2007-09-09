@@ -312,10 +312,6 @@ and instr env : instr -> (instr'*TypeEnv.t)=
      let e'=expr env e
      and el'=List.map ~f:(expr env) el in
      `CallCC (None,e',el'),env
-  | `Abort ->
-     if not (TypeEnv.cps env) then
-      error "Cannot call a abort in a non cps function.";
-     `Abort,env
   | `While (e,b) ->
      let e=expr env e
      and b,_=instr env b in

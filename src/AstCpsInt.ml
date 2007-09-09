@@ -11,6 +11,5 @@ gram extends AstBase {
 | `CpsRet expr?
 | `CallCC ident?,expr,[expr]
 | `Throw expr,expr
-| `Abort
 | super
 }

@@ -30,7 +30,7 @@ module D=Conv.Make(functor(S:Conv.Translation) -> struct
       `CpsFun(args,PropMonad.run (S.instr i)),false
    | e -> Super.expr e
   let instr=function
-   | (`CpsCall _ | `CpsRet _ | `CallCC _ | `Throw _ | `Abort) as i ->
+   | (`CpsCall _ | `CpsRet _ | `CallCC _ | `Throw _ ) as i ->
       `Cps (PropMonad.run (Super.instr i)),true
    | #Conv.In.instr as i ->
       let i,cps=Super.instr i in

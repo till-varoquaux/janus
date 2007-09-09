@@ -39,7 +39,6 @@ struct
     | `CallCC (a,e,el) ->
        let args=join S.expr (e::el) (punct ",") in
        cpsAff a ((kwd "CallCC")^^ (par args))
-    | `Abort -> kwd "abort"
     | `Throw (e1,e2) ->
        (kwd "throw")^^(par ((S.expr e1)^^(punct ",")^^(S.expr e2)))
    in

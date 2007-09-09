@@ -10,8 +10,7 @@
     List.iter (fun (s,k) -> Hashtbl.add h s k)
      [ "if", If; "else", Else; "while", While; "and", And;"not", Not; "var",
        Var;"or", Or; "function", Function;"cpsfun",Cps;"return", Return;
-       "throw",Throw; "callcc",CallCC; "abort",Abort; "blocking",Block;
-       "for",For];
+       "throw",Throw; "callcc",CallCC; "blocking",Block; "for",For];
     fun s -> try Hashtbl.find h s with Not_found -> Ident s
 
   let setFile lexbuf file =

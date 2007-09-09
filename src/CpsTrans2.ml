@@ -71,7 +71,7 @@ module D=Conv.Make(
   and instr= function
     (*These expressions can only be converted in cps translated code*)
    | `Throw _ | `CallCC _ | `CpsCall _
-   | `CpsRet _ | `Abort | `Cps _ -> assert false
+   | `CpsRet _ | `Cps _ -> assert false
    | #Conv.In.instr as i -> Super.instr i
 
   and cpsInstr i =
@@ -98,11 +98,6 @@ module D=Conv.Make(
     | `Cps i -> cpsInstr' ~top:top i cont
     | `Throw (k,e) ->
        cps [] (`Call (expr k,[expr e]))
-    | `Abort ->
-       if top then
-        []
-       else
-        [`Ret None]
     | `CallCC (a,e,el) ->
        let head,cont=cpsCall cont a
        and el=List.map expr el in
@@ -141,7 +136,7 @@ module D=Conv.Make(
    match i with
     | `Cps i -> cpsInstr' ~top:top i cont
     | `Throw _ | `CallCC _ | `CpsCall _
-    | `CpsRet _ | `Abort -> assert false (*These should be marked*)
+    | `CpsRet _ -> assert false (*These should be marked*)
     | #Conv.In.instr as i -> (Super.instr i)::cont
 
   and cpsBloc ?(top=false) b cont =
