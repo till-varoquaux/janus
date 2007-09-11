@@ -1,28 +1,27 @@
 (*w
-  ====Open trees====
-
-  This is a camlp4 extension used to define extensible reccursive
-  types. Extension is done both through (hidden) open reccursion and polymorphic
-  variant types.
-
-  In order to ease tree transformations and traversal a module performing a
-  monadic Map also generated.
-
-  All the intermediates trees of the compiler are built via this extension. A
-  good number of the passes in compiler also use the defined mapping modules.
-
-  //WON'T FIX://
-  Error reporting is currently extremelly bad since no efforts have been
-  made. This extension is used only internally (AFAIK) so it seems to much of
-  a hassle for the benefit.
-*)
+ * ====Open trees====
+ *
+ * This is a camlp4 extension used to define extensible reccursive types.
+ * Extension is done both through (hidden) open reccursion and polymorphic
+ * variant types.
+ *
+ * In order to ease tree transformations and traversal a module performing a
+ * monadic Map also generated.
+ *
+ * All the intermediates trees of the compiler are built via this extension. A
+ * good number of the passes in compiler also use the defined mapping modules.
+ *
+ * //WON'T FIX://
+ * Error reporting is currently extremelly bad since no efforts have been
+ * made. This extension is used only internally (AFAIK) so it seems to much of
+ * a hassle for the benefit.
+ *)
 
 open General
 open Camlp4.PreCast
 open Syntax
 open Ast
 module Options=Camlp4.Options
-(*module L=ListLabels*)
 
 (*w
   Syntax extension options...
@@ -322,15 +321,15 @@ struct
   and genCom = genCom gram in
   function
    | Atom s when G.mem s gram -> <:expr< T.$lid:s$ >>
-   | Atom _ -> <:expr< return >>
-   | List it -> <:expr< mmap $self it$>>
+   | Atom _ -> <:expr< Mon.return >>
+   | List it -> <:expr< MonHelp.mmap $self it$>>
    | Tup l ->
       let pat,process = genCom (fun i -> <:expr< $i$ >>) l
       in <:expr< fun $pat$ -> $process$ >>
    | Option it ->
       let pat,process = genCom (fun i -> <:expr< Some $i$ >>) [it]in
       <:expr<function
-       | None -> return None
+       | None -> Mon.return None
        | Some $pat$ -> $process$
           >>
 
@@ -339,7 +338,7 @@ struct
   let idPats = List.map elems ~f:fun (i,_) -> <:patt< $id:i$ >> in
   let retEl = List.map elems ~f:fun (i,_) -> <:expr< $id:i$ >> in
   let process = genBinders gram
-   <:expr< return ($genRet (exList2ExCom retEl)$) >> elems
+   <:expr< Mon.return ($genRet (exList2ExCom retEl)$) >> elems
   in
   pattList2Pattern idPats,process
 
@@ -359,8 +358,8 @@ struct
    | [] -> expr
 
  and genRule gram name= function
-  | Other s -> <:match_case< #$lid:s$ as v -> return v >>
-  | Labeled (s,[]) -> <:match_case< `$s$ -> return `$s$ >>
+  | Other s -> <:match_case< #$lid:s$ as v -> Mon.return v >>
+  | Labeled (s,[]) -> <:match_case< `$s$ -> Mon.return `$s$ >>
   | Labeled (s,rl) ->
      let pat,process=genCom gram
       (fun i -> <:expr< `$s$ $i$>>)
@@ -369,12 +368,12 @@ struct
      let pat = Ast.PaApp (_loc,<:patt< `$s$ >>,pat) in
      <:match_case< $pat$ -> $process$ >>
   | Super ->
-     <:match_case< #In.$lid:name$ as i ->
-   Mon.bind ($lid:name$ i) ( fun i -> return (i :> (o Gram.$lid:name$)))
+     <:match_case< #Super.In.$lid:name$ as i ->
+   Mon.bind ($lid:name$ i) ( fun i -> Mon.return (i :> (o Gram.$lid:name$)))
    >>
 
  and genVariant gram = function
-  | s,[] -> <:match_case< $uid:s$ -> return $uid:s$ >>
+  | s,[] -> <:match_case< $uid:s$ -> Mon.return $uid:s$ >>
   | s,rl ->
      let pat,process=genCom gram
       (fun i -> <:expr< $uid:s$ $i$>>)
@@ -424,14 +423,19 @@ let genTrav gram=
     module Conv(From:AstDef)(To:AstDef)(Mon:Monad.T)=
     struct
      (*Monadic functions...**)
-     module MonHelp=Monad.Helper(Mon);;
-     open MonHelp;;
      $match gram.super with
       | None -> <:str_item< >>
       | Some i ->
           let conv = <:ident< $id:i$.Trav.Conv >> in
           <:str_item<module Super = $id:conv$(From)(To)(Mon) >>
           $;;
+     (*w
+      * These are the object types used to close the loop in ^^From^^ and
+      * ^^To^^. They are used to define partial transformation's type.
+      *)
+      type i=GetConstr(From).t
+      type o=GetConstr(To).t
+
 
       (*w
         This is a copy of the module specifying the input type (^^From^^)
@@ -454,77 +458,46 @@ module rec D:C=B(D);;
         This actually works in OCaml since types are statically resolved using
         the type level information. This might not be the case in future versions
         of OCaml. If this ever happens we will need to use another
-        technique. This is nothing we can't get do.
+        technique
       *)
-      module type In =
-      sig
-       $G.fold gram
-        ~init:<:sig_item< >>
-        ~f:(fun ~key:i ~data:_ acc -> <:sig_item<
-            type $lid:i$ = From.$lid:i$;;
-            $acc$>>)$
-      end
-
-
-      (*w
-        This is a copy of the output module residing at the type level (^^To^^).
-      *)
-      module type Out =
-      sig
-       $G.fold gram
-        ~init:<:sig_item< >>
-        ~f:(fun ~key:i ~data:_ acc -> <:sig_item<
-              type $lid:i$ = To.$lid:i$;;
-              $acc$>>)$
-      end
 
      (*w
-       Represents a full transformation of the tree from the types defined in
-       ^^From^^ to the types defined in ^^To^^.
-     *)
+      * Represents a full transformation of the tree from the types defined in
+      * ^^From^^ to the types defined in ^^To^^.
+      *)
       module type Translation =
       sig
        $G.fold gram
         ~init:<:sig_item< >>
         ~f:(fun ~key:i ~data:_ acc ->
                <:sig_item<
-              val $i$ : From.$lid:i$ -> To.$lid:i$ m;;
+              val $i$ : From.$lid:i$ -> To.$lid:i$ Mon.m;;
               $acc$
               >>)$
       end
 
-     (*w
-       These are the object types used to close the loop in ^^From^^ and
-       ^^To^^. They are used to define partial transformation's type.
-     *)
-      type i=GetConstr(From).t
-      type o=GetConstr(To).t
-
-      (*w
-        The whole tree is translated From -> To excepted the root which is kept
-        identical. In case of a Map partial transformations and full
-        transformations are indentical.
-      *)
-      module type PartialTranslation =
-      sig
-       open Gram
-        $G.fold gram
-        ~init:<:sig_item< >>
-        ~f:(fun ~key:i ~data:_ acc -> <:sig_item<
-            val $i$ : i $lid:i$ -> o $lid:i$ m;;
+      module In = struct
+       $G.fold gram
+        ~init:<:str_item< >>
+        ~f:(fun ~key:i ~data:_ acc ->
+             <:str_item<
+            type $lid:i$ = i Gram.$lid:i$;;
             $acc$>>)$
       end
 
-       $ match gram.super with
-        | None -> <:str_item< >>
-        | Some super -> <:str_item< module In = struct
-           $G.fold gram
-            ~init:<:str_item< >>
-            ~f:(fun ~key:i ~data:_ acc ->
-                 <:str_item<
-                type $lid:i$ = i $id:super$.Gram.$lid:i$;;
-                $acc$>>)$
-          end >>$;;
+      (*w
+       * The whole tree is translated From -> To excepted the root which is kept
+       * identical. In case of a Map partial transformations and full
+       * transformations are identical.
+       *)
+      module type PartialTranslation =
+      sig
+        $G.fold gram
+        ~init:<:sig_item< >>
+        ~f:(fun ~key:i ~data:_ acc -> <:sig_item<
+            val $i$ : In.$lid:i$ -> o Gram.$lid:i$ Mon.m;;
+            $acc$>>)$
+      end;;
 
       module type Ext=functor (T:Translation) -> PartialTranslation
 
@@ -532,6 +505,7 @@ module rec D:C=B(D);;
       module Base:Ext=
        functor(T:Translation) ->
       struct
+       module MonHelp=Monad.Helper(Mon);;
        $let st =match gram.super with
         | None -> <:str_item<
            >>

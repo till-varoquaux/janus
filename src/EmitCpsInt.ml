@@ -1,6 +1,8 @@
 (*w
-  ====AstCpsInt pretty printer====
-*)
+ * ====AstCpsInt pretty printer====
+ *
+ * This pretty printer is an extension of the one below it and is extensible...
+ *)
 open Printer
 
 module Process(From:AstCpsInt.Trav.AstDef)=
@@ -11,6 +13,7 @@ struct
  struct
 
   module Tmp=EmitBase.Process(From)
+  module SuperIn=Tmp.In
   module Super=Tmp.Main(S)
   include Super
   include Convenience(struct include S module In=From end)
@@ -20,7 +23,7 @@ struct
 
   let expr=function
    | `CpsFun (al,b) -> cps (Super.expr (`Fun(al,b)))
-   | #In.expr as e -> Super.expr e
+   | #SuperIn.expr as e -> Super.expr e
 
   let cpsAff aff i =
    match aff with
@@ -35,12 +38,12 @@ struct
     | `CpsCall (a,e,al) ->
        cpsAff a (instr (`Call (e,al)))
     | `CpsRet i -> Super.instr (`Ret i)
-    | #In.instr as i -> grp:=false;Super.instr i
     | `CallCC (a,e,el) ->
        let args=join S.expr (e::el) (punct ",") in
        cpsAff a ((kwd "CallCC")^^ (par args))
     | `Throw (e1,e2) ->
        (kwd "throw")^^(par ((S.expr e1)^^(punct ",")^^(S.expr e2)))
+    | #SuperIn.instr as i -> grp:=false;Super.instr i
    in
    if !grp then
     fgrp r

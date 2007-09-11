@@ -54,8 +54,8 @@ module String=
  struct
   include String
    (*w
-     Removes ^^n^^ characters from the beginning of a string.
-   *)
+    * Removes ^^n^^ characters from the beginning of a string.
+    *)
   let chopStart s n=
    String.sub s ~pos:n ~len:((String.length s)-n)
   let equal=(=)
@@ -82,6 +82,7 @@ module Arg=
    let specs=List.map ~f:padd specs in
    align specs
  end
+
 module StringMap=Map.Make(String)
 module StringSet=Set.Make(String)
 module StringHashtbl=Hashtbl.Make(String)

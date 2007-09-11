@@ -11,13 +11,14 @@ struct
  struct
 
   module Tmp=EmitCpsInt.Process(From)
+  module SuperIn=Tmp.In
   module Super=Tmp.Main(S)
   include Super
   include Convenience(struct include S module In=From end)
 
   let instr=function
    | `Cps i -> kwd "cps:" ^^ S.instr i
-   | #In.instr as i -> Super.instr i
+   | #SuperIn.instr as i -> Super.instr i
 
  end
 end

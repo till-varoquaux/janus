@@ -11,13 +11,14 @@ struct
  struct
 
   module Tmp=EmitCpsInt.Process(From)
+  module SuperIn=Tmp.In
   module Super=Tmp.Main(S)
   include Super
   include Convenience(struct include S module In=From end)
 
   let expr=function
    | `Hoist(e,i) -> S.expr e ^^ (brace (brace (S.instr i)))
-   | #In.expr as e -> Super.expr e
+   | #SuperIn.expr as e -> Super.expr e
 
  end
 end

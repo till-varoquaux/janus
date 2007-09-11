@@ -17,23 +17,7 @@ open General
 
 module SS=StringSet
 
-(*w
- * This is our monad.
- *
- * It would seem logical for our monad type to be ^^t^^ (the value we are
- * computing) but since we need the value of the first branch in "bind" we need
- * to return this value in our monad our monad type is ^^'a*t^^.
- *)
-module type InfoMonad=
-sig
- type t
- type 'a m= 'a*t
- val return: 'a -> 'a m
- val bind: 'a m -> ('a -> 'b m) -> 'b m
-end
-
-type scopes=
-  {
+type scopes={
    defined:SS.t;
    read:SS.t;
    captured:SS.t;
@@ -60,6 +44,14 @@ let haveCommon m1 m2=
 let rmList l s =
  List.fold_left ~f:(fun s elt -> SS.remove elt s) ~init:s l
 
+
+(*w
+ * This is our monad.
+ *
+ * It would seem logical for our monad type to be ^^t^^ (the value we are
+ * computing) but since we need the value of the first branch in "bind" we need
+ * to return this value in our monad our monad type is ^^'a*t^^.
+ *)
 module ScInfo=
  struct
   type 'a m='a*scopes

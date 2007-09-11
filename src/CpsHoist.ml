@@ -24,8 +24,6 @@ module T=Conv.Make(
  struct
   module Super=Base(S)
   include Super
-  (*FIXME: check why In.expr doesn't work*)
-  type e'=i AstCpsInt.Gram.expr
   let expr: AstCpsHoistInt.expr -> AstCpsInt.expr CpsMonad.m= function
     (*w handles lazyness of the `And operator*)
    | `Binop(`And,e1,e2) ->
@@ -56,7 +54,7 @@ module T=Conv.Make(
        and i',_=S.instr i in
        assert ((snd (S.instr i))= []);
        e',(i'::ctx)
-   | #e' as e -> Super.expr e
+   | #In.expr as e -> Super.expr e
 
   let instr= function
    | `While(e,b) ->

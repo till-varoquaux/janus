@@ -13,6 +13,7 @@ module Main(S:Conv.Translation):Conv.PartialTranslation=
 struct
 
  module Tmp=EmitBase.Process(AstJs)
+ module SuperIn=Tmp.In
  module Super=Tmp.Main(S)
  include Super
 
@@ -56,7 +57,7 @@ struct
    | `Continue None -> kwd "continue"
    | `Break (Some lbl) -> (kwd "break") ^^ break ^^ (ident lbl)
    | `Break None -> kwd "break"
-   | #Conv.In.instr as i -> Super.instr i
+   | #SuperIn.instr as i -> Super.instr i
   in
    grpInstr r
 

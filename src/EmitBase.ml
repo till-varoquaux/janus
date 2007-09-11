@@ -1,17 +1,16 @@
 (*w
-  ====AstBase pretty printer====
-  This is the extensible printer for [[AstBase.ml.html|AstBase]]'s tree. It makes
-  heavy usage of open reccucrsion to allow etensibility.
-*)
+ * ====AstBase pretty printer====
+ * This is the extensible printer for [[AstBase.ml.html|AstBase]]'s tree. It makes
+ * heavy usage of open reccursion to allow etensibility.
+ *)
 open Printer
 
 module Process(From:AstBase.Trav.AstDef)=
 struct
  module Conv=AstBase.Trav.Conv(From)(From)(PrinterMonad)
-
+ module In=Conv.In
  module Main(S:Conv.Translation):Conv.PartialTranslation=
  struct
-
   include Convenience(struct
                        module In=From
                        include S
