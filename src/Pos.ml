@@ -34,8 +34,10 @@ let error ?pos s=
   | None -> raise (UnlocError s)
 
 (*w
-  This decorates unlocalized errors with some positionnal information
-*)
+ * This decorates unlocalized errors with some positionnal information
+ *
+ * **TODO** Needs a refactoring
+ *)
 let protect f (`Pos(p,e)) =
  try(
   f e

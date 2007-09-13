@@ -5,13 +5,12 @@
  * the program.
  *)
 
-module Id=Monad.Id
-module T=AstJs.Trav.Map(Id);;
+module Conv=AstJs.Trav.Map(Monad.Id);;
 
-module D=T.Make(
- functor(S:T.Translation) ->
+module D=Conv.CloseRec(
+ functor(Self:Conv.Translation) ->
  struct
-  module Super=T.Base(S)
+  module Super=Conv.Base(Self)
   include Super
 
   (*w
@@ -21,7 +20,7 @@ module D=T.Make(
    let rec aux= function
     | [] -> []
     | (`Bloc b)::t -> (aux b)@(aux t)
-    | (h:T.i AstJs.Gram.instr)::t -> (S.instr h)::(aux t)
+    | (h:Conv.In.instr)::t -> (Self.instr h)::(aux t)
    in
    aux
 
@@ -32,23 +31,22 @@ module D=T.Make(
   let blocOrInstr = function
    | `Bloc b ->
       (match unroll b with
-        | [i] -> S.instr i
+        | [i] -> Self.instr i
         | l -> `Bloc l)
-   | i -> S.instr i
+   | i -> Self.instr i
 
   let instr = function
    | `Bloc b -> `Bloc (unroll b)
    | `If (e,b1,b2) ->
       let b1=blocOrInstr b1
       and b2=blocOrInstr b2 in
-      `If (S.expr e,b1,b2)
+      `If (Self.expr e,b1,b2)
    | `While(e,b) ->
       `While(e,blocOrInstr b)
    | i -> Super.instr i
   let program =
    unroll
- end
-)
+ end)
 
 let pass:#Optimise.pass=
 object

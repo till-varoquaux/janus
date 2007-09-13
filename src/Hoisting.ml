@@ -27,12 +27,12 @@ module Mon=Monad.StateMonad(
  end
 )
 
-module T=AstJs.Trav.Map(Mon)
+module Map=AstJs.Trav.Map(Mon)
 
-module Hoist=T.Make(
- functor(S:T.Translation) ->
+module Hoist=Map.CloseRec(
+ functor(Self:Map.Translation) ->
  struct
-  module Super=T.Base(S)
+  module Super=Map.Base(Self)
   include Super
 
   (*w
@@ -77,7 +77,8 @@ module Hoist=T.Make(
     ~init:[]
     ~f:(fun i loc -> if not (SS.mem i fNames) then `Var (i,None)::loc else loc)
    in
-   (`Fundecl (name,args,`Bloc ((List.rev vars)@(List.rev capFuns)@[hInstr]))),hoistFuns
+   (`Fundecl (name,args,`Bloc ((List.rev vars)@(List.rev capFuns)@[hInstr]))),
+   hoistFuns
 
   let expr e funs =
    match e with
@@ -97,7 +98,8 @@ module Hoist=T.Make(
     | `WithCtx (e,i,si) ->
        (*w
         * The only purpose of using "with" is to ensure closures are correctly
-        * defined, therefor we don't want to hoist function declarations any higher...
+        * defined, therefor we don't want to hoist function declarations any
+        * higher...
         *)
        let hInstr,hFuns=instr i [] in
        let capFuns,hoistFuns = sepCaptured si hFuns in

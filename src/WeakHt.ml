@@ -185,7 +185,8 @@ let add t key value=
 let compact t =
  let sz=ref 0 in
  for i = 0 to (Array.length t.values)-1 do
-  let l=List.filter t.collisions.(i) ~f:(fun (k,_) -> nonNull k && (incr sz;true)) in
+  let l=List.filter t.collisions.(i)
+   ~f:(fun (k,_) -> nonNull k && (incr sz;true)) in
   match Weak.get t.keys i with
    | Some _ -> incr sz; t.collisions.(i) <- l
    | None ->

@@ -50,7 +50,8 @@ object
  method run=List.fold_left (fun f g -> fun x -> g (f x) ) (fun x -> x) runPasses
  method name="Optimisations"
  method spec=
-  ("-noopt",(Arg.Unit (fun () -> optDisabled:=true)),"Disables all the optimisation passes")
+  ("-noopt",(Arg.Unit (fun () -> optDisabled:=true)),
+   "Disables all the optimisation passes")
   ::("-shoptpasses",Arg.Unit passopt,"<undocumented>")
   ::spec
  method description="Optimisations"

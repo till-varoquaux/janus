@@ -1,7 +1,7 @@
 (*w
  * ====Monads====
  * This module contains a very straightforward definition of monads. Monads are
- * used in our tree traversal functions to ensure flexibility. Allthough they are
+ * used in our tree traversal functions to ensure flexibility. Although they are
  * a great tool they stil don't solve all our problems for instance memoization
  * can't be easilly added via monads...
  *

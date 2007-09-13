@@ -1,14 +1,14 @@
 (*w
  * ====Identify named function declarations====
- * This is a very dumb pass: it identifies fundecls since they don't exist in the
- * language we are compiling from.
+ * This is a very dumb pass: it identifies fundecls since they don't exist in
+ * the language we are compiling from.
  *
  * This function relies on the fact that local vars are declared only once.
  *)
 
 module T=AstJs.Trav.Map(Monad.Id)
 
-module D=T.Make(
+module D=T.CloseRec(
  functor(S:T.Translation) ->
  struct
   module Super=T.Base(S)

@@ -7,21 +7,19 @@
 open Printer
 
 module Conv=AstJs.Trav.TranslateFrom(AstJs)(PrinterMonad)
-module Close=Conv.Make
-
-module Main(S:Conv.Translation):Conv.PartialTranslation=
+module Main(Self:Conv.Translation):Conv.PartialTranslation=
 struct
 
  module Tmp=EmitBase.Process(AstJs)
  module SuperIn=Tmp.In
- module Super=Tmp.Main(S)
+ module Super=Tmp.Main(Self)
  include Super
 
- include Convenience(struct include S module In=AstJs end)
+ include Convenience(struct include Self module In=AstJs end)
 
  let rec instrs=function
   | (`Var (i,None))::r -> squishVar [i] r
-  | (i::t) -> (S.instr i)::(instrs t)
+  | (i::t) -> (Self.instr i)::(instrs t)
   | [] -> []
  and squishVar vars=function
   | (`Var (i,None))::r -> squishVar (i::vars) r
@@ -44,15 +42,15 @@ struct
   *)
   let r=match i with
    | `Bloc b -> bloc b
-   | `WithCtx (e,b,_) -> (kwd "with")^^(par (S.expr e )) ^^ (blocOrInstr b)
+   | `WithCtx (e,b,_) -> (kwd "with")^^(par (Self.expr e )) ^^ (blocOrInstr b)
    | `Fundecl(i,args,b) ->
       let b=protectInstr b in
       (kwd "function ")^^(ident i)^^(par(join ident args (punct ",")))^^b
    | `If (e,b,`Bloc []) -> (kwd "if") ^^ (cond e) ^^ (blocOrInstr b)
    | `If (e,b1,(`If _ as b2)) ->
       (kwd "if") ^^ (cond e) ^^ (blocOrInstr ~breakAfter:true b1) ^^
-       (kwd "else ")^^(S.instr b2)
-   | `Labeled (lbl,i) -> (ident lbl) ^^(punct ":")^^(S.instr i)
+       (kwd "else ")^^(Self.instr b2)
+   | `Labeled (lbl,i) -> (ident lbl) ^^(punct ":")^^(Self.instr i)
    | `Continue (Some lbl) -> (kwd "continue") ^^ break ^^ (ident lbl)
    | `Continue None -> kwd "continue"
    | `Break (Some lbl) -> (kwd "break") ^^ break ^^ (ident lbl)
@@ -63,7 +61,7 @@ struct
 
 end
 
-module D=Close(Main)
+module D=Conv.CloseRec(Main)
 
 let print (p:AstJs.program):string=
  Printer.toString (D.program p)

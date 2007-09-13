@@ -27,10 +27,10 @@ struct
  let run (x,_) = x
 end
 
-module T=AstJs.Trav.Map(RetMon);;
-module D=T.Make(functor(S:T.Translation) ->
+module Conv=AstJs.Trav.Map(RetMon);;
+module D=Conv.CloseRec(functor(Self:Conv.Translation) ->
  struct
-  module Super=T.Base(S)
+  module Super=Conv.Base(Self)
   include Super
 
   (*w
@@ -41,7 +41,7 @@ module D=T.Make(functor(S:T.Translation) ->
    *)
   let rec bloc=function
    | [] -> [],false
-   | h::t -> match S.instr h with
+   | h::t -> match Self.instr h with
       | x,true -> [x],true
       | x,false ->
          let t',ret = bloc t in
@@ -52,25 +52,24 @@ module D=T.Make(functor(S:T.Translation) ->
       let b',ret=bloc b in
       `Bloc b',ret
    | `Ret (Some e) ->
-      let (e,_) = S.expr e in
+      let (e,_) = Self.expr e in
       `Ret (Some e),true
    | (`Ret None | `Continue _ | `Break _ )as i -> i,true
    | `If (e,b1,b2) ->
-      let (e,_) = S.expr e
-      and (b1,c1) = S.instr b1
-      and (b2,c2) = S.instr b2 in
+      let (e,_) = Self.expr e
+      and (b1,c1) = Self.instr b1
+      and (b2,c2) = Self.instr b2 in
       (`If (e,b1,b2)),(c1 && c2)
    | `While (e,b) ->
-      let (e,_) = S.expr e
-      and (b,_) = S.instr b in
+      let (e,_) = Self.expr e
+      and (b,_) = Self.instr b in
       `While (e,b),false
    | i -> Super.instr i
  end)
 
 let pass:#Optimise.pass=
 object
- method run p =
-  RetMon.run (D.program p)
+ method run p=RetMon.run (D.program p)
  method name="deadcode"
  method description="deadcode elimination"
 end

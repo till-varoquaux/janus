@@ -61,20 +61,20 @@ module ScInfo=
    b,(merge scope scope')
  end
 
-module T=AstJs.Trav.Map(ScInfo);;
+module Trav=AstJs.Trav.Map(ScInfo);;
 
-module D=T.Make(
- functor(S:T.Translation) ->
+module D=Trav.CloseRec(
+ functor(Self:Trav.Translation) ->
  struct
-  module Super=T.Base(S)
+  module Super=Trav.Base(Self)
   include Super
 
   (*w
-    The variables captured in a function whose bloc is ^^b^^ and arguments
-    ^^args^^
-  *)
+   * The variables captured in a function whose bloc is ^^b^^ and arguments
+   * ^^args^^
+   *)
   let getCap args b =
-   let _,ctx=S.instr b in
+   let _,ctx=Self.instr b in
    let read=rmList args ctx.read
    and captured=rmList args ctx.defined
    in SS.union captured read
@@ -97,7 +97,7 @@ module D=T.Make(
   let instr=WeakHt.memoize
    begin function
     | `Var (v,Some e) as i->
-       let _,ctx = S.expr e in
+       let _,ctx = Self.expr e in
        i,{ctx with
            defined=SS.add v ctx.defined
          }
@@ -114,9 +114,10 @@ module D=T.Make(
         usedLabels=SS.empty
          }
     | `WithCtx (e,b,locals) as i ->
-       let _,ctx1 = S.instr b
-       and _,ctx2 = S.expr e in
-       let capturesLocal=List.exists ~f:(fun x -> SS.mem x ctx2.captured) locals in
+       let _,ctx1 = Self.instr b
+       and _,ctx2 = Self.expr e in
+       let capturesLocal=List.exists ~f:(fun x -> SS.mem x ctx2.captured) locals
+       in
        i,{
         read=SS.union ctx1.read (rmList locals ctx2.read);
         defined=SS.union ctx1.defined ctx2.defined;
@@ -132,13 +133,12 @@ module D=T.Make(
     | `Continue (Some lbl) | `Break (Some lbl) as i -> i,{ empty with
                                        usedLabels=SS.singleton lbl}
     | `Labeled (lbl,subI) as i->
-       let _,ctx=S.instr subI in
+       let _,ctx=Self.instr subI in
        i,{ctx with
            usedLabels=SS.remove lbl ctx.usedLabels}
     | i ->Super.instr i
    end
- end
-)
+ end)
 
 let expr e= snd(D.expr e)
 let instr i= snd(D.instr i)

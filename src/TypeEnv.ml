@@ -59,7 +59,8 @@ let declared=
  *)
 let clear()=
  StringHashtbl.clear declared;
- List.iter reservedKeywords ~f:(fun i -> StringHashtbl.add declared ~key:i ~data:0)
+ List.iter reservedKeywords
+  ~f:(fun i -> StringHashtbl.add declared ~key:i ~data:0)
 
 let _ = clear()
 

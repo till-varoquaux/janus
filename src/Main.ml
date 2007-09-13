@@ -1,8 +1,8 @@
 (*w
-  ====Main====
-  This is the entry point of the programm it reads command line options and
-  contains the chain of all of the compiler passes.
-*)
+ * ====Main====
+ * This is the entry point of the programm it reads command line options and
+ * contains the chain of all of the compiler passes.
+ *)
 open General
 
 let usage = Printf.sprintf "usage: %s [options] file" (Filename.basename
@@ -15,10 +15,10 @@ let version ()=
  exit 0
 
 let specs=["-v",Arg.Unit version,"prints the version and exits";
-           "-tex-out",Arg.Unit Printer.setTexFormat,"pretty prints the trees as"
-            ^ "tex code";
-           "-html-out",Arg.Unit Printer.setHtmlFormat,"pretty prints the trees as"
-            ^ "html code";
+           "-tex-out",Arg.Unit Printer.setTexFormat,"pretty prints the trees " ^
+            "as tex code";
+           "-html-out",Arg.Unit Printer.setHtmlFormat,"pretty prints the trees"
+            ^ " as html code";
             "-stdin",Arg.Set readFromStdIn,"read data from standard in"
           ]
 

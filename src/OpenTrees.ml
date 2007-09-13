@@ -24,19 +24,19 @@ open Ast
 module Options=Camlp4.Options
 
 (*w
-  Syntax extension options...
-*)
+ * Syntax extension CLI options...
+ *)
 let noMap=ref false
 let _= Options.add "-no_map" (Arg.Set noMap) "Do not generate mapper module"
 
 (*w
-  ==Camlp4==
-  A bunch of generic functions usefull to create nodes in camlp4
-*)
+ * ==Camlp4==
+ * A bunch of generic functions usefull to create nodes in camlp4
+ *)
 
 let _loc=Loc.ghost
 (*w
-   Generates a fresh id..
+ *  Generates a fresh id..
  *)
 let fresh=
  let cpt=ref 0 in
@@ -45,8 +45,8 @@ let fresh=
   <:ident< $lid:Printf.sprintf "id_%i" !cpt$ >>
 
 (*w
-   Transforms an expression list to a tupple of the given expressions.
-*)
+ *  Transforms an expression list to a tupple of the given expressions.
+ *)
 let exList2ExCom= function
  | [] -> <:expr< >>
  | [e] -> e
@@ -58,15 +58,15 @@ let exList2ExCom= function
     <:expr< $tup:r$ >>
 
 (*w
-  Transforms a  pattern list to a tupple of the given patterns.
-*)
+ * Transforms a  pattern list to a tupple of the given patterns.
+ *)
 let pattList2Pattern = function
  | [] -> <:patt< >>
  | [i] -> i
  | l ->
     let r =List.fold_left l
      ~init:<:patt< >>
-     ~f:fun tup i ->Ast.PaCom (_loc,tup,i)
+     ~f:fun tup i -> Ast.PaCom (_loc,tup,i)
     in
     <:patt< $tup:r$ >>
 
@@ -109,9 +109,9 @@ and ruleItem =
  | List of ruleItem
 
 (*w
-  This module is just a set of rules to ease the handling of grammars, and make
-  them more abstract.
-*)
+ * This module is just a set of rules to ease the handling of grammars, and make
+ * them more abstract.
+ *)
 module ExtGram=
  struct
 
@@ -137,35 +137,35 @@ module G=ExtGram
 
 
 (*w ==Generate the open type==
-  [@OpenType@]
-  Grammar types are defined under the hood using open reccursion and
-  constraints. They will later on be closed via the type parameter (which is an
-  object type).
-
-  [[#OpenType.gen|gen]] will translate grammars from:
-  %%
-  tree:=`Branch tree,tree | `Leaf elem
-  elem:=int
-  %%
-  to:
-  %%
-  type 'cst tree= [`Branch of 'tree,'tree | `Leaf of 'elem]
-  constraint 'cst=<tree:'tree;elem:'elem;..>
-  type 'cst elem=
-  constraint 'cst=<tree:'tree;elem:'elem;..>
-  %%
-  The parameter ^^'cst^^ will later on be used to close the loop.
-
-
-  [[#OpenType.gen|close]] can then be used to close the open reccursion an get
-  rid of the type parameter. Suppose the previous grammar was in a module called
-  ^^Gram^^ we would obtain the corresponding closed types:
-  %%
-  type cst=<tree:tree;elem:elem>
-  and tree=cst Gram.tree
-  and elem=cst Gram.elem
-  %%
-*)
+ * [@OpenType@]
+ * Grammar types are defined under the hood using open reccursion and
+ * constraints. They will later on be closed via the type parameter (which is an
+ * object type).
+ *
+ * [[#OpenType.gen|gen]] will translate grammars from:
+ * %%
+ * tree:=`Branch tree,tree | `Leaf elem
+ * elem:=int
+ * %%
+ * to:
+ * %%
+ * type 'cst tree= [`Branch of 'tree,'tree | `Leaf of 'elem]
+ * constraint 'cst=<tree:'tree;elem:'elem;..>
+ * type 'cst elem=
+ * constraint 'cst=<tree:'tree;elem:'elem;..>
+ * %%
+ * The parameter ^^'cst^^ will later on be used to close the loop.
+ *
+ *
+ *u[[#OpenType.gen|close]] can then be used to close the open reccursion an get
+ * rid of the type parameter. Suppose the previous grammar was in a module
+ * called ^^Gram^^ we would obtain the corresponding closed types:
+ * %%
+ * type cst=<tree:tree;elem:elem>
+ * and tree=cst Gram.tree
+ * and elem=cst Gram.elem
+ * %%
+ *)
 
 module OpenType:
  sig
@@ -177,14 +177,15 @@ module OpenType:
  struct
   module C=Set.Make(String)
    (*w
-     Constrained types are type with a set of constraints. The set contains only
-     strings since all contraints bind a string ^^s^^ to the type parameter ^^'s^^.
-   *)
+    * Constrained types are type with a set of constraints. The set contains
+    * only strings since all contraints bind a string ^^s^^ to the type
+    * parameter ^^'s^^.
+    *)
   type constrainedType=Ast.ctyp*C.t
 
   (*w
-    Generates the type for a ruleItem.
-  *)
+   * Generates the type for a ruleItem.
+   *)
   let rec ruleItem gram : ruleItem -> constrainedType = function
    | Option r ->
       let t,cst=ruleItem gram r in
@@ -241,11 +242,12 @@ module OpenType:
       <:ctyp< [ $body$ ] >>,cst;;
 
   (*
-    Generates the open type def corresponding to one rule in the grammar.
-    constr is the constraint on the tye parameter.
-  *)
+   * Generates the open type def corresponding to one rule in the grammar.
+   * constr is the constraint on the tye parameter.
+   *)
   let rule gram name (l:ruleRHS)=
-   let super = Option.map (fun i -> <:ctyp< 'cst $id:i$.Gram.$lid:name$ >>) gram.super in
+   let getSuperFun i = <:ctyp< 'cst $id:i$.Gram.$lid:name$ >> in
+   let super = Option.map getSuperFun gram.super in
    let body,cset = ruleRHS gram super l in
    (*This is the actual constraint 'cst=<$constr$; ..>*)
    let constr =
@@ -263,30 +265,33 @@ module OpenType:
    <:str_item< type $ty$>>;;
 
   (*w
-    [@OpenType.gen@] Generates the open types for a given grammar. A more
-    detailled description of this transformation can be found [[#OpenType|here]]
-  *)
+   * [@OpenType.gen@] Generates the open types for a given grammar. A more
+   * detailled description of this transformation can be found
+   * [[#OpenType|here]]
+   *)
   let gen (gram:grammar)=
    G.fold gram
     ~init:<:str_item< >>
     ~f:(fun ~key ~data acc -> <:str_item< $acc$ $rule gram key data$ >>)
 
   (*w
-    Generate the object type used to close a open type. That is, assuming we
-    have a grammar containing three rules: ^^a^^,^^b^^ and ^^c^^ this will
-    generate the following type:
-    %%
-    <a:a;b:b;c:c>
-    %%
-  *)
+   * Generate the object type used to close a open type. That is, assuming we
+   * have a grammar containing three rules: ^^a^^,^^b^^ and ^^c^^ this will
+   * generate the following type:
+   * %%
+   * <a:a;b:b;c:c>
+   * %%
+   *)
   let loopbackType gram =
    G.fold gram
     ~init:<:ctyp< >>
     ~f:(fun ~key:typ ~data:_ objectType ->
          <:ctyp< $lid:typ$:$lid:typ$;$objectType$ >>)
 
-  (*w [@OpenType.close@] Close a previously defined open type. A more detailled
-    description of this transformation can be found [[#OpenType|here]] *)
+  (*w
+   * [@OpenType.close@] Close a previously defined open type. A more detailled
+   * description of this transformation can be found [[#OpenType|here]]
+   *)
   let close gram gramId=
    let trans s=
     Ast.TyDcl (_loc, s ,[],<:ctyp< cst $id:gramId$.$lid:s$>> , [])
@@ -302,25 +307,33 @@ module OpenType:
             and $closedDecls$>>
  end
 
-(*w ==Mappers...==
-
-  The following set of functions are used to define the traversal function. We
-  are providing only one mean of traversal: a monadic map. We (naïvely) hope
-  this is powerfull enough to capture most of the other transformations one
-  could yearn for.
-
-  The traversal is done using reccursive modules: TODO (finish the explanations)
-*)
+(*w
+ *
+ * ==Mappers...==
+ *
+ * The following set of functions are used to define the traversal function. We
+ * are providing only one mean of traversal: a monadic map. We (naïvely) hope
+ * this is powerfull enough to capture most of the other transformations one
+ * could yearn for.
+ *
+ * The traversal is done using reccursive modules. To achieve reusability and
+ * extensibility we are using late bindings. Just like with object we have two
+ * modules directky related to this one:
+ *
+ * - ^^Super^^ is the module we are inheriting from.
+ * - ^^Self^^ is bound to the final module we are building.
+ *)
 module Mappers:
 sig
  val gen:grammar -> Ast.str_item
 end =
 struct
+
  let rec genIt gram=
   let self s =genIt gram s
   and genCom = genCom gram in
   function
-   | Atom s when G.mem s gram -> <:expr< T.$lid:s$ >>
+   | Atom s when G.mem s gram -> <:expr< Self.$lid:s$ >>
    | Atom _ -> <:expr< Mon.return >>
    | List it -> <:expr< MonHelp.mmap $self it$>>
    | Tup l ->
@@ -343,18 +356,18 @@ struct
   pattList2Pattern idPats,process
 
  (*w
-    Generates all the intermediare definitions for a variable
- *)
+  *   Generates all the intermediare definitions for a variable
+  *)
  and genBinders gram expr =
   let self l = genBinders gram expr l in
   function
    | (_,Atom s)::l when not (G.mem s gram) ->
       (*
-        This item is not part of the grammar, it doesn't need to be binded
-      *)
+       * This item is not part of the grammar, it doesn't need to be binded
+       *)
       self l
    | (id,ri)::l ->
-      <:expr< Mon.bind ($genIt gram ri$ $id:id$) ( fun $id:id$ -> $self l$ )  >>
+      <:expr< Mon.bind ($genIt gram ri$ $id:id$) ( fun $id:id$ -> $self l$ ) >>
    | [] -> expr
 
  and genRule gram name= function
@@ -436,31 +449,6 @@ let genTrav gram=
       type i=GetConstr(From).t
       type o=GetConstr(To).t
 
-
-      (*w
-        This is a copy of the module specifying the input type (^^From^^)
-        residing at the type level.
-
-        We shall use it it latter to define a copy of (^^From^^)...
-        %%
-module type C=
-sig
- type t=int
-end;;
-
-module B(C:C)=
- struct
-  include C
- end;;
-
-module rec D:C=B(D);;
-%%
-        This actually works in OCaml since types are statically resolved using
-        the type level information. This might not be the case in future versions
-        of OCaml. If this ever happens we will need to use another
-        technique
-      *)
-
      (*w
       * Represents a full transformation of the tree from the types defined in
       * ^^From^^ to the types defined in ^^To^^.
@@ -499,44 +487,39 @@ module rec D:C=B(D);;
             $acc$>>)$
       end;;
 
-      module type Ext=functor (T:Translation) -> PartialTranslation
+      module type Ext=functor (Self:Translation) -> PartialTranslation
+
+      (*w
+       * This is used to close the reccursion.
+       *)
+      module CloseRec(E:functor(T:Translation) -> Translation):Translation=
+      struct
+       module rec T:Translation=E(T)
+       include T
+      end
 
       (*Performs a monadic traversal of the tree...*)
       module Base:Ext=
-       functor(T:Translation) ->
+       functor(Self:Translation) ->
       struct
        module MonHelp=Monad.Helper(Mon);;
        $let st =match gram.super with
         | None -> <:str_item<
            >>
-        | Some _ -> <:str_item<include Super.Base(T) >>
+        | Some _ -> <:str_item<include Super.Base(Self) >>
       in
       <:str_item< $st$;; $Mappers.gen gram$>>
        $
     end
    end
 
-   module TranslateFrom(From:AstDef)(Mon:Monad.T)=
-   struct
-    include Conv(From)(ClosedDef)(Mon)
-    module type TF=functor(T:Translation) -> Translation
-    module Make(E:TF)=
-    struct
-     module rec T:Translation=E(T)
-     include T
-    end
-   end
+(*w
+ * The following two modules are used to define automatically the boilerplate
+ * code used for common cases.
+ *)
+   module TranslateFrom(From:AstDef)(Mon:Monad.T)=Conv(From)(ClosedDef)(Mon)
 
-   (*Closes the loop. This usefull to define easilly transformation within the same ast*)
-   module Map(Mon:Monad.T)=
-   struct
-    include Conv(ClosedDef)(ClosedDef)(Mon)
-    module Make(E:Ext):Translation=
-    struct
-     module rec T:Translation=E(T)
-     include T
-    end
-   end
+   module Map(Mon:Monad.T)=Conv(ClosedDef)(ClosedDef)(Mon)
  >>
 
 EXTEND Gram

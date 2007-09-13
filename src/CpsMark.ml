@@ -22,12 +22,12 @@ module PropMonad= struct
 end
 
 module Conv=AstCpsMarked.Trav.TranslateFrom(AstCpsInt)(PropMonad)
-module D=Conv.Make(functor(S:Conv.Translation) -> struct
-  module Super=Conv.Base(S)
+module D=Conv.CloseRec(functor(Self:Conv.Translation) -> struct
+  module Super=Conv.Base(Self)
   include Super
   let expr=function
    | `CpsFun (args,i) ->
-      `CpsFun(args,PropMonad.run (S.instr i)),false
+      `CpsFun(args,PropMonad.run(Self.instr i)),false
    | e -> Super.expr e
   let instr=function
    | (`CpsCall _ | `CpsRet _ | `CallCC _ | `Throw _ ) as i ->

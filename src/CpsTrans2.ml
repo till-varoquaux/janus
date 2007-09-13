@@ -33,7 +33,7 @@ let contName="$cont"
 
 module Conv=AstJs.Trav.TranslateFrom(AstCpsMarked)(Monad.Id)
 
-module D=Conv.Make(
+module D=Conv.CloseRec(
  functor(S:Conv.Translation) ->
  struct
   module Super=Conv.Base(S)

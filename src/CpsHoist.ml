@@ -19,28 +19,31 @@ end
 
 module Conv=AstCpsInt.Trav.TranslateFrom(AstCpsHoistInt)(CpsMonad)
 open Conv
-module T=Conv.Make(
- functor(S:Translation)->
+module T=Conv.CloseRec(
+ functor(Self:Translation)->
  struct
-  module Super=Base(S)
+  module Super=Base(Self)
   include Super
-  let expr: AstCpsHoistInt.expr -> AstCpsInt.expr CpsMonad.m= function
+  let expr=function
     (*w handles lazyness of the `And operator*)
    | `Binop(`And,e1,e2) ->
-      let e1',ctx1=S.expr e1
-      and e2',ctx2=S.expr e2
+      let e1',ctx1=Self.expr e1
+      and e2',ctx2=Self.expr e2
       in
       (match ctx2 with
         | [] ->  `Binop(`And,e1',e2'),ctx1
         | _ ->
            let id=TypeEnv.fresh ~hint:"hoistedAnd" () in
            `Ident id,ctx1@[`Var (id,Some e1');
-                           `If(`Ident id,`Bloc ctx2,`Assign (`Ident id,`Cst (`Bool false)))]
+                           `If(`Ident id,
+                               `Bloc ctx2,
+                               `Assign (`Ident id,`Cst (`Bool false))
+                              )]
       )
    (*w Lazyness of the `Or operator*)
    | `Binop(`Or,e1,e2) ->
-      let e1',ctx1=S.expr e1
-      and e2',ctx2=S.expr e2
+      let e1',ctx1=Self.expr e1
+      and e2',ctx2=Self.expr e2
       in
       (match ctx2 with
         | [] ->  `Binop(`Or,e1',e2'),ctx1
@@ -50,16 +53,16 @@ module T=Conv.Make(
                            `If(`Unop (`Not ,`Ident id),`Bloc ctx2,`Bloc [])]
       )
    | `Hoist (e,i) ->
-       let e',ctx=S.expr e
-       and i',_=S.instr i in
-       assert ((snd (S.instr i))= []);
+       let e',ctx=Self.expr e
+       and i',_=Self.instr i in
+       assert ((snd (Self.instr i))= []);
        e',(i'::ctx)
    | #In.expr as e -> Super.expr e
 
   let instr= function
    | `While(e,b) ->
-      let e,ctx = S.expr e
-      and b,_ = S.instr b in
+      let e,ctx = Self.expr e
+      and b,_ = Self.instr b in
       let _ = b,e,ctx in
       (match ctx with
         | [] -> `While(e,b),[]

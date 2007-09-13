@@ -6,6 +6,7 @@ let opt=new Optimise.opt
   TailRec.pass;
   DeadCode.pass;
   TailRet.pass;
+  Unneeded.pass;
   Unbloc.pass
  ]
 

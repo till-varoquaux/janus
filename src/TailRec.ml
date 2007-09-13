@@ -16,13 +16,13 @@ let contlbl="$body"
 (*w
  * This is an object we'll push on the stack to have a local context
  *)
-let jsCtxId = "$ctx"
+let jsCtxId="$ctx"
 let jsCtx=`Ident jsCtxId
 
 (*w
  * Function id's: the name of the function and of its arguments
  *)
-type pos= (string*string list) option
+type pos=(string*string list) option
 
 (*w
  * This the monad we will use in our map module.
@@ -41,12 +41,12 @@ struct
  let run x = fst (x None)
 end
 
-module T=AstJs.Trav.Map(TailMon);;
+module Conv=AstJs.Trav.Map(TailMon);;
 
-module D=T.Make(
- functor(S:T.Translation) ->
+module D=Conv.CloseRec(
+ functor(Self:Conv.Translation) ->
  struct
-  module Super=T.Base(S)
+  module Super=Conv.Base(Self)
   include Super
 
   let loop lbl i=
@@ -57,19 +57,20 @@ module D=T.Make(
     if al=[] then
      `Continue (Some contlbl),true
     else
-     `Bloc[`Assign (jsCtx,`Obj (List.combine al el));`Continue (Some contlbl)],true
+     `Bloc[`Assign (jsCtx,`Obj (List.combine al el));`Continue (Some contlbl)],
+    true
    in
    match i,pos with
     | `If(e,b1,b2),pos ->
-       let b1,ret1 = S.instr b1 pos
-       and b2,ret2 = S.instr b2 pos
+       let b1,ret1 = Self.instr b1 pos
+       and b2,ret2 = Self.instr b2 pos
        in `If(e,b1,b2),(ret1||ret2)
     | `Ret (Some `Call (`Ident i,el)),Some (fname,args) when i=fname ->
        tailRec args el
     | `Call (`Ident i,el),Some (fname,args) when i=fname ->
        tailRec args el
     | `Fundecl (fname,args,body),_ ->
-       let body,tailRec = S.instr body (Some (fname,args)) in
+       let body,tailRec = Self.instr body (Some (fname,args)) in
        let body=
         if tailRec then
          if args=[] then
@@ -83,7 +84,8 @@ module D=T.Make(
        `Fundecl (fname,args,body),false
     | _ -> Super.instr i pos
 
- (*function used as expressions are anonymous, they cannot be directly reccursive*)
+ (*function used as expressions are anonymous, they cannot be directly
+ reccursive*)
  end
 )
 

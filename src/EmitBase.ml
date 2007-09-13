@@ -1,7 +1,7 @@
 (*w
  * ====AstBase pretty printer====
- * This is the extensible printer for [[AstBase.ml.html|AstBase]]'s tree. It makes
- * heavy usage of open reccursion to allow etensibility.
+ * This is the extensible printer for [[AstBase.ml.html|AstBase]]'s tree. It
+ * makes heavy usage of open reccursion to allow etensibility.
  *)
 open Printer
 
@@ -9,11 +9,11 @@ module Process(From:AstBase.Trav.AstDef)=
 struct
  module Conv=AstBase.Trav.Conv(From)(From)(PrinterMonad)
  module In=Conv.In
- module Main(S:Conv.Translation):Conv.PartialTranslation=
+ module Main(Self:Conv.Translation):Conv.PartialTranslation=
  struct
   include Convenience(struct
                        module In=From
-                       include S
+                       include Self
                       end)
 
   let ident i =
@@ -27,28 +27,28 @@ struct
    | `String s ->  string (P.sprintf "\"%s\"" (escape s))
 
   (*w
-    We need to match subexpressions to place our parenthesis (well this is not
-    exactly true... we could place parenthesis around all subexpressions). The
-    simple algorithm needs to have a boolean returned by some subexpressions.
-
-    We are faced here with an issue: we want just this function to return
-    additional informations. We are faced here with a dilemna on how to return
-    that boolean information, we could:
-
-    - Use a monad that returns a couple to get this boolean.
-    - Use a global reference to encode this.
-    - Extend the return type to contain that additional information (this
-     would, however make this type a lot less meaningfull)
-
-    We will use a weak set to keep these expressions, this is very simillar to
-    references but not unsafe.
-  *)
+   * We need to match subexpressions to place our parenthesis (well this is not
+   * exactly true... we could place parenthesis around all subexpressions). The
+   * simple algorithm needs to have a boolean returned by some subexpressions.
+   *
+   * We are faced here with an issue: we want just this function to return
+   * additional informations. We are faced here with a dilemna on how to return
+   * that boolean information, we could:
+   *
+   * - Use a monad that returns a couple to get this boolean.
+   * - Use a global reference to encode this.
+   * - Extend the return type to contain that additional information (this
+   * would, however make this type a lot less meaningfull)
+   *
+   * We will use a weak set to keep these expressions, this is very simillar to
+   * references but not unsafe.
+   *)
   let fragileSet=Ws.create 17
   let fragile p=
    Ws.add fragileSet p;
    p
   let ep e=
-   let e'=S.expr e in
+   let e'=Self.expr e in
    if Ws.mem fragileSet e' then begin
     par e'
    end else begin
@@ -60,33 +60,33 @@ struct
     | `Fun(args,b) ->
        let b=protectInstr b in
        fragile
-        (kwd "function"^^(par (join S.ident args (punct ","))) ^^ b)
-    | `Cst c -> S.constant c
-    | `Ident i -> S.ident i
+        (kwd "function"^^(par (join Self.ident args (punct ","))) ^^ b)
+    | `Cst c -> Self.constant c
+    | `Ident i -> Self.ident i
     | `Call (f,args) ->
-       let args=join S.expr args (punct ",")
+       let args=join Self.expr args (punct ",")
        in
        (ep f) ^^ (par args)
     | `Array (elems) ->
-       let elems=join S.expr elems (punct ",")
+       let elems=join Self.expr elems (punct ",")
        in
        (bracket elems)
     | `Unop (op,e) ->
-       fragile ((S.unop op) ^^ (ep e))
+       fragile ((Self.unop op) ^^ (ep e))
     | `Binop (op,e1,e2) ->
-       fragile ((ep e1) ^^ (S.binop op) ^^ (ep e2))
+       fragile ((ep e1) ^^ (Self.binop op) ^^ (ep e2))
     | `ArrayAccess (e,idx) ->
-       (S.expr e)^^(bracket (S.expr idx))
+       (Self.expr e)^^(bracket (Self.expr idx))
     | `Obj(pl) ->
        agrp(nest 4 (brace (breakNull
                            ^^(join begin fun (i,e) ->
-                               (S.ident i) ^^ (punct ":") ^^ (S.expr e)
+                               (Self.ident i) ^^ (punct ":") ^^ (Self.expr e)
                               end
                                pl
                                ((punct ",") ^^ breakNull)
                              )
                            ^^breakNull)))
-    | `ObjAccess (e,i) -> (S.expr e) ^^ (punct ".") ^^ (S.ident i)
+    | `ObjAccess (e,i) -> (Self.expr e) ^^ (punct ".") ^^ (Self.ident i)
 
 
   let unop u = op (match u with
@@ -110,27 +110,31 @@ struct
                      | `Or  -> "||")
 
   let lvalue = function
-   | `Ident i -> S.ident i
-   | `ArrayAccess (l,e) -> (S.lvalue l) ^^ (bracket (S.expr e))
-   | `ObjAccess (l,i) -> (S.lvalue l) ^^ (punct ".") ^^ (S.ident i)
+   | `Ident i -> Self.ident i
+   | `ArrayAccess (l,e) -> (Self.lvalue l) ^^ (bracket (Self.expr e))
+   | `ObjAccess (l,i) -> (Self.lvalue l) ^^ (punct ".") ^^ (Self.ident i)
 
   let instr (i)=
    let r=match i with
-    | `WithCtx (e,b,_) -> (kwd "with")^^(par (S.expr e )) ^^ (blocOrInstr b)
+    | `WithCtx (e,b,_) -> (kwd "with")^^(par (Self.expr e )) ^^ (blocOrInstr b)
     | `Bloc il -> bloc il
     | `Fundecl(i,args,b) ->
        let b=protectInstr b in
        (kwd "function ")^^(ident i)^^(par(join ident args (punct ",")))^^b
-    | `Assign (l,e) -> (S.lvalue l) ^^ (punct "=") ^^ (S.expr e)
-    | `Var (i,None) -> (kwd "var ") ^^ (S.ident i)
+    | `Assign (l,e) -> (Self.lvalue l) ^^ (punct "=") ^^ (Self.expr e)
+    | `Var (i,None) -> (kwd "var ") ^^ (Self.ident i)
       (*TODO: collapse empty `Var lists*)
-    | `Var (i,Some e) -> (kwd "var ") ^^ (S.ident i) ^^ (punct "=") ^^ (S.expr e)
-    | `If (e,b1,b2) ->(kwd "if") ^^ (cond e) ^^ (blocOrInstr ~breakAfter:true b1)
-       ^^ (kwd "else") ^^ (blocOrInstr b2)
+    | `Var (i,Some e) ->
+       (kwd "var ") ^^ (Self.ident i) ^^ (punct "=") ^^ (Self.expr e)
+    | `If (e,b1,b2) ->
+       (kwd "if") ^^ (cond e) ^^
+        (blocOrInstr ~breakAfter:true b1)^^
+        (kwd "else") ^^
+        (blocOrInstr b2)
     | `While (e,b) -> (kwd "while") ^^ (cond e) ^^ (blocOrInstr b)
     | `Call (f,args) ->
-       let args=join S.expr args (punct ",")
-       and e'=S.expr f in
+       let args=join Self.expr args (punct ",")
+       and e'=Self.expr f in
        let f'=
         if Ws.mem fragileSet e' then begin
          par e'
@@ -138,7 +142,7 @@ struct
          e'
         end in
        f' ^^ (par args)
-    | `Expr e -> S.expr e
+    | `Expr e -> Self.expr e
     | `Ret (Some e) ->
        (kwd "return")^^break^^(ep e)
     | `Ret None -> kwd "return"

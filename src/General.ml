@@ -201,8 +201,8 @@ let with_open_out filename f=
 let with_open_process_full process f=
  let chs=Unix.open_process_full process [||] in
  let status=ref None in
- let res=(unwind_protect(fun () -> f chs) (fun () -> status:= Some (Unix.close_process_full
-                                  chs))) in
+ let res=(unwind_protect(fun () -> f chs)
+           (fun () -> status:= Some (Unix.close_process_full chs))) in
  res,(Option.get (!status))
 
 (*w

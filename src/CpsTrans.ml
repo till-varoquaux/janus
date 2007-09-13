@@ -46,7 +46,7 @@ let redef ?previousPos pos id =
      error ~pos:pos msg
 
 (*w
- * Checks wether no identifier is defined twice in the list given as an argument.
+ * Checks wether no identifier is defined twice in the list given as argument.
  *)
 let checkRedefs (l:AstStd.ident list)=
  let defList=StringHashtbl.create 17 in
@@ -129,12 +129,13 @@ struct
           ))
  let return (a:'a) : 'a m=fun d -> (a,d)
 end
-module C=AstBase.Trav.Conv(AstStd)(AstCpsHoistInt)(EnvMonad)
-module O=C.In
-module D:functor (S:C.Translation) -> C.Translation=
- functor(S:C.Translation) ->
+
+module Conv=AstBase.Trav.Conv(AstStd)(AstCpsHoistInt)(EnvMonad)
+
+module Loop=Conv.CloseRec(
+ functor(Self:Conv.Translation) ->
  struct
-  module Super=C.Base(S)
+  module Super=Conv.Base(Self)
   include Super
 
   let sInstr i env=
@@ -147,16 +148,16 @@ module D:functor (S:C.Translation) -> C.Translation=
 
   let ident id env=(E.ident id env),env
 
-  let rec bloc b (env:E.t)=
+  let rec bloc b env=
    match b with
     | [] -> [],env
     | h::t ->
-       let i1,env=S.instr h env in
+       let i1,env=Self.instr h env in
        let r2,env=bloc t env in
        i1::r2,env
 
   (*w
-   * Takes a function call and returns all the necessary informations to compil
+   * Takes a function call and returns all the necessary informations to compile
    * it.
    *)
   let callCompile env (`Call (e,al)) : compiledCall =
@@ -165,8 +166,8 @@ module D:functor (S:C.Translation) -> C.Translation=
      | `T -> ()
      | `Arrow (tl,_) | `CpsArrow (tl,_) -> checkArg al tl env
    );
-   let al=List.map al ~f:(fun a -> fst(S.expr a env))
-   and e,_ = S.expr e env in
+   let al=List.map al ~f:(fun a -> fst(Self.expr a env))
+   and e,_ = Self.expr e env in
    {cps=(match funTy with
           | `CpsArrow _ -> true
           | _ -> false);
@@ -216,15 +217,15 @@ module D:functor (S:C.Translation) -> C.Translation=
       let newEnv=List.fold_left2 args it
        ~f:(fun env argName argType -> E.add argName argType env)
        ~init:(E.setCps cps (E.oldify env)) in
-      let b,_=S.instr b newEnv
-      and il =List.map ~f:(fun i -> fst(S.ident i env)) args
+      let b,_=Self.instr b newEnv
+      and il =List.map ~f:(fun i -> fst(Self.ident i env)) args
       in
       if cps then
        `CpsFun(il,b),env
       else
        `Fun(il,b),env
    | `Hoist (e,i) ->
-      let i,newEnv=S.instr i env in
+      let i,newEnv=Self.instr i env in
       let e,_=expr e newEnv in
       `Hoist (e,i),env
    | `Obj (pl) ->
@@ -235,18 +236,19 @@ module D:functor (S:C.Translation) -> C.Translation=
             ((i,e')::pl))
       in
       (`Obj pl'),env
-   | #C.In.expr as e ->sExpr e env
+   | #Conv.In.expr as e ->sExpr e env
 
 
-  (*this erases the optional argument, it is required to the module's type definition*)
+  (* this erases the optional argument, it is required to the module's type
+   * definition
+   *)
   let expr e env = expr e env
   let ty _ = assert false (*types are erased, not translated *)
 
   let instr i env=
-   let expr e=fst (S.expr e env) in
+   let expr e=fst (Self.expr e env) in
    match i with
-    | `Pos _ as p -> protect (fun i -> S.instr i env) p (*TODO protect needs a
-   refactoring*)
+    | `Pos _ as p -> protect (fun i -> Self.instr i env) p 
     | `Var (id,a) as v ->
        let ty=(Option.map_default (fun e -> typeExpr e env) `T a) in
        let newEnv=E.add id ty env in
@@ -294,10 +296,9 @@ module D:functor (S:C.Translation) -> C.Translation=
      let e'=expr e
      and el'=List.map ~f:expr el in
      `CallCC (None,e',el'),env
-  | #C.In.instr as i -> (sInstr i env)
+  | #Conv.In.instr as i -> (sInstr i env)
 
   let program = bloc
- end
+ end)
 
-module rec Loop:C.Translation=D(Loop)
 let run p = EnvMonad.run (Loop.program p)
