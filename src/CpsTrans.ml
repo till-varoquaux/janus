@@ -9,10 +9,22 @@
  * A solution could be to split this pass in three different passes:
  *
  * - variables are renamed to have a unique name.
- *
  * - Types are erased.
- *
  * - Change cps expressions to instruction contexts.
+ *
+ * **Bug**
+ *
+ *%%
+ *var f=function(){};
+ *for(var i=0;i<10;i++){
+ *  var a=i;
+ *  if (i==5)
+ *   f=function(){print(a)};
+ *};
+ *f()
+ *%%
+ *
+ * prints 9 (it should print 5)
  *
  * **Grade** F
  *)
@@ -132,12 +144,17 @@ end
 
 module Conv=AstBase.Trav.Conv(AstStd)(AstCpsHoistInt)(EnvMonad)
 
-module Loop=Conv.CloseRec(
+module Process=Conv.CloseRec(
  functor(Self:Conv.Translation) ->
  struct
   module Super=Conv.Base(Self)
   include Super
 
+  (*w
+   * The following two function are upcast of functions we are inheriting from
+   * the superclass.
+   * This is required since upcasts are not implicit in OCaml.
+   *)
   let sInstr i env=
    let i,env=Super.instr i env in
    (i :> AstCpsHoistInt.instr),env
@@ -146,17 +163,9 @@ module Loop=Conv.CloseRec(
    let e,env=Super.expr e env in
    (e :> AstCpsHoistInt.expr),env
 
-  let ident id env=(E.ident id env),env
-
-  let rec bloc b env=
-   match b with
-    | [] -> [],env
-    | h::t ->
-       let i1,env=Self.instr h env in
-       let r2,env=bloc t env in
-       i1::r2,env
-
   (*w
+   * Function calls are common beetween expression and instructions. This
+   * function compiles function call.
    * Takes a function call and returns all the necessary informations to compile
    * it.
    *)
@@ -173,6 +182,17 @@ module Loop=Conv.CloseRec(
           | _ -> false);
     args=al;
     body=e}
+
+  let ident id env=(E.ident id env),env
+
+  let rec bloc b env=
+   match b with
+    | [] -> [],env
+    | h::t ->
+       let i1,env=Self.instr h env in
+       let r2,env=bloc t env in
+       i1::r2,env
+
 
   (*w
    * Converts an expression
@@ -236,19 +256,27 @@ module Loop=Conv.CloseRec(
             ((i,e')::pl))
       in
       (`Obj pl'),env
-   | #Conv.In.expr as e ->sExpr e env
+   | #Conv.In.expr as e -> sExpr e env
 
 
-  (* this erases the optional argument, it is required to the module's type
-   * definition
+  (*w
+   * This erases the optional argument in expr defined above, it is required to
+   * the module's type definition
    *)
   let expr e env = expr e env
-  let ty _ = assert false (*types are erased, not translated *)
+
+  (*w
+   * This function raises an error whenever it is called: it should never  be
+   * called
+   * The pass we are in erases type information. Types should never be
+   * converted.
+   *)
+  let ty _ = assert false
 
   let instr i env=
    let expr e=fst (Self.expr e env) in
    match i with
-    | `Pos _ as p -> protect (fun i -> Self.instr i env) p 
+    | `Pos _ as p -> protect (fun i -> Self.instr i env) p
     | `Var (id,a) as v ->
        let ty=(Option.map_default (fun e -> typeExpr e env) `T a) in
        let newEnv=E.add id ty env in
@@ -301,4 +329,4 @@ module Loop=Conv.CloseRec(
   let program = bloc
  end)
 
-let run p = EnvMonad.run (Loop.program p)
+let run p = EnvMonad.run (Process.program p)
