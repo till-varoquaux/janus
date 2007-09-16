@@ -54,8 +54,8 @@ type caml_version=
    minor:int
   }
 
-let project_name="mini_js"
-let version="0"
+let project_name="janus"
+let version="0.alpha1"
 let author="till.varoquaux"
 let caml_expected={major=3;minor=10}
 
@@ -118,7 +118,7 @@ let specs=
   "-dtypes",Arg.Set debug,"Builds the target with -dtypes";
  ]
 let usage=
- Printf.sprintf "'%s' configures this package to adapt to many kinds of systems.
+ Printf.sprintf "'%s' configures this package.
 
 Usage:%s [OPTION]
 
@@ -170,6 +170,32 @@ let checkDev bin targ=
  end;
  res
 
+let rec generateSrcMakefile dir baseDir=
+ (*
+  * Call on all the subdirs
+  *)
+ let subdirs=Array.fold_left (Sys.readdir dir)
+  ~f:(fun subDirs file ->
+       let fullName=Filename.concat dir file in
+       if Sys.is_directory fullName then begin
+        generateSrcMakefile fullName (Filename.concat ".." baseDir);
+        file::subDirs
+       end else
+        subDirs
+     )
+  ~init:[]
+ in
+ with_open_out (Filename.concat root (Filename.concat dir "Makefile"))
+  begin
+   fun ch ->
+    let p (f:(_,_,_) format)=Printf.fprintf ch f in
+    p "SHELL=/bin/sh\n";
+    p "SUBDIRS=%s\n" (String.concat " " subdirs);
+    p "BASEDIR=%s\n" baseDir;
+    p "include %s/Makef.base\n" baseDir;
+  end;;
+
+
 let _ =
  Arg.parse specs (fun s ->raise(Arg.Bad (Printf.sprintf "Unknown arg \"%s\"..." s)))
   usage;
@@ -218,14 +244,7 @@ let _ =
     printf "let name=\"%s\"\n" project_name;
     printf "let author=\"%s\"\n" author;
   end;
-  with_open_out (Filename.concat root (Filename.concat "src" "Makefile"))
-   begin
-    fun ch ->
-     let printf=Printf.fprintf ch in
-     printf ".phony: all\n";
-     printf "all:\n";
-     printf "\t@$(MAKE) -C ..\n"
-  end
+  generateSrcMakefile (Filename.concat root "src") ".." ;;
 (*
 OCAMLCODE_END
 #*)

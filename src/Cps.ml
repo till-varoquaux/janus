@@ -1,7 +1,6 @@
-include AstStd.ClosedDef
 include Compile.Pass(
  struct
-  type from=program
+  type from=AstStd.program
   type out=AstCpsHoistInt.program
   let trans=CpsTrans.run
   let print=EmitCpsHoistInt.print

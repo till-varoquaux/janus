@@ -1,11 +1,15 @@
 SHELL = /bin/sh
 #Configurable options
 SRC=Main
-OCB=ocamlbuild -no-links -ocamlc "ocamlfind c" -ocamlopt "ocamlfind opt" -ocamldep "ocamlfind dep" -lflags "-package unix","-linkpkg" -I src
+OCB=ocamlbuild -no-links -ocamlc "ocamlfind c" -ocamlopt "ocamlfind opt" -ocamldep "ocamlfind dep" -lflags "-package unix","-linkpkg"
 #YACC=menhir
 MODE=byte
 #end configurable options
 ALL=$(TARGET)
+SUBDIRS=src
+
+SRCDIRS=$(shell find src -type d)
+OCB += $(patsubst %,-I %,$(SRCDIRS))
 
 BUILDDIR=_build
 
@@ -32,7 +36,6 @@ ifeq ($(YACC),menhir)
 else
 	OCB += -yaccflags -v
 endif
-MLI=$(wildcard *.mli)
 
 LIB=Js
 LIBM=$(shell cat $(LIB).mllib)
@@ -58,12 +61,12 @@ $(TARGET):sane
 $(LIB).cma:sane
 	$(info * making the bytecode library)
 	@$(OCB) -lflag "-linkall" $@
-	@cp $(BUILDDIR)/$@ $@
+	@find $(BUILDDIR) -name '$@' -exec cp '{}' $@ ';'
 
 $(LIB).cmxa:sane
 	$(info * making the native library)
 	@$(OCB) -lflag "-linkpkg" $@
-	@cp $(BUILDDIR)/$@ $@
+	@find $(BUILDDIR) -name '$@' -exec cp '{}' $@ ';'
 
 lib:$(LIB).cma $(LIB).cmxa
 lib_install:$(LIB).cma
@@ -71,7 +74,7 @@ lib_install:$(LIB).cma
 	@if (ocamlfind list|cut -d' ' -f1 | grep -q -F "$(PROJECT_NAME)")\
 	 then ocamlfind remove "$(PROJECT_NAME)";\
 	fi
-	@ocamlfind install $(PROJECT_NAME) META $(LIBCMI) $<
+	@ocamlfind install $(PROJECT_NAME) META  $(foreach cmi,$(shell cat $(LIB).mllib),$$(find $(BUILDDIR)/src -name "$(cmi).cmi")) $<
 
 src/Changes.lp4all:
 	${info * making the changelog}
@@ -99,13 +102,18 @@ else
 endif
 
 sane:
-	@rm -f src/*.annot *.cma *.cmxa
+#Ocamlbuild has a nasty bug: it won't create the empty included directories
+#this of course results in nasty errors...
+	@$(foreach dir,$(SRCDIRS),mkdir -p "$(BUILDDIR)/$(dir)")
+	@rm -f *.cma *.cmxa
+	@find src -name "*.annot" -delete
 
 annot:$(TARGET)
 ifndef DTYPES
 	${error You need to enable -dtypes during configuration}
 else
-	@cp _build/src/*.annot src
+	@cd $(BUILDDIR);\
+find src -name "*.annot" -exec cp "{}" "../{}" ";"
 endif
 
 
@@ -128,15 +136,16 @@ endif
           cd $(PROJECT_NAME);\
           mirror -Renv --parallel=5"
 
-clean:sane
+clean::sane
 	${info * cleaning up}
 	@rm -rf web doc
-	@rm -f *~ \#* src/*~ src/\#*
-	@rm -f doc.odocl src/parsetab.py src/sparsetab.py src/Changes.lp4all $(TARGET)
+	@rm -f *~ \#*
+	@rm -f sanitize.sh
+	@rm -f src/parsetab.py src/sparsetab.py src/Changes.lp4all $(TARGET)
 	@$(OCB) -clean
 
-distclean:clean
-	@rm -f Makefile Version.ml src/Makefile
+distclean::clean
+	@rm -f Version.ml
 
 dist:
 	${info * building a tarball}
@@ -146,3 +155,4 @@ else
 	@darcs dist -d "$(PROJECT_NAME)-$(VERSION)"
 endif
 
+include Makefile.common
