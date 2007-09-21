@@ -11,6 +11,8 @@ SUBDIRS=src
 SRCDIRS=$(shell find src -type d)
 OCB += $(patsubst %,-I %,$(SRCDIRS))
 
+LP4ALLLIST=`darcs query manifest| sed -ne 's|^./src/||;tt;d;:t;/\.lp4all$$/d;p'`
+
 BUILDDIR=_build
 
 MISSING=${error Target disabled during configuration because "$1" was missing.}
@@ -90,7 +92,7 @@ ifndef LP4ALL
 	${call MISSING,lp4all}
 else
 	@cd src;\
-	lp4all -p "$(PROJECT_NAME)" -d ../doc $$(darcs query manifest| sed -ne 's|^./src/||p') Changes.lp4all
+	lp4all -p "$(PROJECT_NAME)" -d ../doc $(LP4ALLLIST)
 endif
 
 check:$(TARGET)
@@ -128,8 +130,8 @@ endif
 	@darcs get . --repo-name=web
 	@cp src/Changes.lp4all web/src
 	@cd web/src;\
-        lp4all -p "$(PROJECT_NAME)" -d .. $$(darcs query manifest| sed -ne 's|^./src/||p') Changes.lp4all;\
-	rm -f sparsetable.py parsetable.py
+        lp4all -p "$(PROJECT_NAME)" -d .. $(LP4ALLLIST)\
+	rm -f sparsetable.py parsetable.py Changes.lp4all
 	@cd web;\
 	lftp -c "open $(FTP_REPO);\
           (cd $(PROJECT_NAME) || mkdir $(PROJECT_NAME));\
