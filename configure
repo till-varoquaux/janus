@@ -113,10 +113,11 @@ let setDev ()=
  dtypes:=true
 
 let specs=
- ["-dev",Arg.Unit setDev,"Sets up a developpement environement. Implies -debug and -dtypes";
-  "-debug",Arg.Set debug,"Builds the target with debugging symbols";
-  "-dtypes",Arg.Set debug,"Builds the target with -dtypes";
- ]
+ Arg.align
+  ["-dev",Arg.Unit setDev,"Sets up a developpement environement. Implies -debug and -dtypes";
+   "-debug",Arg.Set debug,"Builds the target with debugging symbols";
+   "-dtypes",Arg.Set debug,"Builds the target with -dtypes";
+  ]
 let usage=
  Printf.sprintf "'%s' configures this package.
 
@@ -160,7 +161,7 @@ let ocaml_check expected=
 
 let checkDev bin targ=
  let res=isInPath bin in
- checking (Printf.sprintf "whether \"%s\" is installed" bin);
+ checking (Printf.sprintf "whether %s is installed" bin);
  yesno res;
  if not res then begin
    if !dev then
@@ -170,6 +171,9 @@ let checkDev bin targ=
  end;
  res
 
+let fprintf_endline ch (f:(_,_,_)format)=
+ Printf.kfprintf (fun ch -> output_char ch '\n') ch f
+
 let rec generateSrcMakefile dir baseDir=
  (*
   * Call on all the subdirs
@@ -177,7 +181,7 @@ let rec generateSrcMakefile dir baseDir=
  let subdirs=Array.fold_left (Sys.readdir dir)
   ~f:(fun subDirs file ->
        let fullName=Filename.concat dir file in
-       if Sys.is_directory fullName then begin
+       if (try Sys.is_directory fullName with _ -> false) then begin
         generateSrcMakefile fullName (Filename.concat ".." baseDir);
         file::subDirs
        end else
@@ -188,11 +192,15 @@ let rec generateSrcMakefile dir baseDir=
  with_open_out (Filename.concat root (Filename.concat dir "Makefile"))
   begin
    fun ch ->
-    let p (f:(_,_,_) format)=Printf.fprintf ch f in
-    p "SHELL=/bin/sh\n";
-    p "SUBDIRS=%s\n" (String.concat " " subdirs);
-    p "BASEDIR=%s\n" baseDir;
-    p "include %s/Makef.base\n" baseDir;
+    let (!) (f:(_,_,_) format)=fprintf_endline ch f in
+    !"SHELL=/bin/sh";
+    !"SUBDIRS=%s" (String.concat " " subdirs);
+    !"BASEDIR=%s" baseDir;
+    !"";
+    !"all:";
+    !"\t@$(MAKE) -C $(BASEDIR) $<";
+    !"";
+    !"include $(BASEDIR)/Makefile.common";
   end;;
 
 
@@ -209,40 +217,38 @@ let _ =
   checking "repository version";
   let y,m,d=vcsVersion () in
   res (Printf.sprintf "%.2u/%.2u/%.4u" m d y);
-  version:=Printf.sprintf "%.4u%.2u%.2u" y m d
+  version:=Printf.sprintf "%s %.4u.%.2u.%.2u (darcs)" !version y m d
  end else begin
   if !dev then
    error "-dev only works on checked-out repositories"
  end;
+ let debug,dev,dtypes,version = !debug,!dev,!dtypes,!version
+ and cli = String.concat " " ((Array.to_list Sys.argv)) in
  with_open_out (Filename.concat root "Makefile")
   begin
    fun ch ->
-    Printf.fprintf ch "CONFIGURE=%s\n"
-     (String.concat " " ((Array.to_list Sys.argv)));
-    if lp4all then
-     Printf.fprintf ch "LP4ALL=true\n";
-    if smjs then
-     Printf.fprintf ch "SMJS=true\n";
-    if darcs then
-     Printf.fprintf ch "DARCS=true\n";
-    if !debug then
-     Printf.fprintf ch "DEBUG=true\n";
-    if !dev then
-     Printf.fprintf ch "DEV=true\n";
-    if !dtypes then
-     Printf.fprintf ch "DTYPES=true\n";
-    Printf.fprintf ch "VERSION=%s\n" !version;
-    Printf.fprintf ch "PROJECT_NAME=%s\n" project_name;
-    Printf.fprintf ch "TARGET=%s\n" project_name;
-    Printf.fprintf ch "include Makefile.in"
+    let (!) (f:(_,_,_) format)=fprintf_endline ch f
+    and set varName cond = if cond then fprintf_endline ch  "%s=true" varName in
+    !"CONFIGURE=%s" cli;
+    set "LP4ALL" lp4all;
+    set "SMJS" smjs;
+    set "DARCS" darcs;
+    set "DEBUG" debug;
+    set "DEV" dev;
+    set "DTYPES" dtypes;
+    !"VERSION=%s" version;
+    !"PROJECT_NAME=%s" project_name;
+    !"TARGET=%s" project_name;
+    !"include Makefile.in"
   end;
   with_open_out (Filename.concat root "Version.ml")
   begin
    fun ch ->
-    let printf=Printf.fprintf ch in
-    printf "let version=\"%s\"\n" !version;
-    printf "let name=\"%s\"\n" project_name;
-    printf "let author=\"%s\"\n" author;
+    let var name value = fprintf_endline ch "let %s = \"%s\"" name value in
+    var "version" version;
+    var "name" project_name;
+    var "author" author;
+    var "configure" cli
   end;
   generateSrcMakefile (Filename.concat root "src") ".." ;;
 (*

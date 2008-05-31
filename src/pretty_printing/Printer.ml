@@ -8,28 +8,36 @@
  * printing such as escaping characters or adding colors.
  *)
 
-(*w ==Formatter module==
- * We are using the Pp module from Christian Liding
- *)
-include Pp
 open General
+module P=Printf
+
+(*w ==Formatter module==
+ * We are using the Pp module from Christian Liding. The following functions
+ * are simple specialisations that turn out usefull in our code.
+ *)
+include Formater
 
 (*w
- *  This indicates a point where we can break a line when formatting.
+ * This indicates a point where we can break a line when formatting. Unlike
+ * break no space is printed if we do not break...
  *)
 let breakNull=breakWith ""
+
+let (++) a b = a^^(text " ")^^b
+
+let ( ** ) a b = a^^breakNull^^b
 
 (*w
  * Pretty print a list of elements. Takes the list of elements to pretty print,
  * the function used to pretty an element and the separator to insert in
  * beetween pretty printed elements.
  *)
-let join (conv:'a -> doc) (l:'a list) (sep:doc):doc=
+let mapConcat ~(f:'a -> doc) (l:'a list) ~(sep:doc):doc=
  let first=ref true in
  List.fold_left l
   ~init:empty
   ~f:(fun beg el ->
-       match (conv el),!first with
+       match (f el),!first with
         | c,_ when c=empty -> empty
         | c,true ->
            first:=false;
@@ -37,7 +45,10 @@ let join (conv:'a -> doc) (l:'a list) (sep:doc):doc=
         | c,false ->
            beg ^^ sep ^^ c)
 
-let sjoin (l:'a list) (sep:doc):doc=
+(*w
+ * Concatanates a list of ^^Formater.doc^^ separated with ^^sep^^
+ *)
+let concat (l:'a list) ~(sep:doc):doc=
  let first=ref true in
  List.fold_left l
   ~init:empty
@@ -49,9 +60,6 @@ let sjoin (l:'a list) (sep:doc):doc=
            c
         | c,false ->
            beg ^^ sep ^^ c)
-
-open General
-module P=Printf
 
 (*w
  * ==Pretty printing style==
@@ -101,8 +109,7 @@ type styleSheet={
  wop:weight;
  wlit:weight;
 }
-let plainStyle=
- {
+let plainStyle={
  cpar=DefaultColor;
  cpunct=DefaultColor;
  ckwd=DefaultColor;
@@ -314,7 +321,7 @@ let number p = !formater#decorate !ssheet.cnumber !ssheet.wnumber p
 let op p = !formater#decorate !ssheet.cop !ssheet.wop p
 let lit p = !formater#decorate !ssheet.clit !ssheet.wlit p
 
-let toString p = Pp.ppToString ~escapeFunction:(!formater#escape) 80 p
+let toString p = Formater.ppToString ~escapeFunction:(!formater#escape) 80 p
 
 let par s =
  (par "(") ^^ s ^^ (par ")")
@@ -335,20 +342,23 @@ let text = bottom
 module PrinterMonad=
 struct
  exception NotImplemented
- type 'a m=Pp.doc
+ type 'a m = Formater.doc
  let return _ = raise NotImplemented
  let bind _ = raise NotImplemented
 end
 
+(*w
+ * **TODO:From here on the code is plain ugly and needs to be rethought**
+ *)
 (*w
  * A weak set of formated text
  *)
 module Ws=
  Weak.Make(
   struct
-   type t=Pp.doc
-   let equal=(=)
-   let hash=Hashtbl.hash
+   type t = Formater.doc
+   let equal = (=)
+   let hash = Hashtbl.hash
   end
  )
 
@@ -362,8 +372,8 @@ sig
    type expr
    type instr
   end
- val instr:In.instr -> Pp.doc
- val expr:In.expr -> Pp.doc
+ val instr:In.instr -> Formater.doc
+ val expr:In.expr -> Formater.doc
 end
 
 let blocs=Ws.create 17
@@ -372,13 +382,13 @@ let instrSep=((punct ";")^^break)
 module Convenience(S:ConvIn)=
 struct
  (*w
-   Prints a javascript bloc.
- *)
+  * Prints a javascript bloc.
+  *)
  let braceIndent s=
   vgrp(brace (vgrp(nest 4 (break^^s))^^break))
 
  let joinInstrs l=
-  join S.instr l instrSep
+  mapConcat l ~f:S.instr ~sep:instrSep
 
  let bloc l =
   let r=braceIndent (joinInstrs l) in
@@ -414,8 +424,8 @@ struct
    vgrp(nest 4 (break^^i'))
 
    (*w
-     This function escapes Strings to be printed as javascript strings
-   *)
+    * This function escapes Strings to be printed as javascript strings
+    *)
  let escape s=
   let b=Buffer.create (String.length s) in
   let a= Buffer.add_string b in

@@ -20,8 +20,6 @@ object
  method spec : specs
 end
 
-let id a = a
-
 let optDisabled=ref false
 
 let dname f=
@@ -37,7 +35,7 @@ let control f=
    run p
  and spec=dname f,
  (Arg.Unit (fun () -> disable:=true)),
- "Disables "^f#description
+ "Disable "^f#description
  in run,spec
 
 class opt (l:#pass list): optimisation=
@@ -51,7 +49,7 @@ object
  method name="Optimisations"
  method spec=
   ("-noopt",(Arg.Unit (fun () -> optDisabled:=true)),
-   "Disables all the optimisation passes")
+   "Disable all the optimisation passes")
   ::("-shoptpasses",Arg.Unit passopt,"<undocumented>")
   ::spec
  method description="Optimisations"

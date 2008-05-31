@@ -1,7 +1,8 @@
 (*w
-  Analyses if-then-else instructions and tries to merge all redundancy beetween
-  branches.
-*)
+ * ==== Merge common part of branches in if then else instructions====
+ * Analyses if-then-else instructions and tries to merge all redundancy
+ * beetween branches. This is an administrative reduction.
+ *)
 
 (*w
   Merging of branches
@@ -25,7 +26,7 @@ let merge b1 b2=
 
 module Conv=AstJs.Trav.Map(Monad.Id)
 
-module D=Conv.CloseRec(
+include Conv.CloseRec(
  functor(Self:Conv.Translation) ->
  struct
   module Super=Conv.Base(Self)
@@ -37,11 +38,10 @@ module D=Conv.CloseRec(
    | i::l -> (Self.instr i)::(unroll l)
 
   let instr = function
-    (*This must be ran after hoisting, expect bugs in var scoping otherwise*)
    | `If(`Cst (`Bool true),b,_) | `If(`Cst (`Bool false),_,b)  ->
       Self.instr b
    | `If(e,b1,b2) ->
-      let hd,(r,l),tl= merge (unroll [b1]) (unroll [b2]) in
+      let hd,(r,l),tl=merge (unroll [Self.instr b1]) (unroll [Self.instr b2]) in
       if hd!=[] or tl!=[] then
        `Bloc (hd@(`If(e,(`Bloc r),(`Bloc l))::tl))
       else
@@ -51,7 +51,7 @@ module D=Conv.CloseRec(
 
 let pass:#Optimise.pass=
  object
-  method run=D.program
+  method run=program
   method name="branchmerge"
   method description="merging common parts beetween branches"
  end

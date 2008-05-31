@@ -1,0 +1,17 @@
+====Javascript optimisation passes====
+
+This directory contains all the javascript optimisation passes. This
+passes are all javascript source to source transformations. They
+should not change the semantic of a program. In all these passes
+variables names are assumed to have a unique name and to be declared
+only once. One of these files ([[ScopeInfo.ml.html|ScopeInfo]]) is not
+really an optimisation pass, it is used to collect information. It
+reccurses over subtrees and is therefor defined like a
+pass. Interesting passes include:
+
+-[[DeadCode.ml.html|Deadcode elimination]]: A pretty naïve dead code
+ elimination, it removes code directly after return statements and
+ continue statements in loops.
+
+-[[TailRec.ml.html|Tail reccursion elimination]]: Tail reccursive
+ functions are transformed to loops.

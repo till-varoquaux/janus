@@ -26,7 +26,7 @@
  *
  * prints 9 (it should print 5)
  *
- * **Grade** F
+ * **Grade** E
  *)
 open Pos
 open General
@@ -36,13 +36,13 @@ module E=TypeEnv
  *This is the type of a compiled function call...
  *)
 type compiledCall={
- cps:bool;
  args:AstCpsHoistInt.expr list;
- body:AstCpsHoistInt.expr
+ called:AstCpsHoistInt.expr
 }
 
 (*w
  * ==Scoping==
+ *
  *)
 (*w
  * The error message to print when an identifier is defined twice
@@ -130,21 +130,30 @@ and checkArg al tyl env=
 
 (*w
  * ==Pulling it all together==
+ *
+ * We define the traversal here.
+ *)
+
+(*w
+ * This is the monad used for our traversal. It looks just like a state monad
+ * but the bind is a little different: it discards the changes made to the
+ * environement instead of propagating them. If we need to update the
+ * environement we have to propagate these changes manually.
  *)
 module EnvMonad=
 struct
- type 'a m= E.t -> ('a*E.t)
- let run f= fst (f E.empty)
- let bind (f:'a m) (g:'a -> 'b m) : 'b m=
-  (fun x ->( let (a,_)= f x in
+ type 'a m = E.t -> ('a*E.t)
+ let run f = fst (f E.empty)
+ let bind (f:'a m) (g:'a -> 'b m) : 'b m =
+  (fun x ->( let (a,_) = f x in
             (fst((g a) x)),x
           ))
- let return (a:'a) : 'a m=fun d -> (a,d)
+ let return (a:'a) : 'a m = fun d -> (a,d)
 end
 
-module Conv=AstBase.Trav.Conv(AstStd)(AstCpsHoistInt)(EnvMonad)
+module Conv = AstBase.Trav.Conv(AstStd)(AstCpsHoistInt)(EnvMonad)
 
-module Process=Conv.CloseRec(
+include Conv.CloseRec(
  functor(Self:Conv.Translation) ->
  struct
   module Super=Conv.Base(Self)
@@ -155,13 +164,18 @@ module Process=Conv.CloseRec(
    * the superclass.
    * This is required since upcasts are not implicit in OCaml.
    *)
-  let sInstr i env=
-   let i,env=Super.instr i env in
+  let sInstr i env =
+   let i,env = Super.instr i env in
    (i :> AstCpsHoistInt.instr),env
 
-  let sExpr e env=
-   let e,env=Super.expr e env in
+  let sExpr e env =
+   let e,env = Super.expr e env in
    (e :> AstCpsHoistInt.expr),env
+
+  let isCpsCall (`Call(e,_)) env =
+   match typeExpr e env with
+    | `CpsArrow _ -> true
+    | _ -> false
 
   (*w
    * Function calls are common beetween expression and instructions. This
@@ -169,95 +183,87 @@ module Process=Conv.CloseRec(
    * Takes a function call and returns all the necessary informations to compile
    * it.
    *)
-  let callCompile env (`Call (e,al)) : compiledCall =
-   let funTy= typeExpr e env in
+  let callCompile env (`Call(e,al)) : compiledCall =
+   let funTy = typeExpr e env in
    (match funTy with
      | `T -> ()
      | `Arrow (tl,_) | `CpsArrow (tl,_) -> checkArg al tl env
    );
-   let al=List.map al ~f:(fun a -> fst(Self.expr a env))
+   let al = List.map al ~f:(fun a -> fst(Self.expr a env))
    and e,_ = Self.expr e env in
-   {cps=(match funTy with
-          | `CpsArrow _ -> true
-          | _ -> false);
-    args=al;
-    body=e}
+   {args = al;
+    called = e}
 
-  let ident id env=(E.ident id env),env
+  let ident id env = (E.ident id env),env
 
-  let rec bloc b env=
+  let rec bloc b env =
    match b with
     | [] -> [],env
     | h::t ->
-       let i1,env=Self.instr h env in
-       let r2,env=bloc t env in
+       let i1,env = Self.instr h env in
+       let r2,env = bloc t env in
        i1::r2,env
 
+  let isCpsExpr e env = match e with
+   | `Call _ as c when isCpsCall c env -> true
+   | `CallCC _ | `BlockingEv _ -> true
+   | _ -> false
 
   (*w
    * Converts an expression
    *
    * ^^eType^^ Is used to propagate the type information.
    *)
-  let rec expr ?(eType=(`T:AstStd.ty)) (e:AstStd.expr) env=
+  let rec expr ?(eType = (`T:AstStd.ty)) (e:AstStd.expr) env =
    match e with
     | `Pos _ as p -> protect (fun e -> expr e ~eType:eType env) p
     | `Typed (e,t) -> expr e env ~eType:t
-      (*Todo: typecheck CallCC and throw*)
-    | `CallCC (e,el) ->
-       if not (E.cps env) then
-        error "Cannot use \"callcc\" in a non cps function.";
-       let e',_=expr e env
-       and el'=List.map el ~f:(fun e -> fst (expr e env)) in
-       let ret = E.fresh ~hint:"AssignedVar" () in
-       `Hoist(`Ident ret,`CallCC (Some ret,e',el')),env
+       (*Todo: typecheck CallCC *)
+       (*Cps expressions*)
+    |  _ when isCpsExpr e env ->
+        if not (E.cps env) then
+         error "Cannot use a cps expression in a non cps function.";
+        let ret = E.fresh ~hint:"AssignedVar" () in
+        let i = (match e  with
+          | `CallCC (e,el) ->
+             let e',_ = expr e env
+             and el' = List.map el ~f:(fun e -> fst (expr e env)) in
+             `CallCC (Some ret,e',el')
+          | `BlockingEv (handler,args) ->
+             let handler,_ = expr handler env
+             and args = List.map args ~f:(fun e -> fst (expr e env)) in
+             `CpsCall(Some ret,handler,args)
+          | `Call _ as c ->
+             let c = callCompile env c in
+             `CpsCall(Some ret,c.called,c.args)
+          | _ -> assert false) in
+        `Hoist(`Ident ret,i),env
+    | `BlockingEv _ |`CallCC _ -> assert false (*caught by the pattern above*)
     | `Call _ as c ->
-      let c = callCompile env c in
-      if c.cps then begin
-       if not (E.cps env) then
-        error "Cannot call a cps function in a non cps function.";
-       let ret = E.fresh ~hint:"AssignedVar" () in
-       `Hoist(`Ident ret,`CpsCall(Some ret,c.body,c.args)),env
-      end else
-       `Call(c.body,c.args),env
-   | `BlockingEv (handler,args) ->
-      if not (E.cps env) then
-       error "Cannot call a blocking event handler in a non cps function.";
-      let ret = E.fresh ~hint:"AssignedVar" ()
-      and handler,_=expr handler env
-      and args=List.map args ~f:(fun e -> fst (expr e env)) in
-      `Hoist(`Ident ret,`CpsCall(Some ret,handler,args)),env
-   | `Fun (args,b) ->
-      checkRedefs args;
-      let it,_,cps = (match eType with
-                       | `CpsArrow (it,ret) -> (it,ret,true)
-                       | `Arrow (it,ret) -> (it,ret,false)
-                       | `T -> ((List.map ~f:(fun _ -> `T) args),`T,false))
-      in
-      let newEnv=List.fold_left2 args it
-       ~f:(fun env argName argType -> E.add argName argType env)
-       ~init:(E.setCps cps (E.oldify env)) in
-      let b,_=Self.instr b newEnv
-      and il =List.map ~f:(fun i -> fst(Self.ident i env)) args
-      in
-      if cps then
-       `CpsFun(il,b),env
-      else
-       `Fun(il,b),env
-   | `Hoist (e,i) ->
+       let c = callCompile env c in
+       `Call(c.called,c.args),env
+    | `Fun (args,b) ->
+       checkRedefs args;
+       let argTypes,cps = (match eType with
+                            | `CpsArrow (argTypes,_) -> (argTypes,true)
+                            | `Arrow (argTypes,_) -> (argTypes,false)
+                            | `T -> ((List.map ~f:(fun _ -> `T) args),false))
+       in
+       let newEnv = List.fold_left2 args argTypes
+        ~f:(fun env argName argType -> E.add argName argType env)
+        ~init:(E.setCps cps (E.newScope env)) in
+       let b,_ = Self.instr b newEnv
+       and args = List.map ~f:(fun i -> fst(Self.ident i env)) args
+       in
+       if cps then
+        `CpsFun(args,b),env
+       else
+        `Fun(args,b),env
+    | `Hoist (e,i) ->
       let i,newEnv=Self.instr i env in
       let e,_=expr e newEnv in
       `Hoist (e,i),env
-   | `Obj (pl) ->
-      let pl'=List.fold_right pl
-       ~init:[]
-       ~f:(fun ({node=i;loc=_},e) pl ->
-            let e',_=expr e env in
-            ((i,e')::pl))
-      in
-      (`Obj pl'),env
    | #Conv.In.expr as e -> sExpr e env
-
 
   (*w
    * This erases the optional argument in expr defined above, it is required to
@@ -278,55 +284,53 @@ module Process=Conv.CloseRec(
    match i with
     | `Pos _ as p -> protect (fun i -> Self.instr i env) p
     | `Var (id,a) as v ->
-       let ty=(Option.map_default (fun e -> typeExpr e env) `T a) in
-       let newEnv=E.add id ty env in
+       (*If we don't provide a value we assume this is a standard javascript
+         value... this is not the behaviour we would get from type inference in
+         our case it doesn't matter much tough: The parser doesn't allow us to
+         define variables without affecting them a value*)
+       let ty = (Option.map_default (fun e -> typeExpr e env) `T a) in
+       let newEnv = E.add id ty env in
        sInstr v newEnv
     | `Assign (lv,e) as v ->
        compatible (typeLvalue lv env) (typeExpr e env);
        sInstr v env
     | `Call _ as c ->
-       let c = callCompile env c in
-       let call=if c.cps then begin
+       let c' = callCompile env c in
+       if isCpsCall c env then begin
         if not (E.cps env) then
          error "Cannot call a cps function in a non cps function.";
-        `CpsCall(None,c.body,c.args)
+        `CpsCall(None,c'.called,c'.args),env
        end else
-        `Call(c.body,c.args) in
-       call,env
-    | `BlockingEv (handler,args) ->
+        `Call(c'.called,c'.args),env
+    | `Throw _ | `CallCC _ | `BlockingEv _ as e ->
        if not (E.cps env) then
-        error "Cannot call a blocking event handler in a non cps function.";
-       let args=List.map ~f:expr args in
-       `CpsCall(None,expr handler,args),env
+        error "Cannot use \"throw\" in a non cps function.";
+       (match e with
+         | `Throw (e1,e2) ->
+            let e1'=expr e1
+            and e2'=expr e2 in
+            `Throw (e1',e2'),env
+             (*TODO: check for thrown value*)
+         | `CallCC (e,el) ->
+            let e'=expr e
+            and el'=List.map ~f:expr el in
+            `CallCC (None,e',el'),env
+         | `BlockingEv (handler,args) ->
+            let args=List.map ~f:expr args in
+            `CpsCall(None,expr handler,args),env)
     | `Bloc b ->
-       let b',_ = bloc b (E.oldify env) in
+       let b',_ = bloc b (E.newScope env) in
        `Bloc b',env
     | `Ret v ->
        let v=Option.map expr v in
-       let r = (
-        if E.cps env then
-         `CpsRet v
-        else
-         `Ret v
-       )in
-       r,env
+       if E.cps env then
+        (`CpsRet v),env
+       else
+        (`Ret v),env
      (*TODO: check return type*)
-  | `Throw (e1,e2) ->
-     if not (E.cps env) then
-      error "Cannot use \"throw\" in a non cps function.";
-     let e1'=expr e1
-     and e2'=expr e2 in
-     `Throw (e1',e2'),env
-      (*TODO: check for thrown value*)
-  | `CallCC (e,el) ->
-     if not (TypeEnv.cps env) then
-      error "Cannot use \"callcc\" in a non cps function.";
-     let e'=expr e
-     and el'=List.map ~f:expr el in
-     `CallCC (None,e',el'),env
   | #Conv.In.instr as i -> (sInstr i env)
 
   let program = bloc
  end)
 
-let run p = EnvMonad.run (Process.program p)
+let run p = EnvMonad.run (program p)

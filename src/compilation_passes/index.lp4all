@@ -1,0 +1,22 @@
+==== Compilation passes ====
+
+This directory contains all the necessary compilation passes. The
+contained passes are:
+
+- [[CpsTrans.ml.html|Cps transformation 1/2]]: This is the first part
+  of our two parts CPS transformation. In this pass the types are
+  erased and all the Cps specific instructions are differentiated.
+
+- [[CpsHoist.ml.html|Instruction hoisting]]: This is used in
+  conjunction with the previous pass. This pass takes an Abstract
+  syntax tree were expressions can be decorated by instructions. The
+  idea here is that we want to replace intermediate cps expression by
+  variables. The variables are assigned in the instruction we are
+  hoisting.
+
+- [[CpsMark.ml.html|Cps marking]]: All the instruction to convert in
+  cps form are marked in this pass (for instance a while loop
+  containing a cps instruction needs to be converted specifically).
+
+- [[CpsTrans2.ml.html|Cps transformation 2/2]]: This the second form
+  of our cps transformation.

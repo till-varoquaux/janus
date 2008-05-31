@@ -14,7 +14,7 @@ val add:ident->ty->t->t
 val ty:ident->t->ty
 val ident:ident->t->id
 val empty:t
-val oldify:t->t
+val newScope:t->t
 
 (*w
  *  Generates a fresh identifier.

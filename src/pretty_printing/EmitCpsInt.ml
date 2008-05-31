@@ -38,7 +38,7 @@ struct
        cpsAff a (instr (`Call (e,al)))
     | `CpsRet i -> Super.instr (`Ret i)
     | `CallCC (a,e,el) ->
-       let args=join Self.expr (e::el) (punct ",") in
+       let args=mapConcat (e::el) ~f:Self.expr ~sep:(punct ",") in
        cpsAff a ((kwd "CallCC")^^ (par args))
     | `Throw (e1,e2) ->
        (kwd "throw")^^(par ((Self.expr e1)^^(punct ",")^^(Self.expr e2)))

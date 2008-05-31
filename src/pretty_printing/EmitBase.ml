@@ -1,7 +1,7 @@
 (*w
  * ====AstBase pretty printer====
- * This is the extensible printer for [[AstBase.ml.html|AstBase]]'s tree. It
- * makes heavy usage of open reccursion to allow etensibility.
+ * This is the extensible printer for [[../AstBase.ml.html|AstBase]]'s tree. It
+ * makes heavy usage of open reccursion to allow extensibility.
  *)
 open Printer
 
@@ -11,13 +11,9 @@ struct
  module In=Conv.In
  module Main(Self:Conv.Translation):Conv.PartialTranslation=
  struct
-  include Convenience(struct
-                       module In=From
-                       include Self
-                      end)
+  include Convenience(struct module In=From include Self end)
 
-  let ident i =
-   Printer.ident i
+  let ident i = Printer.ident i
   let ty _ = assert false
   let constant = function
    | `Bool true -> bool "true"
@@ -60,15 +56,17 @@ struct
     | `Fun(args,b) ->
        let b=protectInstr b in
        fragile
-        (kwd "function"^^(par (join Self.ident args (punct ","))) ^^ b)
+        (kwd "function"^^
+          (par (mapConcat args ~f:Self.ident ~sep:(punct ",")))^^
+          b)
     | `Cst c -> Self.constant c
     | `Ident i -> Self.ident i
     | `Call (f,args) ->
-       let args=join Self.expr args (punct ",")
+       let args=mapConcat args ~f:Self.expr ~sep:(punct ",")
        in
        (ep f) ^^ (par args)
     | `Array (elems) ->
-       let elems=join Self.expr elems (punct ",")
+       let elems=mapConcat elems ~f:Self.expr ~sep:(punct ",")
        in
        (bracket elems)
     | `Unop (op,e) ->
@@ -79,11 +77,11 @@ struct
        (Self.expr e)^^(bracket (Self.expr idx))
     | `Obj(pl) ->
        agrp(nest 4 (brace (breakNull
-                           ^^(join begin fun (i,e) ->
-                               (Self.ident i) ^^ (punct ":") ^^ (Self.expr e)
-                              end
-                               pl
-                               ((punct ",") ^^ breakNull)
+                           ^^(mapConcat pl
+                               ~sep:((punct ",") ^^ breakNull)
+                               ~f:begin fun (i,e) ->
+                                (Self.ident i) ^^ (punct ":") ^^ (Self.expr e)
+                               end
                              )
                            ^^breakNull)))
     | `ObjAccess (e,i) -> (Self.expr e) ^^ (punct ".") ^^ (Self.ident i)
@@ -120,12 +118,14 @@ struct
     | `Bloc il -> bloc il
     | `Fundecl(i,args,b) ->
        let b=protectInstr b in
-       (kwd "function ")^^(ident i)^^(par(join ident args (punct ",")))^^b
+       (kwd "function")++
+        (ident i)^^
+        (par(mapConcat args ~f:ident ~sep:(punct ",")))^^b
     | `Assign (l,e) -> (Self.lvalue l) ^^ (punct "=") ^^ (Self.expr e)
-    | `Var (i,None) -> (kwd "var ") ^^ (Self.ident i)
+    | `Var (i,None) -> (kwd "var") ++ (Self.ident i)
       (*TODO: collapse empty `Var lists*)
     | `Var (i,Some e) ->
-       (kwd "var ") ^^ (Self.ident i) ^^ (punct "=") ^^ (Self.expr e)
+       (kwd "var") ++ (Self.ident i) ^^ (punct "=") ^^ (Self.expr e)
     | `If (e,b1,b2) ->
        (kwd "if") ^^ (cond e) ^^
         (blocOrInstr ~breakAfter:true b1)^^
@@ -133,7 +133,7 @@ struct
         (blocOrInstr b2)
     | `While (e,b) -> (kwd "while") ^^ (cond e) ^^ (blocOrInstr b)
     | `Call (f,args) ->
-       let args=join Self.expr args (punct ",")
+       let args=mapConcat args ~sep:(punct ",") ~f:Self.expr
        and e'=Self.expr f in
        let f'=
         if Ws.mem fragileSet e' then begin
@@ -149,7 +149,6 @@ struct
    in
    grpInstr r
 
-  let program p=
-   vgrp((joinInstrs p)^^break)
+  let program p = vgrp((joinInstrs p)^^break)
  end
 end

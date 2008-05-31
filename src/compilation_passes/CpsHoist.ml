@@ -2,30 +2,39 @@
  * ====Hoisting of instructions====
  *
  * This pulls all the instructions marked  with ^^`Hoist^^ (defined in
- * [[AstCpsHoit.ml.html|AstCpsHoist]]). These instructions should be executed
- * before the expression they mark is evaluated, they should also be evaluated
- * when and only when the expression they mark is evaluated.
+ * [[../AstCpsHoistInt.ml.html|AstCpsHoistInt]]). These instructions should be
+ * executed before the expression they mark is evaluated, they should also be
+ * evaluated when and only when the expression they mark is evaluated.
  *
+ * **Grade** C
  *)
-module CpsMonad=
+
+(*w
+ * We decorate every returned value with the list of instructions we are
+ * hoisting from it. This only really has a sense for expressions.
+ *)
+module HoistMonad=
 struct
  type 'a m = 'a * (AstCpsInt.instr list)
- let return a=(a,[])
+ let return a = (a,[])
  let bind (x,ctx) f =
-  let res,ctx2=(f x) in
+  let res,ctx2 = (f x) in
   res,(ctx@ctx2)
- let run (x,_) = x
+ let run = function
+  | (x,[]) -> x
+  | _ -> assert false
 end
 
-module Conv=AstCpsInt.Trav.TranslateFrom(AstCpsHoistInt)(CpsMonad)
-open Conv
-module T=Conv.CloseRec(
- functor(Self:Translation)->
+let return=HoistMonad.return
+
+module Conv=AstCpsInt.Trav.TranslateFrom(AstCpsHoistInt)(HoistMonad)
+include Conv.CloseRec(
+ functor(Self:Conv.Translation)->
  struct
-  module Super=Base(Self)
+  module Super=Conv.Base(Self)
   include Super
   let expr=function
-    (*w handles lazyness of the `And operator*)
+    (* handles lazyness of the `And operator*)
    | `Binop(`And,e1,e2) ->
       let e1',ctx1=Self.expr e1
       and e2',ctx2=Self.expr e2
@@ -40,7 +49,7 @@ module T=Conv.CloseRec(
                                `Assign (`Ident id,`Cst (`Bool false))
                               )]
       )
-   (*w Lazyness of the `Or operator*)
+   (* Lazyness of the `Or operator*)
    | `Binop(`Or,e1,e2) ->
       let e1',ctx1=Self.expr e1
       and e2',ctx2=Self.expr e2
@@ -57,21 +66,21 @@ module T=Conv.CloseRec(
        and i',_=Self.instr i in
        assert ((snd (Self.instr i))= []);
        e',(i'::ctx)
-   | #In.expr as e -> Super.expr e
+   | #Conv.In.expr as e -> Super.expr e
 
-  let instr= function
+  let instr i =
+   match i with
    | `While(e,b) ->
       let e,ctx = Self.expr e
       and b,_ = Self.instr b in
-      let _ = b,e,ctx in
       (match ctx with
-        | [] -> `While(e,b),[]
-        | _ -> `Bloc (ctx@[`While(e,`Bloc (b::ctx))]),[])
+        | [] ->  return (`While(e,b))
+        | _ -> return (`Bloc (ctx@[`While(e,`Bloc (b::ctx))])))
    | i ->
       (match Super.instr i with
-        | i,[] -> i,[]
-        | i,ctx -> `Bloc (ctx@[i]),[])
+        | i,[] -> return i
+        | i,ctx -> return (`Bloc (ctx@[i])))
  end)
 
 let run p=
- CpsMonad.run (T.program p)
+ HoistMonad.run (program p)

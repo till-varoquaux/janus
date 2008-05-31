@@ -145,9 +145,9 @@ let setCps b e=
 
 (*w
  * Empties the "recent" pool in the old pool.
- * This is used we are exiting a naming environement (ie it becomes old).
+ * This is used when are exiting a naming environement (ie it becomes old).
  *)
-let oldify t =
+let newScope t =
  {t with
    old=C.fold (fun k e env -> C.add k e env) t.recent t.old;
    recent=C.empty}

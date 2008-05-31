@@ -1,7 +1,7 @@
 SHELL = /bin/sh
 #Configurable options
 SRC=Main
-OCB=ocamlbuild -no-links -ocamlc "ocamlfind c" -ocamlopt "ocamlfind opt" -ocamldep "ocamlfind dep" -lflags "-package unix","-linkpkg"
+OCB=ocamlbuild -no-links -lflags "-package unix"
 #YACC=menhir
 MODE=byte
 #end configurable options
@@ -104,9 +104,6 @@ else
 endif
 
 sane:
-#Ocamlbuild has a nasty bug: it won't create the empty included directories
-#this of course results in nasty errors...
-	@$(foreach dir,$(SRCDIRS),mkdir -p "$(BUILDDIR)/$(dir)")
 	@rm -f *.cma *.cmxa
 	@find src -name "*.annot" -delete
 
@@ -130,7 +127,7 @@ endif
 	@darcs get . --repo-name=web
 	@cp src/Changes.lp4all web/src
 	@cd web/src;\
-        lp4all -p "$(PROJECT_NAME)" -d .. $(LP4ALLLIST)\
+        lp4all -p "$(PROJECT_NAME)" -d .. $(LP4ALLLIST);\
 	rm -f sparsetable.py parsetable.py Changes.lp4all
 	@cd web;\
 	lftp -c "open $(FTP_REPO);\

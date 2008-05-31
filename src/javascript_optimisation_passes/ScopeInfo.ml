@@ -12,16 +12,24 @@
  *
  * FUTURE:
  * Extend this module to liveness information.
+ *
+ * **Grade** D
  *)
 open General
 
-module SS=StringSet
+module SS =
+struct
+ include StringSet
 
-type scopes={
-   defined:SS.t;
-   read:SS.t;
-   captured:SS.t;
-   usedLabels:SS.t
+ let rmList l s =
+  List.fold_left ~f:(fun s elt -> remove elt s) ~init:s l
+end
+
+type scope={
+ defined:SS.t; (*defined variables*)
+ read:SS.t; (*read variables*)
+ captured:SS.t; (*variables captured in a closure*)
+ usedLabels:SS.t (*labels used (either in a break or acontinue statement)*)
   }
 
 let empty={
@@ -38,13 +46,6 @@ let merge m1 m2={
  usedLabels=SS.union m1.usedLabels m2.usedLabels;
 }
 
-let haveCommon m1 m2=
- (SS.inter m1 m2) <> SS.empty
-
-let rmList l s =
- List.fold_left ~f:(fun s elt -> SS.remove elt s) ~init:s l
-
-
 (*w
  * This is our monad.
  *
@@ -54,8 +55,8 @@ let rmList l s =
  *)
 module ScInfo=
  struct
-  type 'a m='a*scopes
-  let return x= x,empty
+  type 'a m = 'a*scope
+  let return x = x,empty
   let bind (a,scope) f =
    let b,scope'= f a in
    b,(merge scope scope')
@@ -63,90 +64,83 @@ module ScInfo=
 
 module Trav=AstJs.Trav.Map(ScInfo);;
 
-module D=Trav.CloseRec(
+include Trav.CloseRec(
  functor(Self:Trav.Translation) ->
  struct
   module Super=Trav.Base(Self)
   include Super
+
+  let lift f =
+   let fMem = WeakHt.memoize f in
+   fun h ->
+    h,(fMem h)
 
   (*w
    * The variables captured in a function whose bloc is ^^b^^ and arguments
    * ^^args^^
    *)
   let getCap args b =
-   let _,ctx=Self.instr b in
-   let read=rmList args ctx.read
-   and captured=rmList args ctx.defined
+   let _,ctx = Self.instr b in
+   let read = SS.rmList args ctx.read
+   and captured = SS.rmList args ctx.defined
    in SS.union captured read
 
-  let expr=WeakHt.memoize
+  let expr=lift
    begin function
-    | `Ident i as e ->
-       e,{empty with
-           read=StringSet.singleton i
-         }
-    | `Fun(args,b) as e->
+    | `Ident i ->
+       {empty with read=StringSet.singleton i}
+    | `Fun(args,b) ->
        let cap=getCap args b in
-       e,{empty with
-           read=cap;
-           captured=cap
-         }
-    | e -> Super.expr e
+       {empty with
+         read=cap;
+         captured=cap}
+    | e -> snd (Super.expr e)
    end
 
-  let instr=WeakHt.memoize
+  let instr=lift
    begin function
-    | `Var (v,Some e) as i->
+    | `Var (v,Some e) ->
        let _,ctx = Self.expr e in
-       i,{ctx with
-           defined=SS.add v ctx.defined
-         }
-    | `Var (v,None) as i ->
-       i,{empty with
-           defined=SS.singleton v
-         }
-    | `Fundecl (name,args,b) as i ->
+       {ctx with defined=SS.add v ctx.defined }
+    | `Var (v,None) ->
+       {empty with defined=SS.singleton v }
+    | `Fundecl (name,args,b) ->
        let cap=getCap args b in
-       i,{
-        read=cap;
+       {read=cap;
         defined=SS.singleton name;
         captured=cap;
-        usedLabels=SS.empty
-         }
-    | `WithCtx (e,b,locals) as i ->
+        usedLabels=SS.empty}
+    | `WithCtx (e,b,locals) ->
        let _,ctx1 = Self.instr b
        and _,ctx2 = Self.expr e in
        let capturesLocal=List.exists ~f:(fun x -> SS.mem x ctx2.captured) locals
        in
-       i,{
-        read=SS.union ctx1.read (rmList locals ctx2.read);
+       {read=SS.union ctx1.read (SS.rmList locals ctx2.read);
         defined=SS.union ctx1.defined ctx2.defined;
         captured=
-         (let bCap=rmList locals ctx2.captured in
+         (let bCap=SS.rmList locals ctx2.captured in
           SS.union ctx1.captured (if capturesLocal then
                                    SS.union bCap ctx1.read
                                   else
                                    bCap
                                  ));
-         usedLabels=SS.union ctx1.usedLabels ctx2.usedLabels
-       }
-    | `Continue (Some lbl) | `Break (Some lbl) as i -> i,{ empty with
-                                       usedLabels=SS.singleton lbl}
-    | `Labeled (lbl,subI) as i->
+         usedLabels=SS.union ctx1.usedLabels ctx2.usedLabels}
+    | `Continue (Some lbl) | `Break (Some lbl) ->
+       {empty with usedLabels=SS.singleton lbl}
+    | `Labeled (lbl,subI) ->
        let _,ctx=Self.instr subI in
-       i,{ctx with
-           usedLabels=SS.remove lbl ctx.usedLabels}
-    | i ->Super.instr i
+       {ctx with usedLabels=SS.remove lbl ctx.usedLabels}
+    | i ->snd (Super.instr i)
    end
  end)
 
-let expr e= snd(D.expr e)
-let instr i= snd(D.instr i)
+let expr e = snd(expr e)
+let instr i = snd(instr i)
 
-let foldDefined i ~f ~init=
+let foldDefined i ~f ~init =
  SS.fold (instr i).defined ~f:f ~init:init
 
-let foldCaptured i ~f ~init=
+let foldCaptured i ~f ~init =
  SS.fold (instr i).captured ~f:f ~init:init
 
 let isCaptured v i =

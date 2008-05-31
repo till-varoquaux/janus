@@ -1,4 +1,3 @@
-"src/OpenTrees.ml": use_camlp4, camlp4of
-<**/Ast*.ml>: camlp4o, syntax:OpenTrees
-<**/Pp.ml>:warn_a
+"src/pa_extRecTypes.ml": use_camlp4, camlp4of
+<**/Ast*.ml>: camlp4o, syntax:pa_extRecTypes
 true:warn_error_A,warn_A,warn_e,dtypes

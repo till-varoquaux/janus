@@ -59,6 +59,6 @@ module D=Conv.CloseRec(
 let pass:#Optimise.pass=
 object
  method run p=ScopeMonad.run (D.program p)
- method name="Unneeded"
- method description="Remove unneeded internal functions"
+ method name="unneeded"
+ method description="removal of unneeded internal functions and labels"
 end

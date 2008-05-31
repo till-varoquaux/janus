@@ -1,5 +1,5 @@
-====Mini js====
-Mini js is a language that compiles towards javascript, it has a sanner
+====Janus====
+Janus is a language that compiles towards javascript, it has a sanner
 variable scoping behaviour and implements a selective Cps conversion.
 
 This is currently under heavy developpement, be warned!!!
@@ -9,11 +9,9 @@ This is currently under heavy developpement, be warned!!!
 You can get a snapshot via:
 
 %%
-darcs get http://till.varoquaux.free.fr/projects/mini_js
+darcs get http://till.varoquaux.free.fr/projects/janus
 %%
 
 ==Other pages==
  - [[TODO.html|Todo]]
  - [[Changes.html|Changelog]]
-
-

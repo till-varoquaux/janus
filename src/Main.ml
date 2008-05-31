@@ -5,21 +5,23 @@
  *)
 open General
 
-let usage = Printf.sprintf "usage: %s [options] file" (Filename.basename
-                                                        Sys.executable_name)
+let usage = Printf.sprintf "Usage: %s [options] file...
+Options:" (Filename.basename Sys.executable_name)
 
 let readFromStdIn=ref false
 
 let version ()=
- Printf.printf "%s, version: \"%s\"\n" Version.name Version.version;
+ Printf.printf "The %s mini_js compiler, version: %s\n" Version.name
+  Version.version;
+ Printf.printf "Configured with:\n\t%s\n" Version.configure;
  exit 0
 
-let specs=["-v",Arg.Unit version,"prints the version and exits";
-           "-tex-out",Arg.Unit Printer.setTexFormat,"pretty prints the trees " ^
+let specs=["-v",Arg.Unit version,"Print the version and exit";
+           "-tex-out",Arg.Unit Printer.setTexFormat,"Pretty prints the trees " ^
             "as tex code";
-           "-html-out",Arg.Unit Printer.setHtmlFormat,"pretty prints the trees"
+           "-html-out",Arg.Unit Printer.setHtmlFormat,"Pretty prints the trees"
             ^ " as html code";
-            "-stdin",Arg.Set readFromStdIn,"read data from standard in"
+            "-stdin",Arg.Set readFromStdIn,"Read data from standard in"
           ]
 
 let specs=Arg.align (Cps.specs@specs)
