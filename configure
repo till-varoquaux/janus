@@ -1,5 +1,7 @@
 #!/bin/bash
-#use "topfind";;(* -*- tuareg -*-
+#load "unix.cma";;(* -*- tuareg -*- *)
+#load "str.cma";;
+#use "src/General.ml";;(*
 
 
 ################################################################################
@@ -24,6 +26,7 @@ check_path_coherence(){
         exit 1
     fi
 }
+
 #This function takes two arguments:the major and the minor expected version
 check_ocaml_version(){
     OCV=`ocaml -version`
@@ -39,15 +42,12 @@ check_ocaml_version(){
 }
 check_required "ocaml"
 check_ocaml_version 3 10
-check_required "ocamlfind"
-check_path_coherence
+#check_required "ocamlfind"
+#check_path_coherence
 exec ocaml $0 $@
 #We use a here doc to comment out the whole Ocaml section
 <<"OCAMLCODE_END"
 *)
-#require "unix"
-#require "str"
-#use "src/General.ml"
 
 type caml_version=
   {major:int;
@@ -156,8 +156,8 @@ let ocaml_check expected=
                                            {major=major;minor=minor})
  in
  checking "whether Ocaml version is recent enough";
- okfailed  ((expected.major > got.major) or
-             (expected.major=got.major && expected.minor>=got.minor))
+ okfailed  ((got.major > expected.major) or
+             (got.major=expected.major && got.minor>=expected.minor))
 
 let checkDev bin targ=
  let res=isInPath bin in
@@ -210,7 +210,9 @@ let _ =
  ocaml_check {major=3;minor=10};
  let smjs=checkDev "smjs" "test"
  and darcs=checkDev "darcs" "dist"
- and lp4all=checkDev "lp4all" "doc" in
+ and lp4all=checkDev "lp4all" "doc"
+ and ocamlfind=checkDev "ocamlfind" "lib_install"
+ in
  checking "whether this is a snapshot";
  yesno isVcs;
  if isVcs then begin
@@ -236,6 +238,7 @@ let _ =
     set "DEBUG" debug;
     set "DEV" dev;
     set "DTYPES" dtypes;
+    set "OCAMLFIND" ocamlfind;
     !"VERSION=%s" version;
     !"PROJECT_NAME=%s" project_name;
     !"TARGET=%s" project_name;

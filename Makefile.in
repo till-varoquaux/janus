@@ -1,7 +1,7 @@
 SHELL = /bin/sh
 #Configurable options
 SRC=Main
-OCB=ocamlbuild -no-links -lflags "-package unix"
+OCB=ocamlbuild -no-links -lib unix
 #YACC=menhir
 MODE=byte
 #end configurable options
@@ -72,6 +72,9 @@ $(LIB).cmxa:sane
 
 lib:$(LIB).cma $(LIB).cmxa
 lib_install:$(LIB).cma
+ifndef OCAMLFIND
+	${call MISSING,ocamlfind}
+endif
 	$(info * installing the library)
 	@if (ocamlfind list|cut -d' ' -f1 | grep -q -F "$(PROJECT_NAME)")\
 	 then ocamlfind remove "$(PROJECT_NAME)";\
@@ -119,7 +122,7 @@ endif
 web:src/Changes.lp4all
 	${info "updating web site"}
 ifndef FTP_REPO
-        ${error "You must have an environement variable FTP_REPO\
+	${error "You must have an environement variable FTP_REPO\
 pointing towards the ftp repository where you want to \
 upload the result"}
 endif

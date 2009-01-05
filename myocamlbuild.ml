@@ -12,15 +12,17 @@ open Command;;
 open Ocamlbuild_pack;;
 
 dispatch begin function
- | Before_options ->
+(*
+  | Before_options ->
     (*Ocamlfind integration*)
     Options.ocamlc := (Sh"ocamlfind c");
     Options.ocamlopt := (Sh"ocamlfind opt");
     Options.ocamldep := (Sh"ocamlfind dep");
+*)
  | After_options ->
     (*This could (should?) go in before_options but there's a bug in
       ocamlbuild, it is fixed in CVS version for OCaml 3.11*)
-    Options.ocaml_lflags := ["-linkpkg"] @ !Options.ocaml_lflags;
+    (*Options.ocaml_lflags := ["-linkpkg"] @ !Options.ocaml_lflags;*)
     (*Ocamlbuild has a nasty bug: it won't create the empty included
       directories.
       This of course results in tricky errors...*)
