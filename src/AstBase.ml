@@ -29,6 +29,8 @@ gram{
 | `Ret expr?
 | `Expr expr
 | `Var ident,expr?;
- ty;(*Our language is not typed*)
+ ty;(*Our language is not typed;
+
+      TODO: do we need this here?*)
  program := [instr]
 }

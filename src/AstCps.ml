@@ -1,4 +1,5 @@
 gram extends AstBase {
+  (* TODO delete ty *)
  import ty,constant,ident,lvalue,unop,binop,program;
  ty :=
 | `T (*Base type*)

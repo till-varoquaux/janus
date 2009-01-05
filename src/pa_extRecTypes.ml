@@ -15,18 +15,31 @@
  * Error reporting is currently extremelly bad since no efforts have been
  * made. This extension is used only internally (AFAIK) so it seems to much of
  * a hassle for the benefit.
+ *
+ * //TODO://
+ *
+ * _Multiple inheritence (import .... from? oop?)
+ * _Named open grammars
+ * _When extending a grammar [G] that doesn't have type [t] we still currently
+ *  need the type [t] in [G] if we are to use it in the extension. This seems
+ *  like a design mistake. We should know the whole list of types so we can
+ *  generate a function that dynamically fails or goes to an abstract type.
+ *
+ * TODO Switch to begin end instead of [{] [}]
  *)
 
 open General
 open Camlp4.PreCast
 open Syntax
 open Ast
-module Options=Camlp4.Options
+module Options = Camlp4.Options
 
 (*w
  * Syntax extension CLI options...
  *)
-let noMap=ref false
+let noMap = ref false
+
+(* TODO: switch _ to () *)
 let _= Options.add "-no_map" (Arg.Set noMap) "Do not generate mapper module"
 
 (*w
@@ -34,12 +47,13 @@ let _= Options.add "-no_map" (Arg.Set noMap) "Do not generate mapper module"
  * A bunch of generic functions usefull to create nodes in camlp4
  *)
 
-let _loc=Loc.ghost
+let _loc = Loc.ghost
+
 (*w
  *  Generates a fresh id..
  *)
-let fresh=
- let cpt=ref 0 in
+let fresh =
+ let cpt = ref 0 in
  fun () ->
   incr cpt;
   <:ident< $lid:Printf.sprintf "id_%i" !cpt$ >>
@@ -86,11 +100,17 @@ let matchcaseList2matchcase l =
 (*w This is our basic type definition for grammars. ^^super^^ designs the parent
 grammar when making an extension.
 *)
+(* TODO:
+   _Add records, tuples, unit and options
+   _How do we fit in Sets Maps etc...?
+   _How do we re-export variant names and record labels?
+*)
 type grammar=
   {
    rules:ruleRHS StringMap.t;
    super:Ast.ident option
   }
+(* Break in two levels to allow tuples and polvars.*)
 and ruleRHS=
  | Abstract
  | Import
@@ -223,7 +243,7 @@ module OpenType:
    | Abstract -> <:ctyp< >>,C.empty
    | Import -> ruleBranch gram super Super
    | Alias i -> ruleItem gram i
-   | Variant ([]) | PolVar [] -> assert false
+   | Variant [] | PolVar [] -> assert false
    | Variant l ->
       List.fold_left l
        ~init:(<:ctyp< >>,C.empty)
@@ -565,6 +585,12 @@ EXTEND Gram
  gram_items:[
   [it = LIST0 [ gram_item ] SEP ";" ; OPT ";" -> List.flatten it]
  ];
+
+ (* TODO fold the import with the gram definition
+
+    gram ... extends ... (...,...,...) {
+    }
+ *)
  gram_item:[
   [ "import" ; l = LIST1 a_LIDENT SEP "," ->
      List.map  l ~f:(fun s -> s,Import)
