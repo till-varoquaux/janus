@@ -126,6 +126,7 @@ and ruleItem =
  | Option of ruleItem
  | Atom of string
  | Tup of ruleItem list
+ | Nativ of Ast.ctyp
  | List of ruleItem
 
 (*w
@@ -141,14 +142,18 @@ module ExtGram=
   let fold g ~init ~f =
    StringMap.fold g.rules ~init:init ~f:f
 
-  let init super gramItems=
+  let init super gramItems =
+    let imports = match super with
+      | None -> []
+      | Some (_name,imports) -> imports
+    in
    {
-    super=super;
-    rules=
+    super = Option.map fst super;
+    rules =
      List.fold_left
-     gramItems
-     ~init:StringMap.empty
-      ~f:fun m (k,v) -> StringMap.add m ~key:k ~data:v
+       (List.map imports ~f:(fun s -> s,Import) @ gramItems)
+       ~init:StringMap.empty
+       ~f:fun m (k,v) -> StringMap.add m ~key:k ~data:v
    }
 
  end
@@ -213,6 +218,7 @@ module OpenType:
    | Tup l -> ruleItems gram l
    | Atom s when G.mem s gram -> <:ctyp< '$lid:s$ >>,(C.singleton s)
    | Atom s -> <:ctyp< $lid:s$ >>,C.empty
+   | Nativ ty -> ty,C.empty
    | List l -> let t,cst=ruleItem gram l in <:ctyp< $t$ list >>,cst
 
   and ruleItems gram : ruleItem list -> constrainedType = function
@@ -354,7 +360,7 @@ struct
   and genCom = genCom gram in
   function
    | Atom s when G.mem s gram -> <:expr< Self.$lid:s$ >>
-   | Atom _ -> <:expr< Mon.return >>
+   | Atom _ | Nativ _ -> <:expr< Mon.return >>
    | List it -> <:expr< MonHelp.mmap $self it$>>
    | Tup l ->
       let pat,process = genCom (fun i -> <:expr< $i$ >>) l
@@ -545,8 +551,9 @@ let genTrav gram=
 EXTEND Gram
  GLOBAL: str_item;
 
- str_item: LEVEL "top" [
-  [ "gram"; name = OPT a_UIDENT;e = extends ; "{" ; it=gram_items ; "}" ->
+ str_item: LEVEL "top" [[
+  "grammar"; name = OPT a_UIDENT; e = OPT extends ; "=" ; "begin" ;
+     it=gram_items ; "end" ->
    let gram=
     G.init e it
    in
@@ -580,35 +587,34 @@ EXTEND Gram
     $res$
    end;;
    >>
-]
- ];
- gram_items:[
-  [it = LIST0 [ gram_item ] SEP ";" ; OPT ";" -> List.flatten it]
- ];
+]];
+
+ (* TODO: the last opt doesn't work*)
+ gram_items:[[
+    it = LIST0 [ gram_item ] SEP ";"  -> List.flatten it
+ ]];
 
  (* TODO fold the import with the gram definition
 
     gram ... extends ... (...,...,...) {
     }
  *)
- gram_item:[
-  [ "import" ; l = LIST1 a_LIDENT SEP "," ->
-     List.map  l ~f:(fun s -> s,Import)
-  | id=a_LIDENT ; ":=" ; OPT "|" ; l = LIST1 variant SEP "|" ->
+ gram_item:[[
+    id=a_LIDENT ; ":=" ; OPT "|" ; l = LIST1 variant SEP "|" ->
      [id,Variant l]
   | id=a_LIDENT ; ":=" ; OPT "|" ; l = LIST1 rule_branch SEP "|" ->
-     if List.for_all l ~f:(fun x -> x==Super) then
+     if List.for_all l ~f:(fun x -> x=Super) then
       [id,Import]
      else
       [id,PolVar l]
-  | id=a_LIDENT ; ":=" ; r =  rule_item ->
+  | id=a_LIDENT ; ":=" ; r = rule_item ->
      [id,Alias r]
   | id=a_LIDENT ->
      [id,Abstract]
-  ]
- ];
- rule_item:[
-  [id = a_LIDENT ->
+ ]];
+
+ rule_item:[[
+  id = a_LIDENT ->
     Atom id
   | "["; i = rule_item ;"]" ->
      List i
@@ -618,35 +624,39 @@ EXTEND Gram
      Tup l
   |  i = rule_item ; "?" ->
      Option i
-  ]
- ];
- variant: [
-  [id = a_UIDENT; l = LIST0 rule_item SEP "," -> (id,l)]
- ];
- rule_branch:[
-  [ "`";id = a_UIDENT; l = LIST0 rule_item SEP "," -> Labeled (id,l)
+  |  ty = ctyp -> Nativ ty
+ ]];
+
+ variant_args: [[
+  "("; l = LIST1 rule_item SEP ","; ")" -> l
+  | r = rule_item -> [r]
+  | -> []
+ ]];
+
+ variant: [[
+   id = a_UIDENT; l = variant_args -> (id,l)
+ ]];
+
+ rule_branch:[[
+    "`";id = a_UIDENT; l = variant_args -> Labeled (id,l)
   | "super" -> Super
   | id = a_LIDENT -> Other id
-  ]
- ];
- uid:[
-  [i = LIST1 a_UIDENT SEP "." ->
+ ]];
+
+ uid:[[
+  i = LIST1 a_UIDENT SEP "." ->
     let rec uid2ident = function
      | [a]-> <:ident<$uid:a$>>
      | a::b -> <:ident<$uid:a$.$uid2ident b$>>
      | [] -> assert false
     in
     uid2ident i
-  ]
- ];
+ ]];
 
  (*grammar inheritence...*)
- extends:[
-  ["extends"; i=uid  ->
-    Some <:ident< $i$ >>
-  | ->
-     None
-  ]
- ];
+ extends:[[
+  "extends"; i=uid ; "("; imports = LIST1 a_LIDENT SEP ";" ; ")" ->
+    <:ident< $i$ >>,imports
+ ]];
 
 END

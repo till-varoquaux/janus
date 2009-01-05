@@ -1,7 +1,7 @@
-gram extends AstCpsInt{
- import ty,constant,ident,lvalue,unop,binop,program,expr;
+grammar extends AstCpsInt(ty;constant;ident;lvalue;unop;binop;program;expr) =
+begin
  instr:=
-| `Cps instr
+  | `Cps instr
    (*The marked instruction should be cps converted*)
-| super
-}
+  | super
+end
