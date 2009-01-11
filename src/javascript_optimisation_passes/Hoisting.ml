@@ -15,8 +15,6 @@
 open General
 open ScopeInfo
 
-module SS=StringSet
-
 (*w
  * The null instruction: doesn't do anything
  *)

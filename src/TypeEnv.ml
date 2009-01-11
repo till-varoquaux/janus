@@ -52,15 +52,15 @@ let reservedKeywords=[
  * variables).
  *)
 let declared=
- StringHashtbl.create 89
+ String.Table.create 89
 
 (*w
  * Clears the table of declared variables
  *)
 let clear()=
- StringHashtbl.clear declared;
+ String.Table.clear declared;
  List.iter reservedKeywords
-  ~f:(fun i -> StringHashtbl.add declared ~key:i ~data:0)
+  ~f:(fun i -> String.Table.add declared ~key:i ~data:0)
 
 let _ = clear()
 
@@ -68,7 +68,7 @@ let _ = clear()
  * Generates a new fresh identifier name. It will be unique within the program.
  *)
 let fresh=
- let module M=StringHashtbl in
+ let module M=String.Table in
  fun ?(hint="fresh")() ->
   if M.mem declared hint then begin
    let cnt=M.find declared hint in

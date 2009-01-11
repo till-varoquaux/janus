@@ -53,6 +53,15 @@ module List=
 module String=
  struct
   include String
+
+  module Map=Map.Make(String)
+  module Set=Set.Make(String)
+  module Table=Hashtbl.Make(struct
+                              include String
+                              let equal=(=)
+                              let hash=Hashtbl.hash
+                            end)
+
    (*w
     * Removes ^^n^^ characters from the beginning of a string.
     *)
@@ -82,10 +91,6 @@ module Arg=
    let specs=List.map ~f:padd specs in
    align specs
  end
-
-module StringMap=Map.Make(String)
-module StringSet=Set.Make(String)
-module StringHashtbl=Hashtbl.Make(String)
 
 let (|>) a b = b a
 
@@ -163,21 +168,13 @@ let channelToStringList ic=
  * runs f() then g() and outputs the result of f().
  *)
 let unwind_protect f g=
- let run f ()=
-  match !f with
-   | Some f -> f ()
-   | None -> ()
- in
- let closeFun=ref (Some g) in
- at_exit (run closeFun);
  let res=
   try
    f ()
   with e ->
-   g ();
+   (try g () with _ ->());
    raise e
  in
- closeFun := None;
  g ();
  res
 

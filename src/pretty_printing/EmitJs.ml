@@ -17,7 +17,6 @@ struct
 
  include Convenience(struct include Self module In=AstJs end)
 
-
  (*w
   * This function iterates over an instruction list to "squish" together all
   * subsequent variable definition. Instead of printing

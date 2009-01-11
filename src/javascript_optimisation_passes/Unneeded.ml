@@ -8,10 +8,10 @@
 open General
 module ScopeMonad=
  struct
-  type 'a m=StringSet.t -> 'a
+  type 'a m=String.Set.t -> 'a
   let return v = fun _ -> v
   let bind v f = fun unused -> f (v unused) unused
-  let run v = v StringSet.empty
+  let run v = v String.Set.empty
  end
 
 module Conv=AstJs.Trav.Map(ScopeMonad)
@@ -28,12 +28,12 @@ module D=Conv.CloseRec(
    * elsewhere.
    *)
   let unusedVars i=
-   let (-) = StringSet.diff
-   and (+) = StringSet.union
-   and {ScopeInfo.read=read;
-        defined=defined;
-        captured=captured
-       }=ScopeInfo.instr i
+    let (-) = String.Set.diff
+    and (+) = String.Set.union
+    and {ScopeInfo.read=read;
+         defined=defined;
+         captured=captured
+        }=ScopeInfo.instr i
    in
    defined-(captured+read)
 
@@ -44,7 +44,7 @@ module D=Conv.CloseRec(
 
   let instr (i:AstJs.instr) unused=
    match i with
-    | `Fundecl(name,_,_) when StringSet.mem name unused -> `Bloc []
+    | `Fundecl(name,_,_) when String.Set.mem name unused -> `Bloc []
     | `Fundecl(name,args,body) ->
        `Fundecl (name,args,Self.instr body (unusedVars body))
     | `Labeled(lbl,i) ->

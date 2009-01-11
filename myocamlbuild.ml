@@ -32,9 +32,9 @@ dispatch begin function
           Shell.mkdir_p dir)
  | After_rules ->
     dep  ["ocaml"; "ocamldep"; "syntax:pa_extRecTypes"]
-         ["src/pa_extRecTypes.cma"];
+         ["src/syntax/pa_extRecTypes.cma"];
     flag ["ocaml"; "pp"; "syntax:pa_extRecTypes"]
-         (A"src/pa_extRecTypes.cma");
+         (A"src/syntax/pa_extRecTypes.cma");
     rule "parse -> mly"
       ~dep:"%.parse"
       ~prod:"%.mly"

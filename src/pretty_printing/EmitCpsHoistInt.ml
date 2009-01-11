@@ -2,8 +2,7 @@
  * ====AstCpsInt pretty printer====
  *)
 open Printer
-
-module Process(From:AstCpsHoistInt.Trav.AstDef)=
+module Process(From:AstCpsHoistInt.Trav.T)=
 struct
  module Conv=AstCpsHoistInt.Trav.Conv(From)(From)(PrinterMonad)
  include Conv
@@ -14,7 +13,6 @@ struct
   module SuperIn=Tmp.In
   module Super=Tmp.Main(Self)
   include Super
-  include Convenience(struct include Self module In=From end)
 
   let expr=function
    | `Hoist(e,i) -> Self.expr e ^^ (brace (brace (Self.instr i)))

@@ -5,7 +5,7 @@
  *)
 open Printer
 
-module Process(From:AstBase.Trav.AstDef)=
+module Process(From:AstBase.Trav.T)=
 struct
  module Conv=AstBase.Trav.Conv(From)(From)(PrinterMonad)
  module In=Conv.In

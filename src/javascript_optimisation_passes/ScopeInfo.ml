@@ -19,7 +19,7 @@ open General
 
 module SS =
 struct
- include StringSet
+ include String.Set
 
  let rmList l s =
   List.fold_left ~f:(fun s elt -> remove elt s) ~init:s l
@@ -88,7 +88,7 @@ include Trav.CloseRec(
   let expr=lift
    begin function
     | `Ident i ->
-       {empty with read=StringSet.singleton i}
+        {empty with read=SS.singleton i}
     | `Fun(args,b) ->
        let cap=getCap args b in
        {empty with

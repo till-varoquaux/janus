@@ -61,13 +61,13 @@ let redef ?previousPos pos id =
  * Checks wether no identifier is defined twice in the list given as argument.
  *)
 let checkRedefs (l:AstStd.ident list)=
- let defList=StringHashtbl.create 17 in
+ let defList=String.Table.create 17 in
  List.iter l
   ~f:(fun {node=i;loc=p} ->
-       if StringHashtbl.mem defList i then
-        redef ~previousPos:(StringHashtbl.find defList i) p i
+       if String.Table.mem defList i then
+        redef ~previousPos:(String.Table.find defList i) p i
        else
-        StringHashtbl.add defList ~key:i ~data:p)
+        String.Table.add defList ~key:i ~data:p)
 
 (*w
  * == Type checking ==

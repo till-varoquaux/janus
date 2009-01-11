@@ -3,7 +3,7 @@
  *)
 open Printer
 
-module Process(From:AstCpsMarked.Trav.AstDef)=
+module Process(From:AstCpsMarked.Trav.T)=
 struct
  module Conv=AstCpsMarked.Trav.Conv(From)(From)(PrinterMonad)
  include Conv
@@ -14,7 +14,6 @@ struct
   module SuperIn=Tmp.In
   module Super=Tmp.Main(Self)
   include Super
-  include Convenience(struct include Self module In=From end)
 
   let instr=function
    | `Cps i -> kwd "cps:" ^^ Self.instr i
