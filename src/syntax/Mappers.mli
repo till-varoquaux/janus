@@ -17,4 +17,4 @@
 open Camlp4.PreCast
 open Syntax
 
-val gen:Grammar.t -> Ast.str_item
+val gen:Loc.t -> Grammar.t -> Ast.str_item

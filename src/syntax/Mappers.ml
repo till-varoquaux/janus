@@ -5,10 +5,9 @@ open Ast
 open Camlp4Helper
 open Grammar.Types
 
-
-let rec genIt gram=
-  let self s =genIt gram s
-  and genCom = genCom gram in
+let rec genIt _loc gram=
+  let self s = genIt _loc gram s
+  and genCom = genCom _loc gram in
   function
    | Atom s when Grammar.mem s gram -> <:expr< Self.$lid:s$ >>
    | Atom _ | Nativ _ -> <:expr< Mon.return >>
@@ -23,20 +22,20 @@ let rec genIt gram=
        | Some $pat$ -> $process$
           >>
 
-and genCom gram genRet l =
+and genCom _loc gram genRet l =
   let elems = List.map l ~f:fun ty -> (fresh ()),ty in
   let idPats = List.map elems ~f:fun (i,_) -> <:patt< $id:i$ >> in
   let retEl = List.map elems ~f:fun (i,_) -> <:expr< $id:i$ >> in
-  let process = genBinders gram
-   <:expr< Mon.return ($genRet (exList2ExCom retEl)$) >> elems
+  let process = genBinders _loc gram
+  <:expr< Mon.return ($genRet (exList2ExCom retEl)$) >> elems
   in
-  pattList2Pattern idPats,process
+  pattList2PatCom idPats,process
 
  (*w
   *   Generates all the intermediare definitions for a variable
   *)
-and genBinders gram expr =
-  let self l = genBinders gram expr l in
+and genBinders _loc gram expr =
+  let self l = genBinders _loc gram expr l in
   function
    | (_,Atom s)::l when not (Grammar.mem s gram) ->
       (*
@@ -44,15 +43,15 @@ and genBinders gram expr =
        *)
       self l
    | (id,ri)::l ->
-      <:expr< Mon.bind ($genIt gram ri$ $id:id$) ( fun $id:id$ -> $self l$ ) >>
+      <:expr< Mon.bind ($genIt _loc gram ri$ $id:id$) ( fun $id:id$ -> $self l$ ) >>
    | [] -> expr
 
-and genRule gram name= function
+and genRule _loc gram name= function
   | Other s -> <:match_case< #$lid:s$ as v -> Mon.return v >>
   | Labeled (s,[]) -> <:match_case< `$s$ -> Mon.return `$s$ >>
   | Labeled (s,rl) ->
-     let pat,process=genCom gram
-      (fun i -> <:expr< `$s$ $i$>>)
+     let pat,process=genCom _loc gram
+       (fun i -> <:expr< `$s$ $i$>>)
       rl
      in
      let pat = Ast.PaApp (_loc,<:patt< `$s$ >>,pat) in
@@ -62,32 +61,28 @@ and genRule gram name= function
    Mon.bind ($lid:name$ i) ( fun i -> Mon.return (i :> (to_dict Gram.$lid:name$)))
    >>
 
-and genVariant gram = function
+and genVariant _loc gram = function
   | s,[] -> <:match_case< $uid:s$ -> Mon.return $uid:s$ >>
   | s,rl ->
-     let pat,process=genCom gram
-      (fun i -> <:expr< $uid:s$ $i$>>)
+     let pat,process=genCom _loc gram
+       (fun i -> <:expr< $uid:s$ $i$>>)
       rl
      in
      let pat = Ast.PaApp (_loc,<:patt< $uid:s$ >>,pat) in
      <:match_case< $pat$ -> $process$ >>
 
-let genFunc gram name=function
+let genFunc _loc gram name=function
   | Abstract -> <:str_item< let $lid:name$ _ = assert false >>
   | Import -> <:str_item< >>
-  | Alias it -> <:str_item< let $lid:name$ = $genIt gram it$ >>
+  | Alias it -> <:str_item< let $lid:name$ = $genIt _loc gram it$ >>
   | Variant l ->
-     let cases = List.map l ~f:(genVariant gram) in
-     <:str_item< let $lid:name$ = function $matchcaseList2matchcase cases$
-       >>
+     let cases = List.map l ~f:(genVariant _loc gram) in
+     <:str_item< let $lid:name$ = function $Ast.mcOr_of_list cases$ >>
   | PolVar l ->
-     let cases = List.map l ~f:(genRule gram name) in
-     <:str_item< let $lid:name$ = function $matchcaseList2matchcase cases$
-       >>
+     let cases = List.map l ~f:(genRule _loc gram name) in
+     <:str_item< let $lid:name$ = function $Ast.mcOr_of_list cases$ >>
 
-let gen gram=
-  Grammar.fold gram
-   ~init:<:str_item< >>
-   ~f:(fun ~key:name ~data:l acc -> <:str_item<
-        $genFunc gram name l$;;
-       $acc$>>)
+let gen _loc gram=
+  Grammar.assocs gram
+  |> List.map ~f:(fun (name,l) -> genFunc _loc gram name l)
+  |> Ast.stSem_of_list

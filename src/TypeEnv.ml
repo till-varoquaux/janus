@@ -5,7 +5,7 @@
 open General
 open Pos
 open AstStd
-module C=Map.Make(String)
+module C=String.Map
 type id=AstCpsInt.ident
 
 (*w
@@ -104,7 +104,7 @@ let add {node=i;loc=l} (ty:ty) env=
  else
   let name=fresh ~hint:i ()
   in
-  {env with recent=C.add i (name,(ty:>ty)) env.recent}
+  {env with recent=C.add ~key:i ~data:(name,(ty:>ty)) env.recent}
 
 (*w
  * Returns the unique identifier name that a given identifier was assigned.
@@ -149,5 +149,8 @@ let setCps b e=
  *)
 let newScope t =
  {t with
-   old=C.fold (fun k e env -> C.add k e env) t.recent t.old;
-   recent=C.empty}
+    old=C.fold
+     ~f:(fun ~key:k ~data:e env -> C.add ~key:k ~data:e env)
+     ~init:t.recent
+     t.old;
+    recent=C.empty}

@@ -11,18 +11,15 @@
  * All the intermediates trees of the compiler are built via this extension. A
  * good number of the passes in compiler also use the defined mapping modules.
  *
- * //WON'T FIX://
- * Error reporting is currently extremelly bad since no efforts have been
- * made. This extension is used only internally (AFAIK) so it seems to much of
- * a hassle for the benefit.
  *
  * //TODO://
- *
+ * _Better loc handling
  * _Multiple inheritence (import .... from? oop?)
  * _When extending a grammar [G] that doesn't have type [t] we still currently
  *  need the type [t] in [G] if we are to use it in the extension. This seems
  *  like a design mistake. We should know the whole list of types so we can
  *  generate a function that dynamically fails or goes to an abstract type.
+ * _Records,arrays...
  *
  *)
 
@@ -40,16 +37,14 @@ let noMap = ref false
 
 let () = Camlp4.Options.add "-no_map" (Arg.Set noMap) "Do not generate mapper module"
 
-
-let genTrav gram=
+let genTrav _loc gram =
  <:str_item<
   (*The mapper*)
     module type T =
     sig
-     $Grammar.fold gram
-      ~init:<:sig_item< >>
-      ~f:fun ~key:i ~data:_ acc ->
-       <:sig_item< type $lid:i$ ;; $acc$ >>
+      $List.map (Grammar.typeNames gram)
+        ~f:(fun i -> <:sig_item<type $lid:i$ >>)
+       |> Ast.sgSem_of_list
       $
     end;;
 
@@ -69,21 +64,19 @@ let genTrav gram=
       *)
       module type Translation =
       sig
-       $Grammar.fold gram
-        ~init:<:sig_item< >>
-        ~f:(fun ~key:i ~data:_ acc ->
-               <:sig_item<
-              val $i$ : From.$lid:i$ -> To.$lid:i$ Mon.m;;
-              $acc$
-              >>)$
+       $Grammar.typeNames gram
+        |> List.map ~f:(fun i -> <:sig_item<
+                        val $i$ : From.$lid:i$ -> To.$lid:i$ Mon.m
+                 >>)
+        |> Ast.sgSem_of_list$
       end
 
      (*w
       * These are the object types used to close the loop in ^^From^^ and
       * ^^To^^. They are used to define partial transformation's type.
       *)
-      type from_dict = $OpenType.loopbackType gram <:ident<From>>$
-      type to_dict = $OpenType.loopbackType gram <:ident<To>>$
+      type from_dict = $OpenType.loopbackType _loc gram <:ident<From>>$
+      type to_dict = $OpenType.loopbackType _loc gram <:ident<To>>$
 
       (*w
        * The whole tree is translated From -> To excepted the root which is kept
@@ -92,24 +85,24 @@ let genTrav gram=
        *)
       module type PartialTranslation =
       sig
-        $Grammar.fold gram
-        ~init:<:sig_item< >>
-        ~f:(fun ~key:i ~data:_ acc -> <:sig_item<
-            val $i$ : from_dict Gram.$lid:i$ -> to_dict Gram.$lid:i$ Mon.m;;
-            $acc$>>)$
+        $Grammar.typeNames gram
+        |> List.map ~f:(fun i -> <:sig_item<
+             val $i$ : from_dict Gram.$lid:i$ -> to_dict Gram.$lid:i$ Mon.m
+           >>)
+        |> Ast.sgSem_of_list$
       end;;
 
       module In =
       struct
-        $Grammar.fold gram
-          ~init:<:str_item< >>
-          ~f:(fun ~key:i ~data:_ acc -> <:str_item<
-              type $lid:i$ = from_dict Gram.$lid:i$;;
-              $acc$>>)$
+        $Grammar.typeNames gram
+        |> List.map ~f:(fun i -> <:str_item<
+              type $lid:i$ = from_dict Gram.$lid:i$
+           >>)
+        |> Ast.stSem_of_list$
       end;;
 
       (*w
-       * This is used to close the reccursion.
+       * This is used to close the recursion.
        *)
       module CloseRec(E:functor(T:Translation) -> Translation) : Translation =
       struct
@@ -125,7 +118,7 @@ let genTrav gram=
         | None -> <:str_item< >>
         | Some _ -> <:str_item<include Super.Base(Self) >>
       in
-      <:str_item< $st$;; $Mappers.gen gram$>>
+      <:str_item< $st$;; $Mappers.gen _loc gram$>>
        $
     end
    end
@@ -152,20 +145,20 @@ EXTEND Gram
    <:str_item<
     (*The open grammar*)
     module Gram = struct
-     $OpenType.gen gram$
+      $OpenType.gen _loc gram$
     end;;
      $if !noMap then
-      OpenType.close gram <:ident<Gram>>
+      OpenType.close _loc gram <:ident<Gram>>
     else
      <:str_item<
     module ClosedDef=struct
-     $OpenType.close gram <:ident<Gram>>$
+     $OpenType.close _loc gram <:ident<Gram>>$
     end
     include ClosedDef
     (*The mapper*)
     module Trav =
     struct
-     $genTrav gram$
+     $genTrav _loc gram$
     end
      >>$
  >>
@@ -185,11 +178,6 @@ EXTEND Gram
     it = LIST0 [ gram_item ] SEP ";"  -> List.flatten it
  ]];
 
- (* TODO fold the import with the gram definition
-
-    gram ... extends ... (...,...,...) {
-    }
- *)
  gram_item:[[
     id=a_LIDENT ; ":=" ; OPT "|" ; l = LIST1 variant SEP "|" ->
      [id,Variant l]

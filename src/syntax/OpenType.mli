@@ -4,8 +4,6 @@
  * Our grammars are extensible this is done by using extensible type definitions
  * this is by defining them as an "open loop".
  *
- * TODO: move to a functor based module system
- *
  * Grammar types are defined under the hood using open reccursion and
  * constraints. They will later on be closed via the type parameter (which is an
  * object type).
@@ -29,7 +27,7 @@ open Camlp4.PreCast
  * The parameter ^^'cst^^ will later on be used to close the loop.
  *)
 
-val gen:Grammar.t -> Ast.str_item
+val gen: Loc.t -> Grammar.t -> Ast.str_item
 
 (*w
  * [[#OpenType.gen|close]] can then be used to close the open reccursion an get
@@ -41,7 +39,7 @@ val gen:Grammar.t -> Ast.str_item
  * and elem=cst Gram.elem
  * %%
  *)
-val close:Grammar.t -> Ast.ident -> Ast.str_item
+val close: Loc.t -> Grammar.t -> Ast.ident -> Ast.str_item
 
 (*w
  *
@@ -52,4 +50,4 @@ val close:Grammar.t -> Ast.ident -> Ast.str_item
  * <a:a;b:b;c:c>
  * %%
  *)
-val loopbackType: Grammar.t -> Ast.ident -> Ast.ctyp
+val loopbackType: Loc.t -> Grammar.t -> Ast.ident -> Ast.ctyp

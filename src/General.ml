@@ -12,6 +12,8 @@
  * [[http://ocaml-lib.sourceforge.net/doc/Option.html|ExtLib's option
  * module]].
  *)
+open StdLabels
+open MoreLabels
 
 module Option=
  struct
@@ -34,9 +36,54 @@ module Option=
    | None -> null
  end
 
+module type OrderedType = sig
+  type t
+      (** The type of the set elements. *)
+  val compare : t -> t -> int
+      (** A total ordering function the set elements. *)
+end
 
-open StdLabels
-open MoreLabels
+module Set = struct
+  module Make (Ord : OrderedType) : sig
+    include Set.S with type elt = Ord.t
+    val of_list : elt list -> t
+  end
+    =
+  struct
+    include Set.Make (Ord)
+    let of_list =
+      List.fold_left
+        ~f:(fun acc v -> add v acc)
+        ~init:empty
+  end
+end
+
+module Map = struct
+  module Make (Ord : OrderedType) : sig
+    include Map.S with type key = Ord.t
+    val keys : _ t -> key list
+    val to_list : 'data t -> (key*'data) list
+    val key_set : _ t -> Set.Make(Ord).t
+  end
+    =
+  struct
+    include Map.Make (Ord)
+
+    module Key_set = Set.Make (Ord)
+
+    let keys (map:_ t) : key list =
+      fold ~f:(fun ~key ~data:_ acc -> key::acc) ~init:[] map
+
+    let key_set (map:_ t) : Set.Make(Ord).t =
+      fold map
+        ~f:(fun ~key ~data:_ acc -> Key_set.add  key acc)
+        ~init:Key_set.empty
+
+    let to_list (map:'data t) : (key*'data) list =
+      fold ~f:(fun ~key ~data acc -> (key,data)::acc) ~init:[] map
+
+  end
+end
 
 module List=
  struct

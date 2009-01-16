@@ -7,7 +7,7 @@ open Syntax
 open Ast
 open General
 
-let _loc = Loc.ghost
+let ghost = Loc.ghost
 
 (*w
  *  Generates a fresh id..
@@ -16,40 +16,28 @@ let fresh =
  let cpt = ref 0 in
  fun () ->
   incr cpt;
-  <:ident< $lid:Printf.sprintf "id_%i" !cpt$ >>
+  <:ident@ghost< $lid:Printf.sprintf "id_%i" !cpt$ >>
 
 (*w
  *  Transforms an expression list to a tupple of the given expressions.
  *)
 let exList2ExCom= function
- | [] -> <:expr< >>
+ | [] -> <:expr@ghost< >>
  | [e] -> e
- | l ->
-    let r=List.fold_left l
-     ~init:<:expr< >>
-     ~f:fun tup t ->Ast.ExCom (_loc,tup,t)
-    in
-    <:expr< $tup:r$ >>
+ | (h::_) as l ->
+     let loc = loc_of_expr h in
+     <:expr@loc< $tup:Ast.exCom_of_list l$ >>
 
 (*w
  * Transforms a  pattern list to a tupple of the given patterns.
  *)
-let pattList2Pattern = function
- | [] -> <:patt< >>
+let pattList2PatCom = function
+ | [] -> <:patt@ghost< >>
  | [i] -> i
- | l ->
-    let r =List.fold_left l
-     ~init:<:patt< >>
-     ~f:fun tup i -> Ast.PaCom (_loc,tup,i)
-    in
-    <:patt< $tup:r$ >>
+ | (h::_) as l ->
+     let loc = loc_of_patt h in
+     <:patt@loc< $tup:Ast.paCom_of_list l$ >>
 
-(*w
-  Converts a list of match cases to the matchcase corresponding to the sum of
-  all the given match cases.
-*)
-let matchcaseList2matchcase l =
- List.fold_left l
-  ~init:<:match_case< >>
-  ~f:fun acc s -> <:match_case< $acc$ | $s$ >>
-
+let tyDcl ?(param=[]) ?(constraints=[]) name ty =
+  let _loc = Ast.loc_of_ctyp ty in
+  Ast.TyDcl (_loc, name ,param,ty,constraints)

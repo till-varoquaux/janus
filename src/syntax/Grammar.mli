@@ -28,8 +28,8 @@ end
 type t
 
 val mem : string -> t -> bool
-
-val fold : t -> init:'a -> f:(key:string -> data:Types.ruleRHS -> 'a -> 'a) -> 'a
+val typeNames : t -> string list
+val assocs : t -> (string*Types.ruleRHS) list
 
 val init : (Ast.ident * string list) option -> (string * Types.ruleRHS) list -> t
 val super : t -> Ast.ident option

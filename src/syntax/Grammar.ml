@@ -49,11 +49,9 @@ type t =
       super:Ast.ident option
     }
 
-let mem key g =
-  String.Map.mem key g.rules
-
-let fold g ~init ~f =
-  String.Map.fold g.rules ~init:init ~f:f
+let mem key g = String.Map.mem key g.rules
+let typeNames g = String.Map.keys g.rules
+let assocs g = String.Map.to_list g.rules
 
 let init super gramItems =
   let imports = match super with
