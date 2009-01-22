@@ -288,7 +288,7 @@ include Conv.CloseRec(
          value... this is not the behaviour we would get from type inference in
          our case it doesn't matter much tough: The parser doesn't allow us to
          define variables without affecting them a value*)
-       let ty = (Option.map_default (fun e -> typeExpr e env) `T a) in
+       let ty = Option.map_default ~f:(fun e -> typeExpr e env) ~default:`T a in
        let newEnv = E.add id ty env in
        sInstr v newEnv
     | `Assign (lv,e) as v ->
@@ -322,7 +322,7 @@ include Conv.CloseRec(
        let b',_ = bloc b (E.newScope env) in
        `Bloc b',env
     | `Ret v ->
-       let v=Option.map expr v in
+       let v=Option.map ~f:expr v in
        if E.cps env then
         (`CpsRet v),env
        else

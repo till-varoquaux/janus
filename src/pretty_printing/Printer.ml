@@ -334,7 +334,7 @@ and bracket s =
  * This is just used to ensure we do NOT use ^^text^^ in the functions below...
  * It's an ugly yet effective hack.
  *)
-let text = bottom
+let text = `This_function_is_disabled
 
 (*w
  * ==Monadic traversal==

@@ -23,13 +23,13 @@ module Option=
    | Some v -> v
    | None -> raise No_value
 
-  let map f= function
+  let map ~f= function
    | Some x -> Some (f x)
    | None -> None
 
-  let map_default f x = function
+  let map_default ~f ~default = function
    | Some v -> f v
-   | None -> x
+   | None -> default
 
   let default null = function
    | Some v -> v
@@ -112,10 +112,37 @@ module String=
    (*w
     * Removes ^^n^^ characters from the beginning of a string.
     *)
-  let chopStart s n=
-   String.sub s ~pos:n ~len:((String.length s)-n)
-  let equal=(=)
-  let hash=Hashtbl.hash
+  let chopStart s n = String.sub s ~pos:n ~len:((String.length s)-n)
+  let equal = (=)
+  let hash = Hashtbl.hash
+
+  let join ~sep = function
+    | [] -> ""
+    | (fst::rst) as l ->
+        let sep_len = String.length sep
+        and list_len =
+          List.fold_left l
+            ~f:(fun acc s -> acc + String.length s)
+            ~init:0
+        in
+        let tot_len = list_len + List.length rst * sep_len in
+        let res = String.create tot_len in
+        let fst_len = String.length fst in
+        String.blit ~src:fst ~src_pos:0 ~dst:res ~dst_pos:0 ~len:fst_len;
+        ignore
+          (List.fold_left rst
+             ~f:(fun acc src ->
+                   let len = String.length src in
+                   String.blit ~src:sep ~src_pos:0 ~dst:res ~dst_pos:acc
+                     ~len:sep_len;
+                   String.blit ~src ~src_pos:0 ~dst:res ~dst_pos:(acc+sep_len)
+                     ~len;
+                   acc + len + sep_len
+                )
+             ~init:fst_len
+          );
+        res
+
  end
 
 module Arg=
@@ -139,67 +166,42 @@ module Arg=
    align specs
  end
 
+module Lexing = struct
+  include Lexing
+
+  type pos = {
+    filename : string;
+    line : int;
+    char : int
+  }
+
+  let pos lexbuf =
+    let pos = Lexing.lexeme_start_p lexbuf in
+    {
+      filename = pos.Lexing.pos_fname;
+      line = pos.Lexing.pos_lnum;
+      char = pos.Lexing.pos_cnum - pos.Lexing.pos_bol +1
+    }
+
+  let pos_to_string {filename = f; line = l;char = c} =
+    Printf.sprintf "file:%S;line:%i;char:%i" f l c
+
+  exception Lexical_error of string * pos
+
+  let lex_error lexbuf fmt =
+    Printf.ksprintf
+      (fun s -> raise (Lexical_error (s,pos lexbuf))) fmt
+
+
+end
+
 let (|>) a b = b a
-
-(*w
- * ==Bottom type and value ==
- * The type bottom is inhabited by a single abstract value.
- *)
-module Abstract:sig
- type t
- val v:t
-end
-=
-struct
- type t=unit
- let v=()
-end
-type bottom=Abstract.t
-let bottom:bottom=Abstract.v
-
+let failwithf fmt = Printf.ksprintf failwith fmt
 
 (*w
  * ===Input/output===
  *)
-(*w
-  ==Reading channels==
-*)
-(*w
- * Reads the whole content from a channel
- *)
-let channelToString ic=
- let b=Buffer.create 17 in
- try
-  while true do
-   Buffer.add_char b (input_char ic)
-  done;
-  assert false
- with End_of_file ->
-  Buffer.contents b
 
-(*w
- * Reads an input channel to a list of strings, each string corresponds to a
- * line.
- *)
-let channelToStringList ic=
- let b=Buffer.create 17
- and res=ref [] in
- try
-  while true do
-   match input_char ic with
-    | '\n' ->
-       res:= (Buffer.contents b)::!res;
-       Buffer.reset b
-    | c -> Buffer.add_char b c
-  done;
-  assert false
- with End_of_file ->
-  begin
-   List.rev (if Buffer.length b > 0 then
-              Buffer.contents b::!res
-             else
-              !res)
-  end
 
 (*w
  * ==Openning/Closing channels==
@@ -238,18 +240,6 @@ let with_open_out filename f=
  unwind_protect (fun () -> f ch) (fun () -> flush ch;close_out ch)
 
 (*w
- * We are now handling processes in a Lispish way. This function returns a tuple
- * composed of the result and the exit status.
- * **Todo**: stop dumping stderr.
- *)
-let with_open_process_full process f=
- let chs=Unix.open_process_full process [||] in
- let status=ref None in
- let res=(unwind_protect(fun () -> f chs)
-           (fun () -> status:= Some (Unix.close_process_full chs))) in
- res,(Option.get (!status))
-
-(*w
  * **TODO**
  * Actually we shouldn't be abstracting these away. It would seem fairer to have
  * a subtyping relation beetween channel you can't close and channel you can
@@ -263,7 +253,3 @@ let with_open_process_full process f=
  *
  * - ^^[> 'Closeable ] in_channel^^: a closeable input channel.
  *)
-let open_out=bottom
-let open_in=bottom
-let close_out=bottom
-let close_in=bottom

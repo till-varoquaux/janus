@@ -75,7 +75,7 @@ let ruleRHS _loc gram super : ruleRHS -> constrainedType=function
  *)
 let rule _loc gram name (l:ruleRHS)=
   let getSuperFun i = <:ctyp< 'cst $id:i$.Gram.$lid:name$ >> in
-  let super = Option.map getSuperFun (Grammar.super gram) in
+  let super = Option.map ~f:getSuperFun (Grammar.super gram) in
   let body,cset = ruleRHS _loc gram super l in
   (*This is the actual constraint 'cst=<$constr$; ..>*)
   let constr =

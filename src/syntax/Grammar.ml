@@ -59,7 +59,7 @@ let init super gramItems =
     | Some (_name,imports) -> imports
   in
   {
-    super = Option.map fst super;
+    super = Option.map ~f:fst super;
     rules =
       List.fold_left
         (List.map imports ~f:(fun s -> s,Types.Import) @ gramItems)
