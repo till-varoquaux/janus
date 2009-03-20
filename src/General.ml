@@ -34,6 +34,19 @@ module Option=
   let default null = function
    | Some v -> v
    | None -> null
+
+  let iter ~f = function
+    | Some x -> f x
+    | None -> ()
+
+  let is_some = function
+    | Some _ -> true
+    | None -> false
+
+  let is_none = function
+    | None -> true
+    | Some _ -> false
+
  end
 
 module type OrderedType = sig
@@ -62,8 +75,9 @@ module Map = struct
   module Make (Ord : OrderedType) : sig
     include Map.S with type key = Ord.t
     val keys : _ t -> key list
-    val to_list : 'data t -> (key*'data) list
     val key_set : _ t -> Set.Make(Ord).t
+    val to_list : 'data t -> (key*'data) list
+    val of_list :  (key*'data) list -> 'data t
   end
     =
   struct
@@ -82,6 +96,12 @@ module Map = struct
     let to_list (map:'data t) : (key*'data) list =
       fold ~f:(fun ~key ~data acc -> (key,data)::acc) ~init:[] map
 
+    let of_list (l:(key*'data) list) : 'data t =
+        List.fold_left l
+        ~f:(fun map (key,data) ->
+              add map ~key ~data
+           )
+        ~init:empty
   end
 end
 
@@ -145,6 +165,26 @@ module String=
 
  end
 
+module Char = struct
+  type t = char
+  let compare = compare
+  module Ord = struct
+    type t = char
+    let compare = compare
+  end
+  module Map=Map.Make(Ord)
+  module Set=Set.Make(Ord)
+  module Table=Hashtbl.Make(struct
+                              type t = char
+                              let equal=(=)
+                              let hash=Hashtbl.hash
+                            end)
+
+  let is_alpha_num = function
+    | 'a'..'z' | 'A'..'Z' -> true
+    | _ -> false
+end
+
 module Arg=
  struct
   include Arg
@@ -183,6 +223,12 @@ module Lexing = struct
       char = pos.Lexing.pos_cnum - pos.Lexing.pos_bol +1
     }
 
+  let newline lexbuf =
+    let pos = lexbuf.lex_curr_p in
+    lexbuf.lex_curr_p <-
+      { pos with pos_lnum = pos.pos_lnum + 1; pos_bol = pos.pos_cnum }
+
+
   let pos_to_string {filename = f; line = l;char = c} =
     Printf.sprintf "file:%S;line:%i;char:%i" f l c
 
@@ -195,7 +241,12 @@ module Lexing = struct
 
 end
 
-let (|>) a b = b a
+let (|>) x f = f x
+let (<|) f x = f x
+
+let (>>) f g = fun x -> g (f x)
+let (<<) f g = fun x -> f (g x)
+
 let failwithf fmt = Printf.ksprintf failwith fmt
 
 (*w
@@ -216,28 +267,26 @@ let failwithf fmt = Printf.ksprintf failwith fmt
  * ^^unwind_protect f g^^
  * runs f() then g() and outputs the result of f().
  *)
-let unwind_protect f g=
+let unwind_protect ~f ~finaly x =
  let res=
   try
-   f ()
+   f x
   with e ->
-   (try g () with _ ->());
+   (try finaly x with _ ->());
    raise e
  in
- g ();
+ finaly x;
  res
 
 (*w
  * This is the standard lisp way to proceed with file handles... Suprisingly it
  * is cleaner than what we usualy do in ocaml.
  *)
-let with_open_in filename f=
- let ch=open_in filename in
- unwind_protect (fun () -> f ch) (fun () -> close_in ch)
+let with_open_in filename f =
+ unwind_protect ~f ~finaly:close_in (open_in filename)
 
-let with_open_out filename f=
- let ch=open_out filename in
- unwind_protect (fun () -> f ch) (fun () -> flush ch;close_out ch)
+let with_open_out filename f =
+ unwind_protect ~f ~finaly:(fun ch -> flush ch;close_out ch) (open_out filename)
 
 (*w
  * **TODO**
